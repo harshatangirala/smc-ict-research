@@ -108,18 +108,37 @@ SECTOR_MAP: dict[str, str] = {
 }
 
 
+def _load_baseline_trades() -> pd.DataFrame | None:
+    path = RESULTS_DIR / "baseline_trades.parquet"
+    if not path.exists():
+        return None
+    baseline = pd.read_parquet(path)
+    return baseline[baseline["signal"] == "baseline_random_bullish"]
+
+
 def sector_analysis(trades: pd.DataFrame | None = None, holding_period: int = 10) -> pd.DataFrame:
     if trades is None:
         trades = pd.read_parquet(RESULTS_DIR / "trades.parquet")
     subset = trades[trades["holding_period"] == holding_period].copy()
     subset["sector"] = subset["ticker"].map(SECTOR_MAP).fillna("Unknown")
 
+    baseline_trades = _load_baseline_trades()
+    baseline_sector_avg = {}
+    if baseline_trades is not None:
+        base_subset = baseline_trades[baseline_trades["holding_period"] == holding_period].copy()
+        base_subset["sector"] = base_subset["ticker"].map(SECTOR_MAP).fillna("Unknown")
+        baseline_sector_avg = base_subset.groupby("sector")["fwd_return"].mean().to_dict()
+
     rows = []
     for sector, grp in subset.groupby("sector"):
         metrics = summarize_returns(grp["fwd_return"], holding_period)
         metrics["sector"] = sector
         metrics["n_tickers"] = grp["ticker"].nunique()
+        metrics["baseline_avg_return"] = baseline_sector_avg.get(sector, float("nan"))
+        metrics["excess_return_vs_baseline"] = metrics["avg_return"] - metrics["baseline_avg_return"]
         rows.append(metrics)
 
-    ranking = pd.DataFrame(rows).sort_values("sharpe", ascending=False, na_position="last")
+    ranking = pd.DataFrame(rows).sort_values(
+        "excess_return_vs_baseline", ascending=False, na_position="last"
+    )
     return ranking.reset_index(drop=True)

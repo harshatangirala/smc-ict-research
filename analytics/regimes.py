@@ -51,15 +51,33 @@ def tag_trades_with_regime(trades: pd.DataFrame, cache_dir: Path = DATA_CACHE_DI
     return pd.concat(regime_frames, ignore_index=True) if regime_frames else trades
 
 
+def _load_baseline_trades() -> pd.DataFrame | None:
+    path = RESULTS_DIR / "baseline_trades.parquet"
+    if not path.exists():
+        return None
+    baseline = pd.read_parquet(path)
+    return baseline[baseline["signal"] == "baseline_random_bullish"]
+
+
 def regime_analysis(trades: pd.DataFrame | None = None, holding_period: int = 10) -> pd.DataFrame:
     if trades is None:
         trades = pd.read_parquet(RESULTS_DIR / "trades.parquet")
     subset = trades[trades["holding_period"] == holding_period]
     tagged = tag_trades_with_regime(subset)
 
+    baseline_trades = _load_baseline_trades()
+    baseline_regime_avg = {}
+    if baseline_trades is not None:
+        base_subset = baseline_trades[baseline_trades["holding_period"] == holding_period]
+        base_tagged = tag_trades_with_regime(base_subset)
+        baseline_regime_avg = base_tagged.groupby(["trend_regime", "vol_regime"])["fwd_return"].mean().to_dict()
+
     rows = []
     for (trend_regime, vol_regime), grp in tagged.groupby(["trend_regime", "vol_regime"]):
         metrics = summarize_returns(grp["fwd_return"], holding_period)
+        baseline_avg = baseline_regime_avg.get((trend_regime, vol_regime), float("nan"))
+        metrics["baseline_avg_return"] = baseline_avg
+        metrics["excess_return_vs_baseline"] = metrics["avg_return"] - baseline_avg
         rows.append({"trend_regime": trend_regime, "vol_regime": vol_regime, **metrics})
 
     return pd.DataFrame(rows).sort_values(["trend_regime", "vol_regime"]).reset_index(drop=True)

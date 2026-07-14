@@ -31,6 +31,26 @@ explicit goal of answering whether these concepts add predictive power beyond si
 This is **not** an attempt to replicate TradingView's visual output. Boxes, lines, colors, and
 labels in the source scripts are irrelevant; only the underlying trigger logic matters.
 
+## Key findings (see `docs/final_research_report.md` for the full, auto-generated report)
+
+**The aggregate, unconditional claim "SMC/ICT signals beat chance" is not supported by this
+dataset.** Every one of the 42 tested concepts clears a *zero-return* null (42/42) — but that is
+a weak bar over 2010-2026, a long bull market, where almost any long-biased signal shows a
+positive mean return from broad market drift alone. Tested properly against a **random-entry
+baseline** run through identical backtest mechanics at the same frequency, only **28/42**
+concepts and **44/60** tested combinations remain significant, and only **2 of 12 sectors**
+(Energy, Materials) show positive excess return over that baseline — in most sectors, including
+Information Technology, a plain random long entry outperformed the aggregate SMC/ICT signal
+population. Where a real edge exists, it is concept-specific and regime/sector-dependent, not a
+property of the methodology as a whole. See Section 1 of the final report for the full picture,
+and Section 2 for the specific concepts that do clear the bar.
+
+This finding only emerged after a validation pass caught that the initial pipeline run reported
+all 42 concepts as "significant" using only the zero-return test — a red flag, not a good
+result, that led directly to building `backtest/baseline_engine.py` and rewiring every ranking
+module (concepts, combinations, stocks, sectors, regimes) to compare against the baseline
+consistently. See commit history for the full account.
+
 ## Project structure
 
 ```
@@ -138,9 +158,9 @@ pipeline already produced — nothing is recalculated inside the UI.
    strictly-future bars for the exit/MAE/MFE — no look-ahead by construction.
 5. **Statistical validation** (`analytics/statistics.py`): bootstrap confidence intervals,
    one-sample and two-sample significance tests, effect sizes, and Benjamini-Hochberg
-   false-discovery-rate correction across every concept/combination tested. **Two distinct
-   significance tests are reported and deliberately kept separate**: significance vs. a
-   zero-return null (`significant_vs_zero`), and significance vs. a random-entry baseline
+   false-discovery-rate correction across every concept/combination/stock/sector/regime tested.
+   **Two distinct significance tests are reported and deliberately kept separate**: significance
+   vs. a zero-return null (`significant_vs_zero`), and significance vs. a random-entry baseline
    run through the identical backtest mechanics at the same holding periods
    (`significant_vs_baseline`, via `backtest/baseline_engine.py`). The first test alone is
    misleading over a long bull market (2010-2026) — almost any long-biased signal clears it
@@ -149,7 +169,14 @@ pipeline already produced — nothing is recalculated inside the UI.
    wherever the baseline backtest is available.
 6. **Analysis** (`analytics/*`): stock-level, concept-level, combination, sector, and market
    regime rankings, all built from the single backtested-trades table (no duplicated
-   calculation between modules).
+   calculation between modules). Every module compares against the baseline consistently:
+   - `concept_ranking.py` / `combinations.py`: each concept/combination vs. the universe-wide
+     random-entry baseline.
+   - `stock_ranking.py`: each ticker's signal-trades vs. **that same ticker's own**
+     random-entry baseline (so a stock ranking highly isn't just rewarded for having rallied
+     hard over the period — see the VRT/SNDK/GEV discussion in the final report).
+   - `sectors.py` / `regimes.py`: excess average return vs. the baseline's average return in
+     the same sector/regime bucket.
 
 ## Key assumptions (see docs for full rationale)
 
@@ -176,8 +203,13 @@ pipeline already produced — nothing is recalculated inside the UI.
 - **No-look-ahead construction:** verified by code review of `backtest/engine.py` — entry uses
   only the signal bar's close; every exit price, MAE, and MFE slice starts at `entry_position +
   1`.
-- **Statistical rigor:** every concept/combination ranking reports a bootstrap CI, a p-value,
-  an FDR-adjusted p-value, and an effect size — not just a point-estimate win rate.
+- **Statistical rigor:** every concept/combination/stock/sector/regime ranking reports a
+  bootstrap CI, a p-value against a zero-return null, a p-value against a random-entry
+  baseline, FDR-adjusted versions of both, and an effect size — not just a point-estimate win
+  rate. This distinction changed the headline conclusion materially (see "Key findings" above)
+  and was caught during self-review, not requested — the first full pipeline run reported
+  42/42 concepts "significant" using only the zero-return test, which was the signal that a
+  baseline comparison was missing, not present.
 
 ## Limitations
 
@@ -189,13 +221,11 @@ pipeline already produced — nothing is recalculated inside the UI.
   testing thousands of near-empty combinations.
 - Two ICT-literature concepts (Rejection Blocks, Optimal Trade Entry) are not implemented —
   no corresponding logic exists in the supplied source scripts.
-- **Concept rankings compare against a random-entry baseline (see below); combination
-  rankings currently only test against a zero-return null**, not yet against the same
-  random-entry baseline. A concept "beating a zero-return null" over 2010-2026 (a long bull
-  market) is a much weaker claim than "beating a random-entry baseline at the same
-  frequency" — see the Methodology note below on why both tests are reported separately.
-  Wiring the baseline comparison into `analytics/combinations.py` the same way it's wired
-  into `analytics/concept_ranking.py` is a natural next step.
+- Per-ticker and per-sector/regime baseline comparisons have smaller sample sizes than the
+  universe-wide concept-level comparison (a per-ticker baseline is only ~50 random entries),
+  so those significance tests are correspondingly less powered — read per-stock excess-return
+  figures as directional evidence and the accompanying p-value as the honest confidence level,
+  not as a list of proven single-stock edges.
 - A handful of signals have no inherent long/short polarity in the source scripts
   (`ict_nwog_formed`, `ict_ndog_formed`, `smc_equal_highs`, `smc_equal_lows` — these are
   reference/gap levels, not directional calls). The backtest engine defaults undirected
