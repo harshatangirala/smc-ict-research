@@ -34,13 +34,27 @@ def summarize_returns(returns: pd.Series, holding_period: int, trading_days_per_
     expectancy = win_rate * wins.mean() if len(wins) else 0
     expectancy += (1 - win_rate) * losses.mean() if len(losses) else 0
 
-    cumulative = (1 + r).cumprod()
-    running_max = cumulative.cummax()
-    drawdown = cumulative / running_max - 1
-    max_drawdown = drawdown.min()
-    avg_drawdown = drawdown[drawdown < 0].mean() if (drawdown < 0).any() else 0.0
+    # NOTE: for signals with very large trade counts (some ICT signals have
+    # 1-2M+ occurrences across the whole universe), naively compounding every
+    # trade's return sequentially -- as if it were one continuous account --
+    # both overflows float64 (millions of compounded, overlapping,
+    # cross-ticker returns is not a real equity curve) and isn't a
+    # statistically meaningful "path" to begin with, since these trades
+    # overlap in time across hundreds of different tickers. We compute it in
+    # log-space to stay numerically stable, and treat max_drawdown/cagr for
+    # very high-n signals as an illustrative aggregate rather than a literal
+    # single-account equity curve (documented in README limitations).
+    r_clipped = r.clip(lower=-0.999999)
+    log_cum = np.log1p(r_clipped).cumsum().to_numpy()
+    running_max_log = np.maximum.accumulate(log_cum)
+    drawdown = np.expm1(log_cum - running_max_log)
+    max_drawdown = float(drawdown.min())
+    avg_drawdown = float(drawdown[drawdown < 0].mean()) if (drawdown < 0).any() else 0.0
 
-    cagr = cumulative.iloc[-1] ** (periods_per_year / n) - 1 if n > 0 and cumulative.iloc[-1] > 0 else np.nan
+    with np.errstate(over="ignore"):
+        cagr = np.expm1(log_cum[-1] * (periods_per_year / n)) if n > 0 else np.nan
+    if not np.isfinite(cagr):
+        cagr = np.nan
 
     return {
         "n_trades": n,

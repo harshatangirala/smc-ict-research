@@ -59,17 +59,26 @@ def stage_backtest() -> None:
 
 
 def stage_analyze() -> None:
+    import pandas as pd
+
     from analytics.concept_ranking import rank_concepts
     from analytics.stock_ranking import rank_stocks
     from analytics.combinations import rank_combinations
     from analytics.regimes import regime_analysis
     from analytics.sectors import sector_analysis
 
-    rank_concepts().to_csv(RESULTS_DIR / "concept_rankings.csv", index=False)
-    rank_stocks().to_csv(RESULTS_DIR / "stock_rankings.csv", index=False)
+    log.info("Loading trades.parquet once for the whole analyze stage")
+    trades = pd.read_parquet(RESULTS_DIR / "trades.parquet")
+
+    rank_concepts(trades).to_csv(RESULTS_DIR / "concept_rankings.csv", index=False)
+    log.info("Concept rankings written")
+    rank_stocks(trades).to_csv(RESULTS_DIR / "stock_rankings.csv", index=False)
+    log.info("Stock rankings written")
     rank_combinations().to_csv(RESULTS_DIR / "combination_rankings.csv", index=False)
-    regime_analysis().to_csv(RESULTS_DIR / "regime_analysis.csv", index=False)
-    sector_analysis().to_csv(RESULTS_DIR / "sector_analysis.csv", index=False)
+    log.info("Combination rankings written")
+    regime_analysis(trades).to_csv(RESULTS_DIR / "regime_analysis.csv", index=False)
+    log.info("Regime analysis written")
+    sector_analysis(trades).to_csv(RESULTS_DIR / "sector_analysis.csv", index=False)
     log.info("Analytics stage complete")
 
 
