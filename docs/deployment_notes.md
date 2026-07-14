@@ -51,6 +51,43 @@ Once pushed, HF Spaces will read the YAML frontmatter in `README.md`,
 install `requirements.txt`, and run `app.py` automatically — no additional
 configuration files are needed for a pure-Gradio Space.
 
+## What ended up actually working: a Cloudflare quick tunnel
+
+Real public reachability, without needing any account/token, turned out to be
+possible via Cloudflare's anonymous "quick tunnel" feature (`cloudflared`).
+Unlike Streamlit Cloud or Hugging Face Spaces, it requires **no login and no
+API token** — it just punches a public HTTPS URL through to a local port.
+
+```bash
+# one-time install (winget on Windows; brew/apt/direct download elsewhere)
+winget install --id Cloudflare.cloudflared
+
+# with the dashboard already running locally (streamlit run streamlit_app.py, port 8501):
+cloudflared tunnel --url http://localhost:8501
+```
+
+`cloudflared` prints a random `https://<three-words>.trycloudflare.com` URL
+within a few seconds. Verified end-to-end for this project: HTTP 200 on `/`,
+healthy `/_stcore/health`, and real page HTML served through the tunnel (not
+just the local health check — this round-trips through Cloudflare's edge, so
+it's a genuine test of public reachability, unlike curling `localhost` or a
+LAN IP).
+
+**Caveats, stated plainly:**
+- This is Cloudflare's free, account-less tier: "no uptime guarantee," per
+  their own CLI output. It is meant for quick sharing/demos, not production
+  hosting.
+- The URL is only alive as long as both the `streamlit run` process *and*
+  the `cloudflared tunnel` process keep running. Close either and the link
+  dies. It is not persistent across machine restarts.
+- The dashboard itself has **no authentication** — anyone with the URL can
+  view it. The URL is unguessable (random subdomain) but not access-controlled.
+  Fine for sharing a research demo; not a substitute for real deployment if
+  the data were sensitive.
+- For a durable link, Streamlit Community Cloud or a Hugging Face Space
+  (both discussed above) are the right call — both need an account this
+  session doesn't have.
+
 ## Pre-flight checklist for whoever runs the push
 
 - [ ] Confirm `data/cache/*.parquet` and `results/*.parquet` are **not**
