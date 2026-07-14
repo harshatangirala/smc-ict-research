@@ -1,24 +1,32 @@
+---
+title: SMC/ICT Statistical Edge Research
+emoji: 📈
+colorFrom: blue
+colorTo: green
+sdk: gradio
+sdk_version: 4.44.0
+app_file: app.py
+pinned: false
+license: cc-by-nc-sa-4.0
+---
+
 # SMC/ICT Statistical Edge Research
 
-A quantitative research framework that tests whether Smart Money Concepts (SMC) and ICT
-(Inner Circle Trader) trading concepts — as implemented in two specific LuxAlgo Pine Script
-indicators — provide statistically significant, out-of-sample-honest trading edges on daily
-OHLCV data for the S&P 500, from 2010-01-01 through 2026-06-13.
+A quantitative research platform that tests whether **Smart Money Concepts (SMC)** and
+**ICT (Inner Circle Trader)** trading concepts — translated directly from two LuxAlgo Pine
+Script indicators — provide statistically significant, out-of-sample-honest trading edges on
+daily OHLCV data for the S&P 500, 2010-01-01 through 2026-06-13.
 
-**Status: early scaffolding.** This project is being built incrementally, one approved task
-at a time (see [`docs/concepts_extraction.md`](docs/concepts_extraction.md) for the first
-completed milestone). This README will be filled in fully as each subsequent module lands;
-right now it documents what exists so far.
+> The YAML block above is Hugging Face Spaces configuration (harmless metadata on GitHub).
 
 ## Research objective
 
 The two source indicators (`docs/reference/*.pine`) are treated as **one combined
-methodology**, not implemented separately. Every concept in both scripts is translated into
-Python, run as an event detector across the full S&P 500 universe, and backtested with
-forward-return statistics, robustness checks, and multiple-hypothesis-corrected significance
-testing — with the explicit goal of answering whether these concepts add predictive power
-beyond simple baselines (buy & hold, random entry, moving-average crossover, RSI mean
-reversion, 52-week breakout, momentum).
+methodology**, not implemented separately. Every concept in both scripts was translated into
+Python, run as an event detector across the S&P 500 universe, and backtested with forward-return
+statistics, robustness checks, and multiple-hypothesis-corrected significance testing — with the
+explicit goal of answering whether these concepts add predictive power beyond simple baselines
+(buy & hold, random entry, EMA crossover, RSI mean reversion, 52-week breakout, momentum).
 
 This is **not** an attempt to replicate TradingView's visual output. Boxes, lines, colors, and
 labels in the source scripts are irrelevant; only the underlying trigger logic matters.
@@ -28,22 +36,45 @@ labels in the source scripts are irrelevant; only the underlying trigger logic m
 ```
 smc-ict-research/
 ├── data/
-│   ├── raw/              # static inputs (S&P 500 constituent list)
-│   └── cache/             # cached OHLCV downloads (gitignored)
+│   ├── raw/                 static inputs (S&P 500 constituent list)
+│   └── cache/                cached OHLCV downloads, parquet (gitignored)
 ├── docs/
-│   ├── concepts_extraction.md   # Requirement 1 deliverable: full concept spec
-│   └── reference/                # plain-text transcriptions of the source Pine scripts
-├── pine_parser/           # (planned) Pine → Python translation layer
-├── signals/               # (planned) event detectors per concept
-├── backtest/              # (planned) forward-return / statistics engine
-├── analytics/              # (planned) ranking, combination, regime, sector analysis
-├── dashboard/              # (planned) Gradio app
-├── utils/                  # (planned) shared helpers (caching, logging, config)
-├── tests/                   # (planned) unit tests
-├── results/                 # generated research outputs (gitignored, kept as folder)
-├── exports/                 # generated CSV/Excel/JSON deliverables (gitignored, kept as folder)
-├── main.py                  # (planned) CLI entry point for the research pipeline
-├── app.py                   # (planned) Gradio dashboard entry point
+│   ├── concepts_extraction.md   full per-concept technical spec (Task 1/2)
+│   ├── task02_pine_analysis.md  plain-English + dependency + parameter + Pine-builtin inventory
+│   ├── architecture.md           module responsibility map (Task 3)
+│   └── reference/                 plain-text transcriptions of the source Pine scripts
+├── pine_parser/            low-level primitives shared by many detectors
+│   ├── pivots.py             ta.pivothigh/pivotlow equivalent
+│   ├── legs.py                SMC leg() / ICT swings() rolling-breakout pivot
+│   └── atr.py                  Wilder RMA ATR
+├── signals/
+│   ├── ict_signals.py         every ICT Concepts [LuxAlgo] detector
+│   ├── smc_signals.py          every Smart Money Concepts [LuxAlgo] detector
+│   └── event_engine.py          runs every detector across the universe (Task 6)
+├── backtest/
+│   ├── engine.py               forward returns, no look-ahead (Task 7)
+│   ├── metrics.py               win rate, Sharpe, Sortino, profit factor, MAE/MFE, ...
+│   └── baselines.py             buy&hold, random entry, EMA/RSI/breakout/momentum benchmarks
+├── analytics/
+│   ├── statistics.py           bootstrap CI, significance tests, FDR correction (Task 8)
+│   ├── stock_ranking.py         Task 9
+│   ├── concept_ranking.py       Task 10
+│   ├── combinations.py          Task 11
+│   ├── regimes.py                Task 12 (bull/bear/sideways, vol regime)
+│   └── sectors.py                Task 12 (sector grouping)
+├── dashboard/
+│   └── data_access.py           read-only accessors the Gradio app calls
+├── utils/
+│   ├── config.py                paths, date range, every concept parameter default
+│   ├── logging_config.py
+│   ├── data_loader.py            yfinance ingestion + parquet cache + retry/parallel
+│   ├── data_quality.py           Task 4 validation report
+│   └── export.py                 Task 14 CSV/Excel/JSON export
+├── tests/                        unit tests (pivot/leg/order-block regression tests)
+├── results/                      generated research outputs (gitignored, folder kept)
+├── exports/                      generated CSV/Excel/JSON deliverables (gitignored, folder kept)
+├── main.py                       CLI entry point (ingest / detect / backtest / analyze / export)
+├── app.py                        Gradio dashboard entry point
 └── requirements.txt
 ```
 
@@ -55,39 +86,115 @@ source .venv/bin/activate        # Windows: .venv\Scripts\activate
 pip install -r requirements.txt
 ```
 
+## Running the pipeline
+
+```bash
+python main.py ingest      # download + cache + validate OHLCV for the S&P 500
+python main.py detect      # run every SMC/ICT detector across the universe
+python main.py backtest    # forward returns at 8 holding periods, no look-ahead
+python main.py analyze     # concept/stock/combination/sector/regime rankings
+python main.py export      # write CSV/Excel/JSON deliverables to exports/
+python main.py all         # run every stage in order
+```
+
+## Running the dashboard
+
+```bash
+python app.py
+```
+
+Opens a local Gradio app with Home / Stock Explorer / Concept Explorer / Combination Explorer /
+Rankings / Sector & Regime / Validation tabs. Every number displayed is read from files the
+pipeline already produced — nothing is recalculated inside the UI.
+
 ## Data source
 
 - **Price data:** `yfinance`, daily OHLCV, 2010-01-01 to 2026-06-13, cached locally under
-  `data/cache/` so re-runs never re-download unchanged history.
+  `data/cache/` (parquet) so re-runs never re-download unchanged history. 500 of 503
+  constituents downloaded successfully; 2 failed (`HONA`, `SATS` — both flagged in advance in
+  `docs/concepts_extraction.md` as likely thin/recent-listing tickers).
 - **Universe:** `data/raw/sp500_constituents.csv`, the S&P 500 constituent list supplied for
-  this project (ticker, company name, index weight as of list creation). Tickers containing a
-  `.` (e.g. `BRK.B`, `BF.B`) are converted to `-` for yfinance compatibility during ingestion.
+  this project. Tickers containing a `.` (`BRK.B`, `BF.B`) are converted to `-` for yfinance
+  compatibility during ingestion.
+- **Sector labels:** a manually curated static GICS-style mapping in `analytics/sectors.py`
+  (documented limitation — no live sector API is wired in; unmapped tickers report as
+  `"Unknown"` rather than being silently dropped or guessed).
 
 ## Methodology
 
-See [`docs/concepts_extraction.md`](docs/concepts_extraction.md) for the full, per-concept
-breakdown of every SMC/ICT signal extracted from the two Pine scripts, how overlapping
-vocabulary between the two scripts is reconciled without being force-merged, and the
-assumptions carried forward into the Python translation. Backtesting, validation, and
-dashboard methodology sections will be added here as those modules are built and approved.
+1. **Concept extraction** (`docs/concepts_extraction.md`, `docs/task02_pine_analysis.md`):
+   every concept in both Pine scripts was read line by line, documented with exact trigger
+   logic, and cross-referenced against each script's own `alertcondition()` list to confirm
+   nothing was missed. Two concepts named in general ICT literature — **Rejection Blocks** and
+   **Optimal Trade Entry** — have no corresponding logic in either script and are **not
+   implemented** (not invented either).
+2. **Translation** (`pine_parser/`, `signals/`): overlapping vocabulary between the two scripts
+   (e.g. three different definitions of "BOS") is kept as separate, independently-testable
+   signal families rather than force-merged — see `concepts_extraction.md §3`.
+3. **Event detection** (`signals/event_engine.py`): every detector runs on every cached ticker,
+   producing a master event table of `(ticker, date, signal, direction)`.
+4. **Backtesting** (`backtest/engine.py`): for every event, forward returns are computed at 1,
+   2, 3, 5, 10, 20, 40, and 60 trading days ahead, using only the entry bar's own close and
+   strictly-future bars for the exit/MAE/MFE — no look-ahead by construction.
+5. **Statistical validation** (`analytics/statistics.py`): bootstrap confidence intervals,
+   one-sample and two-sample significance tests, effect sizes, and Benjamini-Hochberg
+   false-discovery-rate correction across every concept/combination tested.
+6. **Analysis** (`analytics/*`): stock-level, concept-level, combination, sector, and market
+   regime rankings, all built from the single backtested-trades table (no duplicated
+   calculation between modules).
 
-## Development approach
+## Key assumptions (see docs for full rationale)
 
-This project is being developed one task at a time, with validation gates between stages and
-explicit approval checkpoints, per the project's engineering standards. See commit history for
-the milestone-by-milestone build log.
+- Daily bars only; intraday-only concepts (Killzones) are excluded.
+- "Historical" mode semantics throughout (Pine's 500-bar "Present" display window is dropped).
+- `ta.atr()` replicated via Wilder's RMA smoothing, not a simple moving average.
+- SMC's Premium/Discount zones use the literal all-time expanding high/low from the Pine
+  source (not a rolling window) as the default; a rolling-window variant is available for
+  robustness comparison in `signals/smc_signals.py::detect_zones(window=...)`.
+- Order block detection tracks only the **most recently confirmed** swing point per side,
+  matching Pine's `swings()`/`leg()` semantics exactly (a "keep testing every historical
+  swing forever" implementation is a bug, not a valid alternate reading — this was caught
+  and fixed during Task 6 validation; see the Task 5-6 commit message and
+  `tests/test_ict_order_blocks.py` for the regression test).
 
-## Limitations (living section, updated as work proceeds)
+## Validation performed
 
-- Two concepts referenced in general ICT literature — *Rejection Blocks* and *Optimal Trade
-  Entry* — have no corresponding logic in either supplied Pine script and are therefore **not
-  implemented**. See `docs/concepts_extraction.md` §4 for details.
-- Several concepts (Killzones, intraday session logic) are intraday-only and have no daily-bar
-  equivalent; they are documented but intentionally excluded from the daily event detector.
+- **Data quality:** `results/data_quality_report.csv` — missing values, duplicate rows,
+  invalid OHLC relationships, coverage ratios per ticker; 500/501 downloaded tickers passed
+  clean, 1 (`HUBB`) flagged with a genuine anomalous single-day OHLC print, surfaced rather
+  than silently patched.
+- **Unit tests:** `tests/` covers the pivot/leg primitives and includes a regression test for
+  the order-block bug described above. Run with `pytest tests/ -v`.
+- **No-look-ahead construction:** verified by code review of `backtest/engine.py` — entry uses
+  only the signal bar's close; every exit price, MAE, and MFE slice starts at `entry_position +
+  1`.
+- **Statistical rigor:** every concept/combination ranking reports a bootstrap CI, a p-value,
+  an FDR-adjusted p-value, and an effect size — not just a point-estimate win rate.
+
+## Limitations
+
+- Sector mapping is a static, manually curated approximation, not a live data source.
+- FVG/gap "filled" state uses a bounded 60-bar forward search (matching the longest backtest
+  holding period) rather than an unbounded search, documented in `signals/ict_signals.py`.
+- Combination analysis is capped at pairwise combinations of same-direction signals with a
+  minimum occurrence floor, to keep the multiple-testing correction meaningful rather than
+  testing thousands of near-empty combinations.
+- Two ICT-literature concepts (Rejection Blocks, Optimal Trade Entry) are not implemented —
+  no corresponding logic exists in the supplied source scripts.
+- This is a research tool, not investment advice; nothing here accounts for transaction costs,
+  slippage, liquidity constraints, or position sizing.
 
 ## Future improvements
 
-Tracked as the corresponding modules are built; see the requirements captured in project
-planning for the full 20-requirement scope (data ingestion, event detection, backtesting,
-concept/stock/combination ranking, statistical validation, sector/regime analysis, Gradio
-dashboard, GitHub CI).
+- Wire in a live sector/industry data source instead of the static mapping.
+- Walk-forward / out-of-sample validation split (current results are in-sample across the full
+  2010-2026 window).
+- Transaction-cost-aware backtest variant.
+- Extend the Fibonacci-between-concepts tool (currently display-only in source) into an actual
+  feature (e.g. "is price in the 0.618-0.786 retracement zone between the last two order
+  blocks") for combination analysis.
+
+## License
+
+The two source Pine Script indicators are © LuxAlgo, licensed CC BY-NC-SA 4.0. This research
+codebase follows the same non-commercial share-alike spirit.
