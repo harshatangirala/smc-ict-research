@@ -230,6 +230,17 @@ def detect_order_blocks(df: pd.DataFrame, length: int = ICT.ob_swing_len, use_bo
     """ICT Section 1.3: order blocks formed at the extreme candle between a
     swing point and the bar structure breaks it, with breaker-block
     (mitigation) state tracking.
+
+    Pine's `swings()` returns a *single* persistent `top`/`btm` swing object
+    (`var swing top = swing.new(na, na)`) that is completely replaced --
+    including its `.crossed` flag resetting to false -- every time a newer
+    swing point of that type is confirmed. An older, never-broken swing
+    point is therefore silently forgotten, not queued for later testing.
+    This must track only the *most recent* swing point per side (not a
+    FIFO queue of every historical swing) or it silently gets stuck forever
+    on the first swing point that never breaks (confirmed bug found during
+    Task 6 validation: AAPL produced zero bearish order blocks across 16
+    years because the code was stuck testing its all-time-low 2010 swing).
     """
     mx, mn = _mx_mn(df)
     max_src = mx if use_body else df["high"]
@@ -252,44 +263,43 @@ def detect_order_blocks(df: pd.DataFrame, length: int = ICT.ob_swing_len, use_bo
 
     sh = swing_high.to_numpy()
     sl = swing_low.to_numpy()
-    sh_idx = np.where(~np.isnan(sh))[0]
-    sl_idx = np.where(~np.isnan(sl))[0]
-    sh_ptr = 0
-    sl_ptr = 0
-    top_crossed_until = -1
-    btm_crossed_until = -1
+
+    top_level, top_bar, top_crossed = np.nan, -1, True
+    btm_level, btm_bar, btm_crossed = np.nan, -1, True
 
     for i in range(n):
-        # Bullish OB: forms when close crosses above a not-yet-crossed swing high
-        while sh_ptr < len(sh_idx) and sh_idx[sh_ptr] <= i and sh_idx[sh_ptr] <= top_crossed_until:
-            sh_ptr += 1
-        if sh_ptr < len(sh_idx):
-            top_x = sh_idx[sh_ptr]
-            if top_x <= i and close[i] > sh[top_x] and top_crossed_until < top_x:
-                seg_min = min_arr[top_x : i + 1]
-                seg_max = max_arr[top_x : i + 1]
-                if len(seg_min) > 0:
-                    j = int(np.argmin(seg_min))
-                    bullish_obs.append({"top": seg_max[j], "btm": seg_min[j], "breaker": False})
-                    if len(bullish_obs) > ICT.ob_max_retained:
-                        bullish_obs.pop(0)
-                    bull_formed[i] = True
-                top_crossed_until = top_x
+        if not np.isnan(sh[i]):
+            top_level = sh[i]
+            top_bar = i - length
+            top_crossed = False
+        if not np.isnan(sl[i]):
+            btm_level = sl[i]
+            btm_bar = i - length
+            btm_crossed = False
 
-        while sl_ptr < len(sl_idx) and sl_idx[sl_ptr] <= i and sl_idx[sl_ptr] <= btm_crossed_until:
-            sl_ptr += 1
-        if sl_ptr < len(sl_idx):
-            btm_x = sl_idx[sl_ptr]
-            if btm_x <= i and close[i] < sl[btm_x] and btm_crossed_until < btm_x:
-                seg_min = min_arr[btm_x : i + 1]
-                seg_max = max_arr[btm_x : i + 1]
-                if len(seg_max) > 0:
-                    j = int(np.argmax(seg_max))
-                    bearish_obs.append({"top": seg_max[j], "btm": seg_min[j], "breaker": False})
-                    if len(bearish_obs) > ICT.ob_max_retained:
-                        bearish_obs.pop(0)
-                    bear_formed[i] = True
-                btm_crossed_until = btm_x
+        if not top_crossed and not np.isnan(top_level) and close[i] > top_level:
+            top_crossed = True
+            lo = max(top_bar, 0)
+            seg_min = min_arr[lo : i + 1]
+            seg_max = max_arr[lo : i + 1]
+            if len(seg_min) > 0:
+                j = int(np.argmin(seg_min))
+                bullish_obs.append({"top": seg_max[j], "btm": seg_min[j], "breaker": False})
+                if len(bullish_obs) > ICT.ob_max_retained:
+                    bullish_obs.pop(0)
+                bull_formed[i] = True
+
+        if not btm_crossed and not np.isnan(btm_level) and close[i] < btm_level:
+            btm_crossed = True
+            lo = max(btm_bar, 0)
+            seg_min = min_arr[lo : i + 1]
+            seg_max = max_arr[lo : i + 1]
+            if len(seg_max) > 0:
+                j = int(np.argmax(seg_max))
+                bearish_obs.append({"top": seg_max[j], "btm": seg_min[j], "breaker": False})
+                if len(bearish_obs) > ICT.ob_max_retained:
+                    bearish_obs.pop(0)
+                bear_formed[i] = True
 
         # Mitigation checks
         for ob in bullish_obs:
