@@ -1,0 +1,34 @@
+# Core data & numerics
+pandas>=2.1
+numpy>=1.26
+scipy>=1.11
+pyarrow>=14.0
+
+# Market data acquisition
+yfinance>=0.2.40
+
+# Statistics / research
+statsmodels>=0.14
+
+# Excel / spreadsheet I/O
+openpyxl>=3.1
+
+# Parallelization utilities
+joblib>=1.3
+
+# Progress bars / CLI ergonomics
+tqdm>=4.66
+
+# Visualization
+plotly>=5.20
+
+# Dashboard
+gradio>=4.40
+
+# Testing
+pytest>=7.4
+pytest-cov>=4.1
+
+# Config / typing niceties
+pydantic>=2.6
+python-dateutil>=2.8

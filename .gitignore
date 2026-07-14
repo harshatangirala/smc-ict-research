@@ -1,0 +1,62 @@
+# --- Python ---
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+dist/
+*.egg-info/
+.eggs/
+.installed.cfg
+*.egg
+
+# --- Virtual environments ---
+.venv/
+venv/
+env/
+ENV/
+.conda/
+
+# --- Environment / secrets ---
+.env
+.env.*
+*.key
+secrets.toml
+
+# --- Market data cache (large, regenerable) ---
+data/cache/
+data/raw/*.parquet
+data/raw/*.feather
+!data/raw/sp500_constituents.csv
+
+# --- Generated research outputs (regenerable via pipeline) ---
+results/*
+!results/.gitkeep
+exports/*
+!exports/.gitkeep
+
+# --- Logs ---
+logs/
+*.log
+
+# --- Jupyter ---
+.ipynb_checkpoints/
+
+# --- Testing / coverage ---
+.pytest_cache/
+.coverage
+htmlcov/
+.mypy_cache/
+.ruff_cache/
+
+# --- OS / editor ---
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+
+# --- Gradio ---
+gradio_cached_examples/
+flagged/
