@@ -83,7 +83,8 @@ smc-ict-research/
 │   ├── regimes.py                Task 12 (bull/bear/sideways, vol regime)
 │   └── sectors.py                Task 12 (sector grouping)
 ├── dashboard/
-│   └── data_access.py           read-only accessors the Gradio app calls
+│   ├── data_access.py            read-only accessors (files -> DataFrames)
+│   └── analysis.py                chart/table builders shared by app.py and streamlit_app.py
 ├── utils/
 │   ├── config.py                paths, date range, every concept parameter default
 │   ├── logging_config.py
@@ -95,6 +96,7 @@ smc-ict-research/
 ├── exports/                      generated CSV/Excel/JSON deliverables (gitignored, folder kept)
 ├── main.py                       CLI entry point (ingest / detect / backtest / analyze / export)
 ├── app.py                        Gradio dashboard entry point
+├── streamlit_app.py               Streamlit dashboard entry point
 └── requirements.txt
 ```
 
@@ -119,12 +121,17 @@ python main.py all         # run every stage in order
 
 ## Running the dashboard
 
+Two front ends, same data, same charts — both call the identical framework-agnostic functions
+in `dashboard/analysis.py`, so they can never disagree with each other.
+
 ```bash
-python app.py
+python app.py                 # Gradio, http://localhost:7860
+streamlit run streamlit_app.py  # Streamlit, http://localhost:8501
 ```
 
-Opens a local Gradio app with Home / Stock Explorer / Concept Explorer / Combination Explorer /
-Rankings / Sector & Regime / Validation tabs. Every number displayed is read from files the
+Both open a local dashboard with Home / Stock Explorer / Concept Explorer / Combination Explorer
+/ Rankings / Sector & Regime / Validation tabs (the Streamlit Home tab additionally surfaces the
+headline zero-vs-baseline numbers as KPI tiles). Every number displayed is read from files the
 pipeline already produced — nothing is recalculated inside the UI.
 
 ## Data source
