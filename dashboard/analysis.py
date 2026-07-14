@@ -30,12 +30,25 @@ def empty_fig(msg: str) -> go.Figure:
 # ---------------------------------------------------------------------------
 def home_markdown() -> str:
     s = da.summary_stats()
+    demo_note = (
+        """
+> **Running on the bundled demo dataset.** Every ranking, statistic, and significance
+> test below is the real output of the full research run (see `docs/final_research_report.md`).
+> Two things are trimmed for a fast, git-friendly deploy: the Concept Explorer's return
+> histograms sample 500,000 of the full 34.6M backtested trades, and the Stock Explorer's
+> price chart is only available for the top 50 S&P 500 constituents by index weight
+> (~63% of total weight). Run `python main.py all` locally for the full 501-ticker,
+> 34.6M-trade dataset.
+"""
+        if da.using_bundled_data()
+        else ""
+    )
     return f"""
 A quantitative research platform testing whether **Smart Money Concepts (SMC)** and
 **ICT (Inner Circle Trader)** trading concepts -- translated directly from two LuxAlgo
 Pine Script indicators -- provide statistically significant, out-of-sample-honest
 trading edges on daily S&P 500 data (2010-2026).
-
+{demo_note}
 ## At a glance
 
 | Metric | Value |

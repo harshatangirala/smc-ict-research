@@ -23,7 +23,7 @@ def build_app() -> gr.Blocks:
             gr.Markdown(dz.home_markdown())
 
         with gr.Tab("Stock Explorer"):
-            ticker_dd = gr.Dropdown(choices=da.list_tickers(), label="Ticker", value=None)
+            ticker_dd = gr.Dropdown(choices=da.list_tickers_with_price_history(), label="Ticker", value=None)
             chart = gr.Plot()
             stock_stats = gr.Dataframe(label="Stock performance (10-day hold)")
             signal_counts = gr.Dataframe(label="Detected signal counts")

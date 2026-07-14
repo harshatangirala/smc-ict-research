@@ -57,7 +57,9 @@ with tabs[0]:
 # Stock Explorer
 # ---------------------------------------------------------------------------
 with tabs[1]:
-    tickers = da.list_tickers()
+    if da.using_bundled_data():
+        st.caption("Chart available for the top 50 S&P 500 constituents by index weight (demo bundle).")
+    tickers = da.list_tickers_with_price_history()
     ticker = st.selectbox("Ticker", options=[""] + tickers, index=0, key="stock_ticker")
     if ticker:
         fig, stock_row, signal_counts = dz.stock_view(ticker)
@@ -76,6 +78,8 @@ with tabs[1]:
 # Concept Explorer
 # ---------------------------------------------------------------------------
 with tabs[2]:
+    if da.using_bundled_data():
+        st.caption("Return distribution sampled from 500,000 of the full 34.6M backtested trades (demo bundle).")
     col_a, col_b = st.columns([2, 1])
     with col_a:
         signal_name = st.selectbox("Signal", options=[""] + da.list_signals(), index=0, key="concept_signal")
