@@ -181,6 +181,12 @@ pipeline already produced — nothing is recalculated inside the UI.
   testing thousands of near-empty combinations.
 - Two ICT-literature concepts (Rejection Blocks, Optimal Trade Entry) are not implemented —
   no corresponding logic exists in the supplied source scripts.
+- A handful of signals have no inherent long/short polarity in the source scripts
+  (`ict_nwog_formed`, `ict_ndog_formed`, `smc_equal_highs`, `smc_equal_lows` — these are
+  reference/gap levels, not directional calls). The backtest engine defaults undirected
+  signals to a long entry rather than dropping them, so their reported win rates should be
+  read as "does price tend to rise after this reference level appears," not as a
+  directional trading rule.
 - This is a research tool, not investment advice; nothing here accounts for transaction costs,
   slippage, liquidity constraints, or position sizing.
 

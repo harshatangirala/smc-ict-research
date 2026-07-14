@@ -1,0 +1,29 @@
+This research codebase is released under a spirit consistent with the license
+of its two source Pine Script indicators:
+
+Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
+https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+Source indicators:
+- "ICT Concepts [LuxAlgo]" (c) LuxAlgo
+- "Smart Money Concepts [LuxAlgo]" (c) LuxAlgo
+
+This project is an independent research translation of the publicly
+documented logic of those two indicators into Python for statistical
+research purposes. It is not affiliated with or endorsed by LuxAlgo.
+
+You are free to:
+  - Share: copy and redistribute the material in any medium or format
+  - Adapt: remix, transform, and build upon the material
+
+Under the following terms:
+  - Attribution: you must give appropriate credit to LuxAlgo for the
+    underlying indicator logic and to this project for the Python
+    translation and research framework.
+  - NonCommercial: you may not use the material for commercial purposes.
+  - ShareAlike: if you remix, transform, or build upon the material, you
+    must distribute your contributions under the same license as the
+    original.
+
+This is a research tool, not investment advice. Nothing in this repository
+constitutes a recommendation to buy or sell any security.
