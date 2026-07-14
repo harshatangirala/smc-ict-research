@@ -105,6 +105,40 @@
   }
   .dek strong { color: var(--ink); font-weight: 600; }
 
+  .live-link {
+    display: inline-flex;
+    align-items: center;
+    gap: 9px;
+    margin-top: 20px;
+    padding: 8px 14px;
+    border: 1px solid var(--rule-strong);
+    background: var(--paper-raised);
+    text-decoration: none;
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink);
+  }
+  .live-link:hover { border-color: var(--ledger); color: var(--ledger); }
+  .live-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--good);
+    flex: none;
+  }
+  @media (prefers-reduced-motion: no-preference) {
+    .live-dot { animation: pulse 2s ease-in-out infinite; }
+    @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.35; } }
+  }
+  .live-note {
+    font-family: var(--font-body);
+    font-size: 12px;
+    color: var(--ink-faint);
+    margin: 8px 0 0;
+  }
+  @media print {
+    .live-dot { animation: none; }
+    .live-link { border-color: #999; }
+  }
+
   /* ---------- Headline scoreboard ---------- */
   .scoreboard {
     display: grid;
@@ -291,6 +325,19 @@
     .page { animation: rise 0.5s ease-out; }
     @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
   }
+
+  @media print {
+    @page { size: A4; margin: 16mm 14mm; }
+    * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    body { padding: 0; }
+    .page { animation: none; max-width: 100%; }
+    a { color: var(--ledger) !important; }
+    section.q { break-inside: avoid-page; padding: 22px 0; }
+    .table-wrap table { break-inside: avoid-page; }
+    .scoreboard { break-inside: avoid-page; }
+    .split { break-inside: avoid-page; }
+    h1.title { font-size: 28px; }
+  }
 </style>
 
 <div class="page">
@@ -299,6 +346,11 @@
     <p class="kicker"><span>Quantitative research memo</span><span>S&amp;P 500 · 2010–2026</span><span>SMC / ICT signal study</span></p>
     <h1 class="title">Do Smart Money Concepts actually beat the market — or just the market itself?</h1>
     <p class="dek">A full translation of two LuxAlgo Pine Script indicators (Smart Money Concepts, ICT Concepts) into Python, run as event detectors across 501 S&amp;P 500 stocks and backtested at 8 holding horizons. <strong>The headline result: the aggregate claim doesn't hold up</strong> — but a real, specific minority of signals do.</p>
+    <a class="live-link" href="https://oriented-sum-lenders-les.trycloudflare.com" target="_blank" rel="noopener">
+      <span class="live-dot"></span>
+      Open the interactive dashboard — oriented-sum-lenders-les.trycloudflare.com
+    </a>
+    <p class="live-note">Live Streamlit app: every ticker, concept, and combination in this study, queryable directly. Session-bound — if the link is dead, the source data and full write-up below still stand on their own.</p>
   </div>
 
   <div class="scoreboard">

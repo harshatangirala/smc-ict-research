@@ -26,6 +26,10 @@ plotly>=5.20
 gradio>=4.40
 streamlit>=1.50
 
+# PDF report rendering (utils/render_pdf.py)
+playwright>=1.47
+pypdf>=4.3
+
 # Testing
 pytest>=7.4
 pytest-cov>=4.1
