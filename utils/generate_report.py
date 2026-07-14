@@ -55,23 +55,38 @@ def generate_report() -> str:
     lines.append(f"- Distinct signal families tested: **{events['signal'].nunique() if not events.empty else 'n/a'}**")
     lines.append(f"- FDR significance threshold used throughout: alpha = {FDR_ALPHA}")
 
+    n_sig_zero = int(concepts["significant_vs_zero"].sum()) if "significant_vs_zero" in concepts else 0
+
     lines.append("\n## 1. Do SMC/ICT concepts outperform random entries and standard technical strategies?")
     lines.append(
-        f"Of {n_total_concepts} SMC/ICT signal families tested at the 10-day holding horizon, "
-        f"**{n_sig_concepts}** survived Benjamini-Hochberg FDR correction at alpha={FDR_ALPHA} "
-        f"(i.e. remained statistically distinguishable from a zero-mean return after correcting "
-        f"for testing {n_total_concepts} hypotheses simultaneously). See `analytics/statistics.py` "
-        f"for the two-sample test against the baseline strategies in `backtest/baselines.py` "
-        f"(buy & hold, random entry, EMA 20/50 crossover, RSI(14) mean reversion, 52-week "
-        f"breakout, 126-day momentum turn) for the incremental-edge comparison."
+        f"This is the central question, and the two significance tests reported diverge sharply — "
+        f"which is itself the key finding. Of {n_total_concepts} SMC/ICT signal families tested at "
+        f"the 10-day holding horizon: **{n_sig_zero}/{n_total_concepts}** show a mean return "
+        f"significantly different from **zero** after FDR correction (alpha={FDR_ALPHA}) — but a "
+        f"zero-return null is a weak bar over 2010-2026, a long bull market, since almost any "
+        f"long-biased signal clears it from broad market drift alone. Testing instead against a "
+        f"**random-entry baseline** run through identical backtest mechanics at the same holding "
+        f"periods (`backtest/baseline_engine.py`), only **{n_sig_concepts}/{n_total_concepts}** "
+        f"signals remain significant. That is the headline, more honest answer: roughly two-thirds "
+        f"of tested SMC/ICT signals show *some* edge beyond pure chance at the 10-day horizon, but "
+        f"a substantial minority of apparently-strong signals (including several of the "
+        f"highest-Sharpe ones) are statistically indistinguishable from a random long entry at the "
+        f"same frequency once compared properly."
     )
 
     lines.append("\n## 2. Which concepts provide the strongest statistical edge?")
-    if not top_concepts.empty:
-        lines.append("\n| Signal | n trades | Win rate | Sharpe | Avg return | p (FDR-adj) |")
+    lines.append("\n_Ranked among signals that beat the random-entry baseline (`significant_vs_baseline`), not merely a zero return:_\n")
+    top_vs_baseline = concepts[concepts.get("significant_vs_baseline", False) == True].head(10) if not concepts.empty and "significant_vs_baseline" in concepts else pd.DataFrame()  # noqa: E712
+    if not top_vs_baseline.empty:
+        lines.append("| Signal | n trades | Win rate | Sharpe | Avg return | p vs baseline (FDR-adj) |")
         lines.append("|---|---|---|---|---|---|")
+        for _, r in top_vs_baseline.iterrows():
+            lines.append(f"| {r['signal']} | {int(r['n_trades'])} | {_fmt_pct(r['win_rate'])} | {_fmt(r['sharpe'])} | {_fmt_pct(r['avg_return'])} | {_fmt(r.get('p_adjusted_vs_baseline'), 4)} |")
+    elif not top_concepts.empty:
+        lines.append("| Signal | n trades | Win rate | Sharpe | Avg return |")
+        lines.append("|---|---|---|---|---|")
         for _, r in top_concepts.iterrows():
-            lines.append(f"| {r['signal']} | {int(r['n_trades'])} | {_fmt_pct(r['win_rate'])} | {_fmt(r['sharpe'])} | {_fmt_pct(r['avg_return'])} | {_fmt(r.get('p_adjusted'), 4)} |")
+            lines.append(f"| {r['signal']} | {int(r['n_trades'])} | {_fmt_pct(r['win_rate'])} | {_fmt(r['sharpe'])} | {_fmt_pct(r['avg_return'])} |")
     else:
         lines.append("No concepts reached statistical significance at the current sample/threshold.")
 
@@ -127,12 +142,14 @@ def generate_report() -> str:
 
     lines.append("\n## 8. Are results statistically significant after correcting for sample size and multiple testing?")
     lines.append(
-        f"Yes, by construction — every concept and combination ranking reports a bootstrap "
-        f"confidence interval, a p-value, and a Benjamini-Hochberg FDR-adjusted p-value "
-        f"(`analytics/statistics.py`), and only signals clearing both the FDR threshold "
-        f"(alpha={FDR_ALPHA}) *and* a minimum sample size are labeled `statistically_significant`. "
-        f"Concepts with fewer than 30 trades are explicitly flagged `low_sample_warning` rather "
-        f"than being reported with false confidence."
+        f"Every concept ranking reports a bootstrap confidence interval, a p-value against a "
+        f"zero-return null, a p-value against a random-entry baseline, and Benjamini-Hochberg "
+        f"FDR-adjusted versions of both (`analytics/statistics.py`). The headline "
+        f"`statistically_significant` flag requires clearing the FDR-corrected **baseline** "
+        f"comparison (alpha={FDR_ALPHA}) *and* a minimum sample size of 30 trades — concepts below "
+        f"that sample size are explicitly flagged `low_sample_warning` rather than reported with "
+        f"false confidence. Combination rankings (Section 3) currently apply FDR correction only "
+        f"against the zero-return null, not yet the baseline — see README limitations."
     )
 
     lines.append("\n## Key limitations")

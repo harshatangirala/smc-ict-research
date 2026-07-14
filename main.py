@@ -58,6 +58,22 @@ def stage_backtest() -> None:
     log.info("Backtest trade table written to %s (%d rows)", path, len(trades))
 
 
+def stage_baseline() -> None:
+    """Detects + backtests the benchmark strategies (buy&hold proxy via
+    random entry, EMA cross, RSI reversion, 52w breakout, momentum) across
+    the same universe, so concept significance can be tested against a real
+    benchmark instead of only against a zero-return null."""
+    from backtest.baseline_engine import build_baseline_events
+    from backtest.engine import run_backtest
+
+    events = build_baseline_events()
+    events.to_parquet(RESULTS_DIR / "baseline_events.parquet")
+    trades = run_backtest(events)
+    path = RESULTS_DIR / "baseline_trades.parquet"
+    trades.to_parquet(path)
+    log.info("Baseline trade table written to %s (%d rows)", path, len(trades))
+
+
 def stage_analyze() -> None:
     import pandas as pd
 
@@ -93,6 +109,7 @@ STAGES = {
     "ingest": stage_ingest,
     "detect": stage_detect,
     "backtest": stage_backtest,
+    "baseline": stage_baseline,
     "analyze": stage_analyze,
     "export": stage_export,
 }

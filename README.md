@@ -138,7 +138,15 @@ pipeline already produced — nothing is recalculated inside the UI.
    strictly-future bars for the exit/MAE/MFE — no look-ahead by construction.
 5. **Statistical validation** (`analytics/statistics.py`): bootstrap confidence intervals,
    one-sample and two-sample significance tests, effect sizes, and Benjamini-Hochberg
-   false-discovery-rate correction across every concept/combination tested.
+   false-discovery-rate correction across every concept/combination tested. **Two distinct
+   significance tests are reported and deliberately kept separate**: significance vs. a
+   zero-return null (`significant_vs_zero`), and significance vs. a random-entry baseline
+   run through the identical backtest mechanics at the same holding periods
+   (`significant_vs_baseline`, via `backtest/baseline_engine.py`). The first test alone is
+   misleading over a long bull market (2010-2026) — almost any long-biased signal clears it
+   from broad market drift alone. The dashboard's and report's headline
+   `statistically_significant` flag uses the baseline comparison, not the zero-null one,
+   wherever the baseline backtest is available.
 6. **Analysis** (`analytics/*`): stock-level, concept-level, combination, sector, and market
    regime rankings, all built from the single backtested-trades table (no duplicated
    calculation between modules).
@@ -181,6 +189,13 @@ pipeline already produced — nothing is recalculated inside the UI.
   testing thousands of near-empty combinations.
 - Two ICT-literature concepts (Rejection Blocks, Optimal Trade Entry) are not implemented —
   no corresponding logic exists in the supplied source scripts.
+- **Concept rankings compare against a random-entry baseline (see below); combination
+  rankings currently only test against a zero-return null**, not yet against the same
+  random-entry baseline. A concept "beating a zero-return null" over 2010-2026 (a long bull
+  market) is a much weaker claim than "beating a random-entry baseline at the same
+  frequency" — see the Methodology note below on why both tests are reported separately.
+  Wiring the baseline comparison into `analytics/combinations.py` the same way it's wired
+  into `analytics/concept_ranking.py` is a natural next step.
 - A handful of signals have no inherent long/short polarity in the source scripts
   (`ict_nwog_formed`, `ict_ndog_formed`, `smc_equal_highs`, `smc_equal_lows` — these are
   reference/gap levels, not directional calls). The backtest engine defaults undirected

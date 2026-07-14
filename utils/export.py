@@ -14,6 +14,8 @@ from utils.logging_config import get_logger
 
 log = get_logger("export")
 
+TRADES_CSV_SAMPLE_SIZE = 500_000
+
 DELIVERABLES = {
     "data_quality_report": "data_quality_report.csv",
     "concept_rankings": "concept_rankings.csv",
@@ -54,12 +56,29 @@ def export_all() -> None:
 
             log.info("Exported %s: %d rows -> csv, json, xlsx", name, len(df))
 
-    for parquet_name in ("master_events", "trades"):
-        src = RESULTS_DIR / f"{parquet_name}.parquet"
-        if src.exists():
-            df = pd.read_parquet(src)
-            df.to_csv(EXPORTS_DIR / f"{parquet_name}.csv", index=False)
-            log.info("Exported %s: %d rows -> csv", parquet_name, len(df))
+    # master_events is large but browsable (~250MB); trades is not (34.6M
+    # rows -> ~4.8GB as CSV, unopenable in Excel/most tools and not a useful
+    # deliverable in that form). The full trades table remains available as
+    # results/trades.parquet (columnar, fast to load with pandas) for anyone
+    # doing programmatic analysis; here we export a representative sample
+    # instead of the full CSV.
+    src = RESULTS_DIR / "master_events.parquet"
+    if src.exists():
+        df = pd.read_parquet(src)
+        df.to_csv(EXPORTS_DIR / "master_events.csv", index=False)
+        log.info("Exported master_events: %d rows -> csv", len(df))
+
+    trades_src = RESULTS_DIR / "trades.parquet"
+    if trades_src.exists():
+        df = pd.read_parquet(trades_src)
+        sample_n = min(len(df), TRADES_CSV_SAMPLE_SIZE)
+        sample = df.sample(n=sample_n, random_state=42) if len(df) > sample_n else df
+        sample.to_csv(EXPORTS_DIR / "trades_sample.csv", index=False)
+        log.info(
+            "Exported trades_sample: %d of %d rows -> csv (full table stays in results/trades.parquet, "
+            "%d rows, not exported as CSV -- would be several GB and unopenable in spreadsheet tools)",
+            len(sample), len(df), len(df),
+        )
 
     manifest = {
         "deliverables": list(DELIVERABLES.keys()) + ["master_events", "trades"],
