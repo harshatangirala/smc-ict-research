@@ -1,0 +1,496 @@
+<title>SMC/ICT Statistical Edge Study — Findings</title>
+<style>
+  @media (prefers-color-scheme: dark) {
+    :root { color-scheme: dark; }
+  }
+
+  :root {
+    --paper: #FAF7F1;
+    --paper-raised: #F2ECDD;
+    --ink: #1B1B18;
+    --ink-soft: #5B5749;
+    --ink-faint: #8B8677;
+    --ledger: #1F3B57;
+    --ledger-tint: #E7EEF3;
+    --rule: #DDD5C4;
+    --rule-strong: #C7BCA5;
+    --good: #2E6B4F;
+    --good-tint: #E3EEE7;
+    --bad: #9C3B32;
+    --bad-tint: #F5E7E4;
+    --shadow: 0 1px 2px rgba(27,27,24,0.06);
+
+    --font-display: "Iowan Old Style", "Palatino Linotype", Palatino, "Book Antiqua", Georgia, serif;
+    --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "SF Mono", "Cascadia Code", "Consolas", "Liberation Mono", monospace;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --paper: #14161B;
+      --paper-raised: #1C1F26;
+      --ink: #EAE6DB;
+      --ink-soft: #ADA898;
+      --ink-faint: #726E60;
+      --ledger: #8FB4D3;
+      --ledger-tint: #1D2933;
+      --rule: #33363E;
+      --rule-strong: #454952;
+      --good: #74C39A;
+      --good-tint: #1B2A22;
+      --bad: #E28D80;
+      --bad-tint: #2E1F1C;
+      --shadow: 0 1px 2px rgba(0,0,0,0.3);
+    }
+  }
+  :root[data-theme="dark"] {
+    --paper: #14161B; --paper-raised: #1C1F26; --ink: #EAE6DB; --ink-soft: #ADA898;
+    --ink-faint: #726E60; --ledger: #8FB4D3; --ledger-tint: #1D2933; --rule: #33363E;
+    --rule-strong: #454952; --good: #74C39A; --good-tint: #1B2A22; --bad: #E28D80; --bad-tint: #2E1F1C;
+    --shadow: 0 1px 2px rgba(0,0,0,0.3);
+  }
+  :root[data-theme="light"] {
+    --paper: #FAF7F1; --paper-raised: #F2ECDD; --ink: #1B1B18; --ink-soft: #5B5749;
+    --ink-faint: #8B8677; --ledger: #1F3B57; --ledger-tint: #E7EEF3; --rule: #DDD5C4;
+    --rule-strong: #C7BCA5; --good: #2E6B4F; --good-tint: #E3EEE7; --bad: #9C3B32; --bad-tint: #F5E7E4;
+    --shadow: 0 1px 2px rgba(27,27,24,0.06);
+  }
+
+  * { box-sizing: border-box; }
+  html, body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: var(--font-body);
+    margin: 0;
+    padding: 0;
+    -webkit-font-smoothing: antialiased;
+  }
+  body { padding: 0 20px 96px; }
+  ::selection { background: var(--ledger-tint); color: var(--ledger); }
+  a { color: var(--ledger); text-decoration-thickness: 1px; text-underline-offset: 2px; }
+  a:focus-visible, button:focus-visible { outline: 2px solid var(--ledger); outline-offset: 2px; }
+
+  .page { max-width: 880px; margin: 0 auto; }
+
+  /* ---------- Masthead ---------- */
+  .masthead {
+    padding: 56px 0 28px;
+    border-bottom: 1px solid var(--rule-strong);
+  }
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    margin: 0 0 14px;
+  }
+  .kicker span + span::before { content: "·"; margin: 0 8px; color: var(--rule-strong); }
+  h1.title {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: clamp(30px, 5vw, 42px);
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 0 0 14px;
+    text-wrap: balance;
+    max-width: 15ch;
+  }
+  .dek {
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--ink-soft);
+    max-width: 62ch;
+    margin: 0;
+  }
+  .dek strong { color: var(--ink); font-weight: 600; }
+
+  /* ---------- Headline scoreboard ---------- */
+  .scoreboard {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 0;
+    margin: 32px 0 0;
+    border: 1px solid var(--rule-strong);
+  }
+  .score {
+    padding: 20px 18px;
+    border-right: 1px solid var(--rule-strong);
+  }
+  .score:last-child { border-right: none; }
+  .score-value {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    font-size: 30px;
+    font-weight: 600;
+    line-height: 1;
+    color: var(--ledger);
+  }
+  .score-value.bad { color: var(--bad); }
+  .score-label {
+    margin-top: 8px;
+    font-size: 12.5px;
+    color: var(--ink-soft);
+    line-height: 1.45;
+  }
+
+  /* ---------- Sections ---------- */
+  section.q {
+    padding: 40px 0;
+    border-bottom: 1px solid var(--rule);
+  }
+  section.q:last-of-type { border-bottom: none; }
+  .q-head { display: flex; align-items: baseline; gap: 14px; margin-bottom: 16px; }
+  .q-num {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    color: var(--ink-faint);
+    white-space: nowrap;
+  }
+  h2 {
+    font-family: var(--font-display);
+    font-weight: 500;
+    font-size: 22px;
+    line-height: 1.3;
+    margin: 0;
+    text-wrap: balance;
+  }
+  h3 {
+    font-family: var(--font-body);
+    font-weight: 650;
+    font-size: 13px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-soft);
+    margin: 28px 0 12px;
+  }
+  p { font-size: 15.5px; line-height: 1.7; max-width: 68ch; color: var(--ink); }
+  p.lede { font-size: 16.5px; color: var(--ink-soft); }
+  .callout {
+    font-family: var(--font-display);
+    font-style: italic;
+    font-size: 17px;
+    line-height: 1.6;
+    color: var(--ink);
+    border-left: 2px solid var(--ledger);
+    padding-left: 18px;
+    margin: 20px 0;
+    max-width: 58ch;
+  }
+
+  code, .mono { font-family: var(--font-mono); font-size: 0.92em; }
+  .inline-tag {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    background: var(--paper-raised);
+    border: 1px solid var(--rule);
+    padding: 1px 6px;
+    border-radius: 3px;
+  }
+
+  /* ---------- Tables (ledger style) ---------- */
+  .table-wrap { overflow-x: auto; margin: 4px 0 8px; }
+  table { border-collapse: collapse; width: 100%; min-width: 560px; }
+  caption {
+    text-align: left;
+    font-size: 12px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    color: var(--ink-faint);
+    padding-bottom: 8px;
+    caption-side: top;
+    font-weight: 650;
+  }
+  th {
+    text-align: left;
+    font-size: 11.5px;
+    letter-spacing: 0.03em;
+    text-transform: uppercase;
+    font-weight: 600;
+    color: var(--ink-faint);
+    padding: 8px 14px 8px 0;
+    border-bottom: 1px solid var(--rule-strong);
+    white-space: nowrap;
+  }
+  th.num, td.num { text-align: right; }
+  td {
+    padding: 9px 14px 9px 0;
+    border-bottom: 1px solid var(--rule);
+    font-size: 14px;
+    white-space: nowrap;
+  }
+  td.num, td.sig { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  tr:last-child td { border-bottom: 1px solid var(--rule-strong); }
+  td.signal { font-family: var(--font-mono); font-size: 12.8px; color: var(--ink); white-space: normal; max-width: 320px; }
+  .pos { color: var(--good); }
+  .neg { color: var(--bad); }
+
+  .chip {
+    display: inline-block;
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 2px 7px;
+    border: 1px solid currentColor;
+    border-radius: 3px;
+    line-height: 1.5;
+  }
+  .chip.yes { color: var(--good); background: var(--good-tint); border-color: transparent; }
+  .chip.no { color: var(--ink-faint); background: var(--paper-raised); border-color: var(--rule); }
+
+  /* ---------- bar visual for excess return ---------- */
+  .barcell { display: flex; align-items: center; gap: 8px; min-width: 190px; }
+  .bartrack { position: relative; width: 110px; height: 12px; background: var(--paper-raised); border: 1px solid var(--rule); flex: none; }
+  .barfill { position: absolute; top: 0; bottom: 0; }
+  .barfill.pos { background: var(--good); opacity: 0.65; left: 50%; }
+  .barfill.neg { background: var(--bad); opacity: 0.65; right: 50%; }
+  .barcenter { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--rule-strong); }
+
+  /* ---------- two-col split ---------- */
+  .split { display: grid; grid-template-columns: 1fr 1fr; gap: 32px; }
+  @media (max-width: 720px) { .split { grid-template-columns: 1fr; } }
+
+  /* ---------- regime grid ---------- */
+  .regime-grid {
+    display: grid;
+    grid-template-columns: 90px repeat(3, 1fr);
+    border: 1px solid var(--rule-strong);
+    max-width: 560px;
+  }
+  .rg-cell {
+    padding: 12px 10px;
+    border-right: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    font-size: 13px;
+  }
+  .rg-cell:nth-child(4n) { border-right: none; }
+  .rg-head {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    color: var(--ink-faint);
+    background: var(--paper-raised);
+  }
+  .rg-value { font-family: var(--font-mono); font-variant-numeric: tabular-nums; font-weight: 600; font-size: 15px; }
+
+  /* ---------- footer ---------- */
+  footer {
+    margin-top: 8px;
+    padding-top: 28px;
+    font-size: 13px;
+    color: var(--ink-faint);
+    line-height: 1.7;
+  }
+  footer a { color: var(--ink-faint); }
+
+  ul.plain { margin: 10px 0; padding-left: 20px; }
+  ul.plain li { font-size: 15px; line-height: 1.7; color: var(--ink-soft); margin-bottom: 4px; }
+  ul.plain li strong { color: var(--ink); }
+
+  @media (prefers-reduced-motion: no-preference) {
+    .page { animation: rise 0.5s ease-out; }
+    @keyframes rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  }
+</style>
+
+<div class="page">
+
+  <div class="masthead">
+    <p class="kicker"><span>Quantitative research memo</span><span>S&amp;P 500 · 2010–2026</span><span>SMC / ICT signal study</span></p>
+    <h1 class="title">Do Smart Money Concepts actually beat the market — or just the market itself?</h1>
+    <p class="dek">A full translation of two LuxAlgo Pine Script indicators (Smart Money Concepts, ICT Concepts) into Python, run as event detectors across 501 S&amp;P 500 stocks and backtested at 8 holding horizons. <strong>The headline result: the aggregate claim doesn't hold up</strong> — but a real, specific minority of signals do.</p>
+  </div>
+
+  <div class="scoreboard">
+    <div class="score">
+      <div class="score-value">42 / 42</div>
+      <div class="score-label">concepts beat a <em>zero</em>-return null — the weak test, inflated by 16 years of market drift</div>
+    </div>
+    <div class="score">
+      <div class="score-value">28 / 42</div>
+      <div class="score-label">concepts beat a <em>random-entry baseline</em> at the same frequency — the test that actually matters</div>
+    </div>
+    <div class="score">
+      <div class="score-value bad">2 / 12</div>
+      <div class="score-label">sectors show positive excess return over that baseline at all</div>
+    </div>
+  </div>
+
+  <section class="q">
+    <div class="q-head"><span class="q-num">01</span><h2>Do SMC/ICT concepts outperform random entries and standard technical strategies?</h2></div>
+    <p class="lede">Not uniformly, and the gap between the two tests above is the finding.</p>
+    <p>Every one of the 42 translated signal families — Break of Structure, Order Blocks, Fair Value Gaps, Change of Character, Liquidity Sweeps, and the rest, across both the ICT and SMC engines — produced a mean forward return significantly different from zero. On its own, that number is close to meaningless: 2010–2026 was a long bull market, and almost any signal biased toward long entries will show a positive average return purely from broad drift, independent of whether the signal contains real information.</p>
+    <p>So every ranking in this study was re-run against a second, harder bar: a random-entry strategy, backtested through <em>identical</em> mechanics, at the same trading frequency, on the same stocks, over the same window. Against that bar, only 28 of 42 concepts remain significant after correcting for testing 42 hypotheses at once (Benjamini–Hochberg FDR, &alpha;&nbsp;=&nbsp;0.05).</p>
+    <p>Slice it by sector or market regime (Q5) and the picture gets more sober still: only 2 of 12 sectors, and one narrow regime slice, show the signal population beating the baseline at all. <strong>The unconditional claim "SMC/ICT signals beat chance" is not supported by this dataset.</strong> Where an edge exists, it is specific — to a concept, a sector, a regime — not a property of the methodology as a whole.</p>
+  </section>
+
+  <section class="q">
+    <div class="q-head"><span class="q-num">02</span><h2>Which concepts provide the strongest statistical edge?</h2></div>
+    <p class="lede">Ten-day forward return, ranked by Sharpe, restricted to concepts that clear the FDR-corrected baseline test.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr>
+          <th>Signal</th><th class="num">Trades</th><th class="num">Win&nbsp;rate</th><th class="num">Sharpe</th><th class="num">Avg&nbsp;return</th><th class="num">p (baseline, adj.)</th>
+        </tr></thead>
+        <tbody>
+          <tr><td class="signal">ict_ob_bullish_mitigated</td><td class="num">20,676</td><td class="num">58.0%</td><td class="num pos">0.539</td><td class="num pos">+0.94%</td><td class="num">0.0008</td></tr>
+          <tr><td class="signal">ict_ob_bullish_formed</td><td class="num">32,750</td><td class="num">56.4%</td><td class="num pos">0.487</td><td class="num pos">+0.55%</td><td class="num">0.0088</td></tr>
+          <tr><td class="signal">ict_fvg_bullish_formed</td><td class="num">112,764</td><td class="num">55.9%</td><td class="num pos">0.478</td><td class="num pos">+0.56%</td><td class="num">0.0075</td></tr>
+          <tr><td class="signal">ict_displacement_bullish</td><td class="num">213,796</td><td class="num">56.0%</td><td class="num pos">0.473</td><td class="num pos">+0.57%</td><td class="num">0.0066</td></tr>
+          <tr><td class="signal">smc_internal_ob_bullish_formed</td><td class="num">58,717</td><td class="num">55.8%</td><td class="num pos">0.452</td><td class="num pos">+0.51%</td><td class="num">0.0004</td></tr>
+          <tr><td class="signal">ict_volume_imbalance_bullish</td><td class="num">118,438</td><td class="num">55.4%</td><td class="num pos">0.421</td><td class="num pos">+0.49%</td><td class="num">&lt;0.0001</td></tr>
+          <tr><td class="signal">ict_bos_bullish</td><td class="num">81,274</td><td class="num">55.1%</td><td class="num pos">0.393</td><td class="num pos">+0.43%</td><td class="num">&lt;0.0001</td></tr>
+          <tr><td class="signal">smc_internal_bos_bullish</td><td class="num">32,142</td><td class="num">54.9%</td><td class="num pos">0.384</td><td class="num pos">+0.42%</td><td class="num">&lt;0.0001</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Order Blocks lead the field — both ICT's single-scale version and SMC's internal-structure version place highly, and specifically the <em>mitigation</em> event (price returning to tap the block) edges out plain formation. Displacement candles, Fair Value Gaps, and Break of Structure follow, all bullish-direction, all with genuinely small p-values even after correction.</p>
+    <p class="callout">Notably absent from this list: almost everything at the top of the naive, zero-only ranking — <span class="mono">smc_swing_choch_bullish</span>, <span class="mono">smc_equal_highs</span>, and <span class="mono">ict_nwog_formed</span> all had higher raw Sharpe ratios, and none of them clear the baseline. The two rankings disagree on the winners, not just the margins.</p>
+  </section>
+
+  <section class="q">
+    <div class="q-head"><span class="q-num">03</span><h2>Which concept combinations are most robust?</h2></div>
+    <p>305 same-direction concept pairs co-occur on the same stock and day at least 30 times; the 60 most frequent were tested. <strong>44 of 60</strong> beat the baseline after correction — a higher hit rate than single concepts, consistent with confluence adding information.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Combination</th><th class="num">Trades</th><th class="num">Win&nbsp;rate</th><th class="num">Sharpe</th><th class="num">p (baseline, adj.)</th></tr></thead>
+        <tbody>
+          <tr><td class="signal">ict_ob_bullish_formed + smc_internal_ob_bullish_formed</td><td class="num">23,490</td><td class="num">56.2%</td><td class="num pos">0.474</td><td class="num">0.0064</td></tr>
+          <tr><td class="signal">ict_ob_bullish_formed + smc_internal_bos_bullish</td><td class="num">12,623</td><td class="num">55.6%</td><td class="num pos">0.454</td><td class="num">0.0022</td></tr>
+          <tr><td class="signal">ict_displacement_bullish + smc_internal_ob_bullish_formed</td><td class="num">25,573</td><td class="num">55.6%</td><td class="num pos">0.440</td><td class="num">0.0008</td></tr>
+          <tr><td class="signal">ict_bos_bullish + ict_displacement_bullish</td><td class="num">34,179</td><td class="num">55.7%</td><td class="num pos">0.436</td><td class="num">0.0001</td></tr>
+          <tr><td class="signal">ict_bos_bullish + ict_liquidity_buyside_swept</td><td class="num">8,890</td><td class="num">55.8%</td><td class="num pos">0.416</td><td class="num">0.0017</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The pattern: pairing an <strong>ICT Order Block</strong> with either the SMC internal Order Block or SMC's internal structure break is the most consistent combination. Both engines independently flagging the same location on the same day appears to carry real information, even though each engine was built from a different pivot-detection method (see the methodology note, Q8).</p>
+  </section>
+
+  <div class="split">
+    <section class="q" style="border-bottom:none; padding-bottom:0;">
+      <div class="q-head"><span class="q-num">04</span><h2>Most responsive stocks</h2></div>
+      <p style="font-size:14px; color:var(--ink-soft);">Ranked by excess return over <em>that same ticker's own</em> random-entry baseline — not raw Sharpe, which would just reward stocks that rallied hard regardless of signal quality.</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ticker</th><th class="num">Excess&nbsp;vs.&nbsp;own baseline</th></tr></thead>
+          <tbody>
+            <tr><td class="signal">VRT</td><td class="num pos">+3.54%</td></tr>
+            <tr><td class="signal">LVS</td><td class="num pos">+1.86%</td></tr>
+            <tr><td class="signal">MRNA</td><td class="num pos">+1.85%</td></tr>
+            <tr><td class="signal">HAL</td><td class="num pos">+1.63%</td></tr>
+            <tr><td class="signal">DOW</td><td class="num pos">+1.45%</td></tr>
+            <tr><td class="signal">CMI</td><td class="num pos">+1.38%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+    <section class="q" style="border-bottom:none; padding-bottom:0;">
+      <div class="q-head"><span class="q-num">&nbsp;</span><h2 style="visibility:hidden; height:0; margin:0;">spacer</h2></div>
+      <p style="font-size:14px; color:var(--ink-soft); margin-top:36px;">Least responsive — the signal population underperforms the stock's own baseline by the widest margin:</p>
+      <div class="table-wrap">
+        <table>
+          <thead><tr><th>Ticker</th><th class="num">Excess&nbsp;vs.&nbsp;own baseline</th></tr></thead>
+          <tbody>
+            <tr><td class="signal">TSLA</td><td class="num neg">&minus;3.33%</td></tr>
+            <tr><td class="signal">LITE</td><td class="num neg">&minus;3.07%</td></tr>
+            <tr><td class="signal">COIN</td><td class="num neg">&minus;2.79%</td></tr>
+            <tr><td class="signal">CRWD</td><td class="num neg">&minus;2.77%</td></tr>
+            <tr><td class="signal">FANG</td><td class="num neg">&minus;2.60%</td></tr>
+            <tr><td class="signal">BLDR</td><td class="num neg">&minus;2.59%</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+  </div>
+  <p style="font-size:13px; color:var(--ink-faint); max-width:68ch; margin-top:-8px;">Per-ticker baseline samples are small (~50 random entries per stock), so almost none of these individual rankings reach statistical significance on their own — read this as a ranking, not a list of proven single-stock edges. Full p-values are in the data export.</p>
+
+  <section class="q">
+    <div class="q-head"><span class="q-num">05</span><h2>Which sectors and regimes are most responsive?</h2></div>
+    <p class="lede">Excess average return over the sector-matched random-entry baseline. Only Energy and Materials come out ahead.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Sector</th><th class="num">Signal avg.</th><th class="num">Baseline avg.</th><th>Excess</th></tr></thead>
+        <tbody>
+          <tr><td class="signal">Energy</td><td class="num">0.34%</td><td class="num">0.08%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill pos" style="width:17%"></span></span><span class="pos">+0.26%</span></td></tr>
+          <tr><td class="signal">Materials</td><td class="num">0.28%</td><td class="num">0.20%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill pos" style="width:5%"></span></span><span class="pos">+0.08%</span></td></tr>
+          <tr><td class="signal">Consumer Staples</td><td class="num">0.21%</td><td class="num">0.35%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:9%"></span></span><span class="neg">&minus;0.14%</span></td></tr>
+          <tr><td class="signal">Industrials</td><td class="num">0.37%</td><td class="num">0.55%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:11%"></span></span><span class="neg">&minus;0.18%</span></td></tr>
+          <tr><td class="signal">Financials</td><td class="num">0.31%</td><td class="num">0.63%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:20%"></span></span><span class="neg">&minus;0.32%</span></td></tr>
+          <tr><td class="signal">Utilities</td><td class="num">0.20%</td><td class="num">0.56%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:22%"></span></span><span class="neg">&minus;0.35%</span></td></tr>
+          <tr><td class="signal">Consumer Discretionary</td><td class="num">0.40%</td><td class="num">0.75%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:22%"></span></span><span class="neg">&minus;0.35%</span></td></tr>
+          <tr><td class="signal">Health Care</td><td class="num">0.29%</td><td class="num">0.68%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:25%"></span></span><span class="neg">&minus;0.39%</span></td></tr>
+          <tr><td class="signal">Communication Services</td><td class="num">0.28%</td><td class="num">0.75%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:30%"></span></span><span class="neg">&minus;0.48%</span></td></tr>
+          <tr><td class="signal">Real Estate</td><td class="num">0.20%</td><td class="num">0.70%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:32%"></span></span><span class="neg">&minus;0.50%</span></td></tr>
+          <tr><td class="signal">Information Technology</td><td class="num">0.53%</td><td class="num">1.31%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:50%"></span></span><span class="neg">&minus;0.79%</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>The Information Technology row is the one worth sitting with: it's the largest sector in this universe (60 tickers), the signal population's <em>raw</em> average return there is the highest of any sector (+0.53%) — and it is still the single worst result on an excess-return basis, because random long entries in IT stocks over 2010–2026 did even better (+1.31%). A high raw return is not evidence of a good signal if the do-nothing alternative did better.</p>
+
+    <h3>By market regime</h3>
+    <p style="font-size:14px; color:var(--ink-soft); max-width:60ch;">Regime is classified per stock, from its own trailing 200-day trend and realized volatility — not an external index.</p>
+    <div class="table-wrap">
+      <div class="regime-grid">
+        <div class="rg-cell rg-head"></div>
+        <div class="rg-cell rg-head">High vol</div>
+        <div class="rg-cell rg-head">Normal vol</div>
+        <div class="rg-cell rg-head">Low vol</div>
+
+        <div class="rg-cell rg-head">Bull</div>
+        <div class="rg-cell"><span class="rg-value pos">+0.08%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.20%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.34%</span></div>
+
+        <div class="rg-cell rg-head">Bear</div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.54%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.61%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;1.27%</span></div>
+
+        <div class="rg-cell rg-head">Sideways</div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;1.32%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.54%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.48%</span></div>
+      </div>
+    </div>
+    <p style="font-size:13px; color:var(--ink-faint);">Cell value = signal average return minus baseline average return, at the 10-day horizon. Only one of nine cells is positive.</p>
+  </section>
+
+  <section class="q">
+    <div class="q-head"><span class="q-num">06</span><h2>Which concepts fail consistently?</h2></div>
+    <p>Every bearish-direction signal in the study — <span class="mono">ict_bos_bearish</span>, <span class="mono">ict_fvg_bearish_filled</span>, <span class="mono">smc_fvg_bearish_formed</span>, and the rest — shows a <em>negative</em> average forward return, significantly so. Read carefully: because these are short-biased signals, a negative return means the position lost money, i.e. <strong>price kept rising after the bearish signal fired.</strong> Across a 16-year bull market, that is a coherent, honest finding rather than a bug: these signals were systematically fighting the prevailing trend.</p>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Signal</th><th class="num">Trades</th><th class="num">Win&nbsp;rate</th><th class="num">Sharpe</th></tr></thead>
+        <tbody>
+          <tr><td class="signal">ict_fvg_bearish_filled</td><td class="num">86,287</td><td class="num">39.7%</td><td class="num neg">&minus;1.113</td></tr>
+          <tr><td class="signal">ict_bos_bearish</td><td class="num">42,780</td><td class="num">40.2%</td><td class="num neg">&minus;0.813</td></tr>
+          <tr><td class="signal">smc_fvg_bearish_formed</td><td class="num">68,062</td><td class="num">42.1%</td><td class="num neg">&minus;0.708</td></tr>
+          <tr><td class="signal">smc_internal_bos_bearish</td><td class="num">16,686</td><td class="num">41.2%</td><td class="num neg">&minus;0.698</td></tr>
+          <tr><td class="signal">ict_volume_imbalance_bearish</td><td class="num">85,075</td><td class="num">41.7%</td><td class="num neg">&minus;0.696</td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p>Among long-biased signals that failed the baseline test — <span class="mono">smc_fvg_bullish_formed</span>, <span class="mono">ict_ndog_formed</span>, <span class="mono">ict_nwog_formed</span>, <span class="mono">ict_mss_bullish</span> among them — the returns are still positive, just statistically indistinguishable from what a coin-flip long entry would have produced at the same frequency.</p>
+  </section>
+
+  <section class="q">
+    <div class="q-head"><span class="q-num">07</span><h2>How stable is this across time and conditions?</h2></div>
+    <p>Not very. The regime grid in Q5 has one positive cell out of nine. The one bright spot — bull markets during high-volatility stretches — is a narrow slice of the full trade population (180,610 of ~4.3M trades, about 5%). Every other combination of trend and volatility regime shows the signal population trailing a plain random entry. This is the most important caveat on the "28 concepts beat baseline" headline: that result is a 2010–2026, largely-bull-market average, and it does not appear to hold evenly across conditions.</p>
+  </section>
+
+  <section class="q">
+    <div class="q-head"><span class="q-num">08</span><h2>Method, in brief</h2></div>
+    <ul class="plain">
+      <li><strong>Translation.</strong> Both Pine scripts were read line by line and every concept ported to Python by hand — pivot detection, order block formation and mitigation, fair value gaps, liquidity pools, structure breaks — with overlapping vocabulary between the two engines (three different working definitions of "BOS," for instance) kept as separate signal families rather than merged.</li>
+      <li><strong>Detection.</strong> Every detector ran against 501 of 503 S&amp;P 500 constituents, daily bars, 2010–2026: 4,348,698 discrete events across 42 signal families.</li>
+      <li><strong>Backtest.</strong> Every event was carried forward 1, 2, 3, 5, 10, 20, 40, and 60 trading days — 34,632,327 trades total. Entry uses only the signal bar's own close; every exit price and adverse/favorable excursion is computed strictly on bars after entry. No look-ahead by construction.</li>
+      <li><strong>The baseline correction.</strong> A first pass reported all 42 concepts as "significant" — using only a zero-return null. That was a red flag, not a result: it meant a benchmark comparison was missing, not that the signals worked. A random-entry baseline was built and backtested through the identical pipeline, and every ranking — concepts, combinations, individual stocks, sectors, regimes — was re-tested against it. The numbers on this page are all post-correction.</li>
+      <li><strong>Significance.</strong> Bootstrap confidence intervals, two-sample significance tests against the baseline, and Benjamini–Hochberg false-discovery-rate correction throughout, at &alpha;&nbsp;=&nbsp;0.05.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <p>Two concepts referenced in general ICT literature — Rejection Blocks and Optimal Trade Entry — have no corresponding logic in either source script and were not implemented. No transaction costs or slippage are modeled; these are in-sample results across the full study window, not a walk-forward or held-out test. Source indicators © LuxAlgo, CC BY-NC-SA 4.0. This is a research study, not investment advice.</p>
+  </footer>
+
+</div>
