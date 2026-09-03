@@ -1,6 +1,6 @@
 # Master Summary -- SMC/ICT Statistical Edge Study
 
-*Generated 2026-09-03 17:09 UTC · 352 (signal x horizon) hypotheses · BH-FDR at alpha = 0.05 across the whole family · 10,000 bootstrap iterations*
+*Generated 2026-09-03 17:44 UTC · 352 (signal x horizon) hypotheses · BH-FDR at alpha = 0.05 across the whole family · 10,000 bootstrap iterations*
 
 Full machine-readable table: `results/statistics_master.csv`.
 

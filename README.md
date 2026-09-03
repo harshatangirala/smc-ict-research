@@ -51,7 +51,11 @@ market any long-biased signal clears that bar on drift alone. The number you
 report depends almost entirely on the benchmark you choose.
 
 The five concepts that do clear the bar have excess returns of **5-33 basis
-points** per ten-day trade. Three further results bound what that is worth:
+points** per ten-day trade. A targeted 36-configuration sweep over the
+parameters those detectors actually read cuts that to **two** — both liquidity
+sweeps — whose edge survives its own parameterisation; `ict_nwog_gap_up` changes
+sign across the threshold range and is withdrawn. Three further results bound
+what the remainder is worth:
 
 - **Costs.** Measured against the gross mean return, 22 of 44 concepts clear a
   26 bp round-trip cost. Measured against the *excess over the matched null* --

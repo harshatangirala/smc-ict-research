@@ -27,6 +27,7 @@ published number or prevents a class of error from recurring.
 | Claim | Before | After |
 |---|---|---|
 | Concepts beating the random-entry benchmark | 28 / 42 | **5 / 44** |
+| — of those, robust to their own parameters | not tested | **2** |
 | Of those, actually better than the benchmark | 1 | 5 |
 | Concepts significant vs. a zero-return null | 42 / 42 | 39 / 44 |
 | Trades in the backtest | 34.6 M | 17.7 M |
@@ -47,16 +48,31 @@ the tradeable set.
 I've tried to list the weakest parts of my own work rather than leave you to
 find them.
 
-**1. Three of the five surviving concepts are ones I reformulated.**
-`ict_sweep_sellside_bullish`, `ict_sweep_buyside_bearish` and `ict_nwog_gap_up`
-clear the bar only in the corrected forms in this branch. In their original
-forms they were not testable events at all — the "sweep" fired when price merely
-entered a liquidity pool, and the gap fired on every bar — so there was no
-prior result to preserve. But I chose the sweep parameters (X = 0.25 ATR,
-Z = 3 bars) and the gap threshold (0.10 ATR), and a different reasonable choice
-might not have produced a positive result. The sensitivity sweep reports how
-much the result moves; treat this as the least robust part of the positive
-finding. Manuscript §5.2 and §7 say so explicitly.
+**1. Three of the five surviving concepts are ones I reformulated — and I
+tested that directly, with one failing.** `ict_sweep_sellside_bullish`,
+`ict_sweep_buyside_bearish` and `ict_nwog_gap_up` clear the bar only in the
+corrected forms in this branch. In their original forms they were not testable
+events at all (the "sweep" fired when price merely entered a liquidity pool; the
+gap fired on every bar), so there was no prior result to preserve — but I chose
+the new parameters, so I ran a 36-configuration targeted sweep over exactly
+those parameters (`results/sensitivity_targeted_grid.csv`):
+
+| Signal | Configs with positive excess |
+|---|---:|
+| `ict_sweep_buyside_bearish` | **36 / 36** |
+| `ict_sweep_sellside_bullish` | **33 / 36** |
+| `ict_nwog_gap_up` | 24 / 36 |
+
+The two sweep detectors hold up, and the default X = 0.25 ATR is *not* the most
+favourable setting (X = 0.10 gives a larger excess), so the result is not an
+artefact of my choice.
+
+**The gap detector does not hold up, and I withdraw it.** Its mean excess is
++2.6 bp at a 0.05 ATR threshold, **+0.4 bp at my default of 0.10**, and −1.6 bp
+at 0.25 — the default sits essentially at the sign change. It clears FDR at one
+parameter value and would not at a neighbouring one. The manuscript says so and
+counts **two** robust concepts, not three. This is the single change I'd most
+want a second opinion on.
 
 **2. The sector and regime comparators changed, which changes those numbers a
 lot.** The old sector table compared a roughly half-short signal population

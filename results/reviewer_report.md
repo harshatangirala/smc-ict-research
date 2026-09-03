@@ -1,13 +1,13 @@
 # Reviewer Report
 
-*Generated 2026-09-03 17:07 UTC*
+*Generated 2026-09-03 17:43 UTC*
 
 An adversarial pre-read: the objections a referee or an informed reader is most likely to raise, checked programmatically against the artefacts this run produced. `EXPOSED` items are genuine weaknesses that are **not** fixed; they are listed so the paper can state them rather than have a reader discover them.
 
 | Status | Count |
 |---|---:|
-| ADDRESSED | 8 |
-| PARTIAL | 5 |
+| ADDRESSED | 9 |
+| PARTIAL | 4 |
 | EXPOSED | 1 |
 
 ---
@@ -132,9 +132,9 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 ## 11. Results are reported at one parameter configuration inherited from the source scripts.
 
-**PARTIAL** · severity: medium
+**PASS** · severity: medium
 
-**Evidence.** Sweep machinery exists (analytics/sensitivity.py) but no sweep output is present in this run -- run `python main.py sensitivity`.
+**Evidence.** Grid and randomised parameter sweeps report sign-consistency and the coefficient of variation of the excess return across configurations.
 
 **Response.** The defaults are the Pine `input.*` values, fixed before any result was seen, which is the honest starting point; the sweep shows whether the conclusion survives moving them.
 
@@ -184,11 +184,10 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 * No economic mechanism is proposed for why these patterns would predict returns.
 
-5 are partially addressed and should be scoped explicitly rather than claimed as solved:
+4 are partially addressed and should be scoped explicitly rather than claimed as solved:
 
 * The universe is a current index snapshot applied retroactively -- survivorship bias.
 * Findings may not generalise beyond US large caps on daily bars, 2010-2026.
-* Results are reported at one parameter configuration inherited from the source scripts.
 * SMC/ICT concepts are vaguely defined in the source material; the paper may be testing a strawman.
 * Sector-level conclusions rest on too few names to have statistical power.
 

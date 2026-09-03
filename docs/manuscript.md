@@ -17,7 +17,8 @@ abstract: |
   39 of 44 concepts appear significant. Against the matched null, with
   Benjamini–Hochberg control across all 352 (concept × horizon) hypotheses, only
   5 survive, and their excess returns are 5–33 basis points over ten trading
-  days. Because forward returns overlap in time and cluster cross-sectionally,
+  days; a targeted sweep over the parameters we chose reduces that to 2 whose
+  edge is robust to its own parameterisation. Because forward returns overlap in time and cluster cross-sectionally,
   conventional iid standard errors understate uncertainty by a median factor of
   5.8 (maximum 11.8) in this sample; we use calendar-time Newey–West standard
   errors throughout. In a 13-fold walk-forward evaluation, concepts selected on
@@ -356,11 +357,11 @@ and the gap detector clear the bar in their corrected forms. In their original
 forms they did not exist as testable events: the "sweep" fired when price merely
 entered a liquidity pool, with no rejection leg, making it a near-duplicate of
 pool formation; and the gap detector fired on every bar. The corresponding
-original columns (`ict_liquidity_buyside_swept`, excess −0.045%) do not clear the
-bar. Whether this reflects a real effect that the loose definitions obscured, or
-a fortunate specification choice among the several we could have made, cannot be
-settled by this sample — Section 5.4 reports the sensitivity sweep, and Section 7
-treats it as an open question.
+original column `ict_liquidity_buyside_swept` (excess −0.045%) does not clear the
+bar. Section 5.4 tests whether this reflects a real effect the loose definitions
+obscured or a fortunate specification choice, by sweeping the parameters we
+chose. The two sweep detectors survive that test; the gap detector does not, and
+we withdraw it.
 
 ## 5.3 Out-of-sample performance
 
@@ -416,10 +417,45 @@ bear/low-volatility (+0.24 pp, n = 7,739) and sideways/low-volatility (+0.10 pp,
 n = 13,552). The worst is bear/high-volatility (−0.51 pp, n = 144,311). The
 positive buckets are the two smallest, and we do not treat them as evidence.
 
-**Parameter sensitivity.** Results at the default parameters are not privileged;
-`results/sensitivity_stability.csv` reports each concept's sign-consistency and
-coefficient of variation across a grid over the order-block swing lookback and
-market-structure pivot length, and a randomised sweep over six parameters.
+**Parameter sensitivity.** Results at the default parameters are not
+privileged. Two sweeps are reported. A broad grid over the order-block swing
+lookback and the market-structure pivot length moves 18 of the 44 concepts; the
+other 26 do not read those parameters at all, so their zero variance there means
+*untested*, not *robust* — `responds_to_sweep` in
+`results/sensitivity_stability.csv` marks the distinction.
+
+Because that grid does not touch the parameters governing the three concepts we
+reformulated, a second, targeted sweep varies exactly those: the sweep
+penetration threshold *X* ∈ {0.10, 0.25, 0.50, 1.00} ATR, the confirmation
+window *Z* ∈ {1, 3, 6} bars, and the gap materiality threshold ∈ {0.05, 0.10,
+0.25} ATR — 36 configurations. This is the direct test of whether our
+specification choices drive the positive result.
+
+**Table 6.** Targeted sweep over the reformulated concepts' own parameters
+(36 configurations).
+
+| Signal | Mean excess | Range (bp) | Configs with positive excess |
+|---|---:|---:|---:|
+| `ict_sweep_sellside_bullish` | +18.5 bp | 29.4 | **33 / 36** |
+| `ict_sweep_buyside_bearish` | +8.4 bp | 28.7 | **36 / 36** |
+| `ict_nwog_gap_up` | +0.5 bp | 4.2 | 24 / 36 |
+| `ict_nwog_gap_down` | −4.7 bp | 2.6 | 0 / 36 |
+
+The two sweep detectors survive. `ict_sweep_buyside_bearish` is positive in
+every configuration tested, and `ict_sweep_sellside_bullish` in all but the
+three using an extreme *X* = 1.00 ATR penetration threshold, which admits too
+few events to estimate. Notably the default *X* = 0.25 is not the most
+favourable setting: at *X* = 0.10 the sell-side excess is 24 bp against 20 bp at
+the default, so the chosen value is conservative rather than cherry-picked.
+
+**The gap detector does not survive**, and its failure mode is instructive: its
+sign is determined by the materiality threshold we chose. Mean excess is +2.6 bp
+at 0.05 ATR, **+0.4 bp at our default of 0.10**, and −1.6 bp at 0.25 ATR. The
+default sits almost exactly at the sign change. We therefore withdraw
+`ict_nwog_gap_up` as evidence of an edge: it clears the significance bar at one
+parameter value and would not at a neighbouring one, which is the definition of
+a result that has not been established. That leaves **two** concepts — both
+liquidity sweeps — with an edge that is robust to its own parameterisation.
 
 # 6. What three ordinary errors did to the same data
 
@@ -504,13 +540,17 @@ about power as much as about truth: our confidence intervals on Cohen's *d* are
 roughly ±0.015 at the largest sample sizes, so we can exclude effects larger than
 about *d* = 0.15, but not small ones.
 
-**On the three reformulated concepts.** The two sweep detectors and the gap
-detector clear the bar only in the corrected, prospective forms we wrote. We are
-explicit that this is the weakest part of our positive result. We chose *X* =
-0.25 ATR and *Z* = 3 bars before seeing any outcome, and the sensitivity sweep
-reports how the result moves as they vary — but a reader is entitled to treat a
-result that depends on our specification choice with more suspicion than one that
-survived the source authors' defaults.
+**On the three reformulated concepts.** These clear the bar only in the
+corrected, prospective forms we wrote, which is the weakest part of our positive
+result, so we tested it directly. The two liquidity-sweep detectors are positive
+across essentially the whole parameter space we swept (36/36 and 33/36
+configurations), and the default *X* = 0.25 ATR is not the most favourable
+setting available — the result is not an artefact of our choice. The gap
+detector is: its sign turns over between 0.05 and 0.25 ATR with our default
+sitting at the crossing, so we withdraw it. A reader should treat the two
+surviving sweep results as the only positive findings in this paper, and even
+those as small: 8–19 basis points, inside or barely above the modelled cost
+band.
 
 **Interpretation.** That gross returns are large (65–82 bp) while excess returns
 are small (4–12 bp) is the cleanest summary. These detectors do fire, and
@@ -549,7 +589,9 @@ composition-matched random entry. The five that are distinguishable carry excess
 returns of 5–33 basis points per ten-day trade, fail to carry that edge into a
 13-fold walk-forward evaluation, and — with one exception — do not clear a
 modelled 11–26 basis-point cost band once the excess rather than the gross return
-is measured against it.
+is measured against it. A targeted parameter sweep further reduces the five to
+**two** — both liquidity sweeps — whose edge survives variation in the
+parameters we ourselves chose.
 
 The methodological result may be the more useful one. On identical data, a
 zero-return null admits 39 of 44 concepts and a composition-matched null admits
@@ -668,7 +710,8 @@ z ← (observed_mean − null_mean) / null_se ;  p ← 1 − Φ(z)      # one-si
 | Break-even and net-of-cost tables | `results/breakeven_costs.csv`, `results/net_of_cost_rankings.csv` |
 | Monte Carlo | `results/monte_carlo.csv` |
 | Sector and regime breakdowns | `results/sector_analysis.csv`, `results/regime_analysis.csv` |
-| Parameter sweeps | `results/sensitivity_{grid,random,stability}.csv` |
+| Parameter sweeps (broad) | `results/sensitivity_{grid,random,stability}.csv` |
+| Parameter sweep (targeted at the reformulated concepts) | `results/sensitivity_targeted_{grid,stability}.csv` |
 | Every code, data and parameter change from the prior version, with rationale | `CHANGES.md` |
 
 Reproduction: `./run_full_pipeline.sh` (see `docs/replication_guide.md`).

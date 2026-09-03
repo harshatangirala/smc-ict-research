@@ -105,40 +105,67 @@ def _save(fig, stem: str, data: pd.DataFrame | None = None):
 # 1. Forest plot -- effect size with 95% bootstrap CI
 # ---------------------------------------------------------------------------
 def figure_forest(master: pd.DataFrame):
+    """Excess over the matched null, with a 95% interval, for every concept.
+
+    Deliberately NOT Cohen's d against zero. That statistic is negative for
+    every short signal simply because shorts lose money in a bull market, so a
+    forest plot of it separates long from short rather than informative from
+    uninformative -- the opposite of the paper's claim. The excess over the
+    composition-matched null is the quantity the conclusion rests on, and its
+    sign means what a reader expects it to mean.
+    """
     m = master[master["holding_period"] == PRIMARY_HOLDING_PERIOD].copy()
-    m = m.dropna(subset=["effect_size_cohens_d"]).sort_values("effect_size_cohens_d")
+    m = m.dropna(subset=["excess_return_vs_matched_random", "matched_null_se"])
     if m.empty:
         return
+    m = m.sort_values("excess_return_vs_matched_random")
 
     y = np.arange(len(m))
-    d = m["effect_size_cohens_d"].to_numpy()
-    lo = m["cohens_d_ci_lower"].to_numpy()
-    hi = m["cohens_d_ci_upper"].to_numpy()
-    # Sign is the message: a concept whose CI straddles zero is not an edge.
-    colors = [BLUE if v > 0 else RED for v in d]
+    x = m["excess_return_vs_matched_random"].to_numpy() * 10_000  # bps
+    se = m["matched_null_se"].to_numpy() * 10_000
+    lo, hi = x - 1.959964 * se, x + 1.959964 * se
+    beats = m["beats_matched_random"].fillna(False).to_numpy()
 
-    fig, ax = plt.subplots(figsize=(7.2, max(4.5, 0.19 * len(m))))
+    fig, ax = plt.subplots(figsize=(7.4, max(4.5, 0.19 * len(m))))
     ax.axvline(0, color=INK_MUTED, lw=1.0, zorder=1)
-    ax.hlines(y, lo, hi, color=colors, lw=2.0, alpha=0.5, zorder=2)
-    ax.scatter(d, y, s=26, c=colors, zorder=3, edgecolor=SURFACE, linewidth=1.2)
+    # Modelled round-trip cost band: an edge inside it cannot be traded.
+    ax.axvspan(11, 26, color=ORANGE, alpha=0.13, zorder=0)
+
+    colors = [BLUE if b else INK_MUTED for b in beats]
+    ax.hlines(y, lo, hi, color=colors, lw=2.0, alpha=0.45, zorder=2)
+    ax.scatter(x, y, s=30, c=colors, zorder=3, edgecolor=SURFACE, linewidth=1.2,
+               marker="o")
+    # Identity is not colour-alone: winners also carry a marker and a bold label.
+    ax.scatter(x[beats], y[beats], s=95, facecolor="none", edgecolor=BLUE,
+               linewidth=1.3, zorder=4)
 
     ax.set_yticks(y)
-    ax.set_yticklabels(m["signal"], fontsize=7)
-    ax.set_xlabel("Cohen's d (mean forward return / SD), 95% bootstrap CI")
+    labels = [
+        f"{sig}  ★" if b else sig
+        for sig, b in zip(m["signal"], beats)
+    ]
+    ax.set_yticklabels(labels, fontsize=7)
+    for tick, b in zip(ax.get_yticklabels(), beats):
+        tick.set_color(INK if b else INK_2)
+        if b:
+            tick.set_fontweight("bold")
+
+    ax.set_xlabel("excess return over the composition-matched random null (bps, 10-day trade)")
     ax.set_title(
-        f"Concept effect sizes at h = {PRIMARY_HOLDING_PERIOD} days",
+        f"Does each concept beat random entry on the same names? (h = {PRIMARY_HOLDING_PERIOD} days)",
         loc="left", pad=10,
     )
     ax.grid(axis="x", zorder=0)
     ax.set_ylim(-1, len(m))
     _despine(ax)
-    # Identity is not carried by colour alone: the axis names every row, and
-    # the annotation states what each side means.
-    ax.text(0.99, 0.01, "blue = positive · red = negative", transform=ax.transAxes,
-            ha="right", va="bottom", color=INK_MUTED, fontsize=7.5)
+    ax.text(0.99, 0.015,
+            "★ = beats the null after BH-FDR   ·   shaded = 11-26 bp cost band",
+            transform=ax.transAxes, ha="right", va="bottom",
+            color=INK_MUTED, fontsize=7.5)
     _save(fig, "fig1_concept_forest",
-          m[["signal", "n_trades", "effect_size_cohens_d",
-             "cohens_d_ci_lower", "cohens_d_ci_upper"]])
+          m[["signal", "direction", "n_trades", "excess_return_vs_matched_random",
+             "matched_null_se", "p_adj_vs_matched_random", "beats_matched_random",
+             "effect_size_cohens_d", "cohens_d_ci_lower", "cohens_d_ci_upper"]])
 
 
 # ---------------------------------------------------------------------------

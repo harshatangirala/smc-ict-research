@@ -46,6 +46,8 @@ SWEEPABLE = {
     "ict.displacement_perc_body": ("ICT", (0.10, 0.60)),
     "ict.sweep_penetration_atr": ("ICT", (0.05, 1.00)),
     "ict.sweep_confirm_bars": ("ICT", (1, 10)),
+    "ict.sweep_reclaim_frac": ("ICT", (0.0, 1.0)),
+    "ict.gap_min_atr": ("ICT", (0.02, 0.60)),
     "smc.swing_len": ("SMC", (10, 80)),
     "smc.internal_len": ("SMC", (3, 15)),
     "smc.equal_hl_threshold": ("SMC", (0.02, 0.40)),
@@ -57,10 +59,13 @@ def _detect_with_params(
 ) -> pd.DataFrame:
     """Run detection across `prices` with overridden parameters.
 
-    The detector modules read ``utils.config.ICT`` / ``SMC`` at *call* time
-    through their default arguments, so the frozen dataclasses are swapped on
-    the module object and restored afterwards. Sweeping without this would
-    silently reuse the defaults and produce a flat, meaningless surface.
+    The frozen ``ICT`` / ``SMC`` dataclasses are swapped on the detector module
+    objects and restored afterwards. This only works because the detectors
+    resolve their parameters from those objects *inside the function body*. When
+    they were bound as default arguments -- ``def detect(df, length=ICT.x)`` --
+    Python froze the value at import and this swap did nothing: the first
+    version of this sweep returned byte-identical results at all 16 grid points.
+    ``tests/test_pipeline_integrity.py::TestParametersAreLateBound`` guards it.
     """
     import signals.ict_signals as ict_mod
     import signals.smc_signals as smc_mod
@@ -217,9 +222,15 @@ def stability_summary(sweep: pd.DataFrame) -> pd.DataFrame:
     """How much does each signal's edge move across the swept configurations?
 
     ``sign_consistency`` is the fraction of configurations in which the excess
-    return kept the sign it has at the default parameters. A concept whose
-    edge flips sign as a lookback moves by a few bars has not been shown to
-    have an edge at all.
+    return kept its majority sign. A concept whose edge flips sign as a lookback
+    moves by a few bars has not been shown to have an edge at all.
+
+    ``responds_to_sweep`` matters for reading the rest of the row. A parameter
+    that does not enter a detector cannot move it, so ``std_excess == 0`` there
+    means "this sweep did not test this concept", NOT "this concept is robust".
+    Sweeping ``ict.ob_swing_len`` tells you nothing about ``ict_sweep_*``, which
+    reads ``ict.sweep_swing_len``. Read a zero-variance row as untested unless
+    ``responds_to_sweep`` is True.
     """
     if sweep.empty:
         return pd.DataFrame()
@@ -228,6 +239,7 @@ def stability_summary(sweep: pd.DataFrame) -> pd.DataFrame:
         n_configs="count", mean_excess="mean", median_excess="median",
         std_excess="std", min_excess="min", max_excess="max",
     ).reset_index()
+    summary["std_excess"] = summary["std_excess"].fillna(0.0)
     summary["sign_consistency"] = (
         sweep.assign(pos=sweep["excess_return_vs_matched_random"] > 0)
         .groupby("signal")["pos"]
@@ -237,4 +249,6 @@ def stability_summary(sweep: pd.DataFrame) -> pd.DataFrame:
     summary["coefficient_of_variation"] = (
         summary["std_excess"] / summary["mean_excess"].abs()
     ).replace([np.inf, -np.inf], np.nan)
+    summary["responds_to_sweep"] = summary["std_excess"] > 0
+    summary["swept_range_bps"] = (summary["max_excess"] - summary["min_excess"]) * 10_000
     return summary.sort_values("mean_excess", ascending=False).reset_index(drop=True)

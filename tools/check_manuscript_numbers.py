@@ -131,6 +131,29 @@ def main() -> int:
         add("excess break-even clearing 11bp", 4,
             int((bx["breakeven_excess_cost_bps"] > 11).sum()), 0, True)
 
+    # --- Table 6: targeted sensitivity sweep -------------------------------
+    tg = _read("sensitivity_targeted_grid.csv")
+    if tg is not None and len(tg):
+        frac = tg.groupby("signal")["excess_return_vs_matched_random"].apply(
+            lambda x: (x > 0).sum()
+        )
+        n_cfg = tg.groupby("signal").size()
+        for sig, stated_pos, stated_n in [
+            ("ict_sweep_sellside_bullish", 33, 36),
+            ("ict_sweep_buyside_bearish", 36, 36),
+            ("ict_nwog_gap_up", 24, 36),
+            ("ict_nwog_gap_down", 0, 36),
+        ]:
+            if sig in frac.index:
+                add(f"sweep configs positive {sig}", stated_pos, int(frac[sig]), 0, True)
+                add(f"sweep configs total {sig}", stated_n, int(n_cfg[sig]), 0, True)
+        gap = tg[tg["signal"] == "ict_nwog_gap_up"]
+        if len(gap) and "ict.gap_min_atr" in gap.columns:
+            by_thr = gap.groupby("ict.gap_min_atr")["excess_return_vs_matched_random"].mean() * 10_000
+            for thr, stated in [(0.05, 2.6), (0.10, 0.4), (0.25, -1.6)]:
+                if thr in by_thr.index:
+                    add(f"gap excess at threshold {thr}", stated, float(by_thr[thr]), 0.15, True)
+
     # --- report ------------------------------------------------------------
     failures = []
     for name, stated, actual, tol, absolute in checks:
