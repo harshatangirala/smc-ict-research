@@ -32,7 +32,7 @@ def _structure_and_ob(
     confluence: bool = False,
     parsed_high: np.ndarray | None = None,
     parsed_low: np.ndarray | None = None,
-    ob_max_retained: int = SMC.ob_max_retained,
+    ob_max_retained: int | None = None,
 ) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
     """One pass: BOS/CHoCH structure breaks + order block formation/mitigation.
 
@@ -42,6 +42,7 @@ def _structure_and_ob(
     call (matching Pine's `internalHigh.currentLevel != swingHigh.currentLevel`
     guard).
     """
+    ob_max_retained = SMC.ob_max_retained if ob_max_retained is None else ob_max_retained
     n = len(high)
     h, l, c, o = high.to_numpy(), low.to_numpy(), close.to_numpy(), open_.to_numpy()
     swing_high, swing_low = extract_swing_points(high, low, size)
@@ -192,9 +193,11 @@ def detect_structure(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def detect_equal_highs_lows(
-    df: pd.DataFrame, size: int = SMC.equal_hl_len, threshold: float = SMC.equal_hl_threshold
+    df: pd.DataFrame, size: int | None = None, threshold: float | None = None
 ) -> pd.DataFrame:
     """SMC Section 2.4."""
+    size = SMC.equal_hl_len if size is None else size
+    threshold = SMC.equal_hl_threshold if threshold is None else threshold
     swing_high, swing_low = extract_swing_points(df["high"], df["low"], size)
     atr_measure = atr(df["high"], df["low"], df["close"], SMC.equal_hl_atr_len)
 

@@ -31,25 +31,73 @@ explicit goal of answering whether these concepts add predictive power beyond si
 This is **not** an attempt to replicate TradingView's visual output. Boxes, lines, colors, and
 labels in the source scripts are irrelevant; only the underlying trigger logic matters.
 
-## Key findings (see `docs/final_research_report.md` for the full, auto-generated report)
+## Key findings
 
-**The aggregate, unconditional claim "SMC/ICT signals beat chance" is not supported by this
-dataset.** Every one of the 42 tested concepts clears a *zero-return* null (42/42) — but that is
-a weak bar over 2010-2026, a long bull market, where almost any long-biased signal shows a
-positive mean return from broad market drift alone. Tested properly against a **random-entry
-baseline** run through identical backtest mechanics at the same frequency, only **28/42**
-concepts and **44/60** tested combinations remain significant, and only **2 of 12 sectors**
-(Energy, Materials) show positive excess return over that baseline — in most sectors, including
-Information Technology, a plain random long entry outperformed the aggregate SMC/ICT signal
-population. Where a real edge exists, it is concept-specific and regime/sector-dependent, not a
-property of the methodology as a whole. See Section 1 of the final report for the full picture,
-and Section 2 for the specific concepts that do clear the bar.
+**On daily S&P 500 bars over 2010-2026, these implementations of SMC/ICT carry
+little to no exploitable predictive information.** Of 44 formalised concepts, at
+the 10-day horizon and with Benjamini-Hochberg control across all 352
+(concept x horizon) hypotheses:
 
-This finding only emerged after a validation pass caught that the initial pipeline run reported
-all 42 concepts as "significant" using only the zero-return test — a red flag, not a good
-result, that led directly to building `backtest/baseline_engine.py` and rewiring every ranking
-module (concepts, combinations, stocks, sectors, regimes) to compare against the baseline
-consistently. See commit history for the full account.
+| Benchmark | Concepts significant |
+|---|---:|
+| Zero-return null | **39 / 44** |
+| Composition-matched random entry | **5 / 44** |
+| — significantly *worse* than random entry | 0 / 44 |
+| — statistically indistinguishable | 39 / 44 |
+
+The two rows differ by a factor of nearly eight **on identical data**. Against a
+zero-return null almost everything looks significant, because over a 16-year bull
+market any long-biased signal clears that bar on drift alone. The number you
+report depends almost entirely on the benchmark you choose.
+
+The five concepts that do clear the bar have excess returns of **5-33 basis
+points** per ten-day trade. Three further results bound what that is worth:
+
+- **Costs.** Measured against the gross mean return, 22 of 44 concepts clear a
+  26 bp round-trip cost. Measured against the *excess over the matched null* --
+  the part actually attributable to the signal -- only **1 of 44** does, and only
+  4 clear even 11 bp. The returns are real; they are mostly market drift that
+  random entry captures too.
+- **Out of sample.** Across 13 walk-forward folds (train 3y / test 1y / step 1y),
+  concepts selected on training data earn a mean out-of-sample excess of
+  **-0.16 pp**, against +0.65 pp in sample.
+- **Standard errors.** Forward returns overlap in time and cluster
+  cross-sectionally. Ignoring that understates standard errors by a median factor
+  of **5.8x** (max 11.8x) in this sample, which is how a large trade count turns
+  into a spuriously tiny p-value.
+
+Full results: [`docs/manuscript.md`](docs/manuscript.md) /
+[`docs/manuscript.pdf`](docs/manuscript.pdf), with
+[`results/validation_report.md`](results/validation_report.md) and
+[`results/master_summary.md`](results/master_summary.md) generated directly from
+the artefacts.
+
+### This corrects an earlier version of the same study
+
+The previous version of this pipeline reported that **28 of 42** concepts beat a
+random-entry baseline. That result was wrong, and the reasons are documented in
+full in [`CHANGES.md`](CHANGES.md) and Section 6 of the manuscript:
+
+1. **A two-sided test behind a directional claim.** Of the 28 concepts flagged
+   significant, **27 had a negative effect size** — they lost to random entry,
+   and were listed under the heading "Signals that beat the random-entry
+   baseline".
+2. **Look-ahead.** Two FVG-fill columns were computed from up to 60 *future* bars
+   and stamped on the formation bar, then traded as entry signals — 187,719
+   leaked trades.
+3. **An irreproducible benchmark.** The random baseline seeded from Python's
+   salted `hash()`, so every run drew a different comparator and the published
+   counts could not be reproduced.
+4. **A degenerate signal.** `ict_ndog_formed` fired on essentially every bar,
+   contributing 45% of the entire event table.
+5. **A dead detector.** The Balanced Price Range condition reduced to
+   `upper < lower` and was false everywhere; two concepts silently vanished.
+
+Each is a one-line mistake. Together they moved the conclusion from "5 of 44
+concepts show a small edge that costs mostly consume" to "28 of 42 beat random
+entry". The mechanical guards now in `tests/` — truncation invariance, an
+index-position audit, a fail-closed signal registry, and a pinned seed
+derivation — exist because code review did not catch any of them.
 
 ## Project structure
 
@@ -137,9 +185,15 @@ pipeline already produced — nothing is recalculated inside the UI.
 ## Data source
 
 - **Price data:** `yfinance`, daily OHLCV, 2010-01-01 to 2026-06-13, cached locally under
-  `data/cache/` (parquet) so re-runs never re-download unchanged history. 500 of 503
-  constituents downloaded successfully; 2 failed (`HONA`, `SATS` — both flagged in advance in
-  `docs/concepts_extraction.md` as likely thin/recent-listing tickers).
+  `data/cache/` (parquet) so re-runs never re-download unchanged history. **498 of 503**
+  constituents download; five (`AVB`, `EA`, `EQR`, `HONA`, `SATS`) return no data at this
+  snapshot, verified permanent rather than transient by retrying each individually. **496**
+  have at least 300 bars and enter the study.
+- **Survivorship bias (important):** the constituent list is a *2026 snapshot* applied
+  retroactively to 2010-2026, so only firms in the index today are tested. This inflates
+  absolute return levels. It largely cancels in the matched-random comparison, since the null
+  is drawn from the same survivor-biased tickers — which is why that comparison, not raw
+  return, carries the headline.
 - **Universe:** `data/raw/sp500_constituents.csv`, the S&P 500 constituent list supplied for
   this project. Tickers containing a `.` (`BRK.B`, `BF.B`) are converted to `-` for yfinance
   compatibility during ingestion.
@@ -163,17 +217,24 @@ pipeline already produced — nothing is recalculated inside the UI.
 4. **Backtesting** (`backtest/engine.py`): for every event, forward returns are computed at 1,
    2, 3, 5, 10, 20, 40, and 60 trading days ahead, using only the entry bar's own close and
    strictly-future bars for the exit/MAE/MFE — no look-ahead by construction.
-5. **Statistical validation** (`analytics/statistics.py`): bootstrap confidence intervals,
-   one-sample and two-sample significance tests, effect sizes, and Benjamini-Hochberg
-   false-discovery-rate correction across every concept/combination/stock/sector/regime tested.
-   **Two distinct significance tests are reported and deliberately kept separate**: significance
-   vs. a zero-return null (`significant_vs_zero`), and significance vs. a random-entry baseline
-   run through the identical backtest mechanics at the same holding periods
-   (`significant_vs_baseline`, via `backtest/baseline_engine.py`). The first test alone is
-   misleading over a long bull market (2010-2026) — almost any long-biased signal clears it
-   from broad market drift alone. The dashboard's and report's headline
-   `statistically_significant` flag uses the baseline comparison, not the zero-null one,
-   wherever the baseline backtest is available.
+5. **Statistical validation** (`analytics/statistics.py`, `analytics/master_stats.py`):
+   three benchmarks are reported per (concept, horizon), and they are not interchangeable:
+   - **vs. a zero-return null** — reported, but weak: a long-biased signal clears it on
+     market drift over 2010-2026.
+   - **vs. a composition-matched randomization null** — the primary test. Hold the concept's
+     ticker mix and per-ticker trade count fixed and ask what mean return randomly chosen
+     entry *dates* would produce. Exact under the sampling design (finite-population
+     correction), assumes nothing about the return distribution, and removes the
+     ticker-composition confound that makes a pooled comparison uninterpretable. Validated
+     against a 2,000-run simulation.
+   - **vs. a pooled random-entry baseline** — one-sided Welch, retained for continuity.
+
+   All tests are **one-sided** with the direction stated; a concept counts as beating the
+   null only if its excess is positive, it survives BH-FDR across the whole
+   (concept x horizon) family, and it rests on >= 30 trades. Standard errors are
+   **calendar-time Newey-West**, not iid: forward returns overlap by h-1 days and cluster
+   cross-sectionally, and ignoring that understates the SE by a median 5.8x here.
+
 6. **Analysis** (`analytics/*`): stock-level, concept-level, combination, sector, and market
    regime rankings, all built from the single backtested-trades table (no duplicated
    calculation between modules). Every module compares against the baseline consistently:
@@ -201,58 +262,67 @@ pipeline already produced — nothing is recalculated inside the UI.
 
 ## Validation performed
 
-- **Data quality:** `results/data_quality_report.csv` — missing values, duplicate rows,
-  invalid OHLC relationships, coverage ratios per ticker; 500/501 downloaded tickers passed
-  clean, 1 (`HUBB`) flagged with a genuine anomalous single-day OHLC print, surfaced rather
-  than silently patched.
-- **Unit tests:** `tests/` covers the pivot/leg primitives and includes a regression test for
-  the order-block bug described above. Run with `pytest tests/ -v`.
-- **No-look-ahead construction:** verified by code review of `backtest/engine.py` — entry uses
-  only the signal bar's close; every exit price, MAE, and MFE slice starts at `entry_position +
-  1`.
-- **Statistical rigor:** every concept/combination/stock/sector/regime ranking reports a
-  bootstrap CI, a p-value against a zero-return null, a p-value against a random-entry
-  baseline, FDR-adjusted versions of both, and an effect size — not just a point-estimate win
-  rate. This distinction changed the headline conclusion materially (see "Key findings" above)
-  and was caught during self-review, not requested — the first full pipeline run reported
-  42/42 concepts "significant" using only the zero-return test, which was the signal that a
-  baseline comparison was missing, not present.
+- **Unit tests:** 85 tests in `tests/`, run with `pytest tests/ -v`. They cover the pivot and
+  leg primitives, every formalised detector rule against hand-constructed OHLC, the
+  statistical engine, deterministic seeding, transaction costs, data repair, and walk-forward
+  fold construction.
+- **No look-ahead, proved mechanically** (`tests/test_no_lookahead.py`), not by code review —
+  code review is what missed the original leak:
+  1. an **index-position audit** re-derives the exact bar indices each trade reads and asserts
+     every exit and excursion bar is strictly after the entry bar, at all eight horizons;
+  2. **truncation invariance** recomputes every registered detector on data cut at bar *i* and
+     requires the value at bar *i* to be unchanged. A deliberate canary test confirms the
+     probe still detects the known-leaky label column, so a pass is not vacuous.
+- **Fail-closed signal registry:** a boolean column is tradeable only if registered with an
+  explicit direction. Anything else raises. The previous rule was fail-open, which is how a
+  forward-looking column became an entry signal.
+- **Reproducibility:** seeds derive from BLAKE2b over a stable label, never Python's salted
+  `hash()`; a test pins one derived value. Every run writes `results/run_manifest.json`
+  (git hash, profile, seed, bootstrap budget) and `results/seed.txt`.
+- **Data quality:** `results/data_quality_report.csv`. 496 of 498 tickers clean; exactly
+  **3 materially invalid OHLC bars** exist in the whole universe (APH 2021-05-05 and
+  2023-06-05, HUBB 2021-05-05) and are now **repaired**, not merely counted. A further 1,301
+  sub-1e-6 violations are float noise.
+- **Artefact checks:** `python tools/check_artifacts.py` asserts every required output exists,
+  that `statistics_master.csv` carries all 21 required columns, that no concept is flagged as
+  beating the null with a non-positive excess, and that no forward-looking label reached the
+  event table.
+- **Manuscript verification:** `python tools/check_manuscript_numbers.py` re-derives all 25
+  numeric claims in the paper from the artefacts and fails on any mismatch.
+- **Adversarial pre-read:** `python tools/reviewer_check.py` writes
+  `results/reviewer_report.md`, listing likely referee objections with each marked ADDRESSED,
+  PARTIAL or EXPOSED.
+
+## Reproducing
+
+```bash
+pytest tests/ -v                 # 85 tests, ~15s, no network
+./run_fast_validation.sh         # hermetic 12-ticker end-to-end, 2-4 min
+./run_full_pipeline.sh           # full study, 45-90 min, needs network
+```
+
+Or with Docker:
+
+```bash
+docker build -t smc-ict-research . && docker run --rm -v "$PWD/results:/app/results" smc-ict-research full
+```
+
+See [`docs/replication_guide.md`](docs/replication_guide.md) for the full guide, including
+what varies between runs and where each published claim lives.
 
 ## Limitations
 
-- Sector mapping is a static, manually curated approximation, not a live data source.
-- FVG/gap "filled" state uses a bounded 60-bar forward search (matching the longest backtest
-  holding period) rather than an unbounded search, documented in `signals/ict_signals.py`.
-- Combination analysis is capped at pairwise combinations of same-direction signals with a
-  minimum occurrence floor, to keep the multiple-testing correction meaningful rather than
-  testing thousands of near-empty combinations.
-- Two ICT-literature concepts (Rejection Blocks, Optimal Trade Entry) are not implemented —
-  no corresponding logic exists in the supplied source scripts.
-- Per-ticker and per-sector/regime baseline comparisons have smaller sample sizes than the
-  universe-wide concept-level comparison (a per-ticker baseline is only ~50 random entries),
-  so those significance tests are correspondingly less powered — read per-stock excess-return
-  figures as directional evidence and the accompanying p-value as the honest confidence level,
-  not as a list of proven single-stock edges.
-- A handful of signals have no inherent long/short polarity in the source scripts
-  (`ict_nwog_formed`, `ict_ndog_formed`, `smc_equal_highs`, `smc_equal_lows` — these are
-  reference/gap levels, not directional calls). The backtest engine defaults undirected
-  signals to a long entry rather than dropping them, so their reported win rates should be
-  read as "does price tend to rise after this reference level appears," not as a
-  directional trading rule.
-- This is a research tool, not investment advice; nothing here accounts for transaction costs,
-  slippage, liquidity constraints, or position sizing.
-
-## Future improvements
-
-- Wire in a live sector/industry data source instead of the static mapping.
-- Walk-forward / out-of-sample validation split (current results are in-sample across the full
-  2010-2026 window).
-- Transaction-cost-aware backtest variant.
-- Extend the Fibonacci-between-concepts tool (currently display-only in source) into an actual
-  feature (e.g. "is price in the 0.618-0.786 retracement zone between the last two order
-  blocks") for combination analysis.
+1. **Survivorship bias** — the universe is a 2026 snapshot applied to 2010-2026.
+2. **Daily bars only** — kill zones and all intraday structure are out of scope. SMC/ICT is
+   most often taught on intraday FX and futures, so this is a study of the daily-equity
+   subset, not of the methodology as traded.
+3. **Two specific implementations**, not SMC/ICT as a discretionary practice.
+4. **Symmetric short mechanics** — no borrow cost or availability constraint.
+5. **Path-dependent metrics are descriptive** — Sharpe, Calmar and max drawdown are computed
+   over an overlapping, cross-sectional trade sequence that is not an attainable equity curve.
+   Inference uses the calendar-time estimator instead.
+6. **No economic mechanism** is proposed; this evaluates indicator logic, not theory.
 
 ## License
 
-The two source Pine Script indicators are © LuxAlgo, licensed CC BY-NC-SA 4.0. This research
-codebase follows the same non-commercial share-alike spirit.
+CC BY-NC-SA 4.0. Not investment advice.

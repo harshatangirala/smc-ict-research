@@ -1,0 +1,4 @@
+role,signal,n_trades,excess_return_vs_matched_random
+positive,smc_swing_choch_bearish,2653,0.0032540845948921
+null,smc_internal_ob_bullish_mitigated,54035,-5.290696452509708e-05
+negative,ict_bos_bearish,42496,-0.0049264369736044

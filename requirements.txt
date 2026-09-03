@@ -21,14 +21,19 @@ tqdm>=4.66
 
 # Visualization
 plotly>=5.20
+matplotlib>=3.8          # manuscript figures (tools/make_figures.py)
 
 # Dashboard
 gradio>=4.40
 streamlit>=1.50
 
-# PDF report rendering (utils/render_pdf.py)
-playwright>=1.47
+# Manuscript rendering
+# tools/build_manuscript_pdf.py needs only `markdown` plus a Chrome/Chromium/Edge
+# binary, which is already present on most machines. playwright is optional and
+# used by the older utils/render_pdf.py path.
+markdown>=3.5
 pypdf>=4.3
+playwright>=1.47
 
 # Testing
 pytest>=7.4

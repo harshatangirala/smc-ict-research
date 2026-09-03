@@ -9,8 +9,24 @@ with a bounded forward-search simplification (documented inline) since the
 backtest engine consumes formation events + forward returns, not on-chart
 fill animation.
 
-No look-ahead: every signal at bar i only uses data from bars <= i (pivot
+No look-ahead: every *event* column at bar i uses only bars <= i (pivot
 confirmation lag is preserved explicitly, matching Pine's ta.pivothigh/low).
+
+Detection vs. evaluation labels
+-------------------------------
+Columns whose name ends in ``_label`` are FORWARD-LOOKING BY DESIGN. They
+answer "what happened after this event?" (e.g. was an FVG later filled) and
+exist only as outcome labels for descriptive statistics. They are excluded
+from the tradeable event table by ``signals.event_engine.EVENT_REGISTRY`` and
+must never be used as entry signals.
+
+This separation is the fix for a confirmed look-ahead leak: the previous
+``ict_fvg_bullish_filled`` / ``ict_fvg_bearish_filled`` columns were plain
+booleans, so ``melt_events`` -- which selected every bool column -- emitted
+them as tradeable entries at the *formation* bar while their value was
+computed from up to 60 *subsequent* bars. 187,719 leaked trades reached the
+published results, and both columns land at the extremes of the concept
+ranking as a direct artifact. See tests/test_no_lookahead.py.
 """
 
 from __future__ import annotations
@@ -23,7 +39,7 @@ from pine_parser.legs import extract_swing_points
 from pine_parser.pivots import pivot_high, pivot_low
 from utils.config import ICT
 
-MAX_FORWARD_SEARCH = 60  # bars; matches the longest backtest holding period
+MAX_FORWARD_SEARCH = 60  # bars; matches the longest backtest holding period (N in the FVG-fill rule)
 
 
 def _mx_mn(df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
@@ -32,14 +48,16 @@ def _mx_mn(df: pd.DataFrame) -> tuple[pd.Series, pd.Series]:
     return mx, mn
 
 
-def detect_displacement(df: pd.DataFrame, length: int = ICT.mss_pivot_len) -> pd.DataFrame:
+def detect_displacement(df: pd.DataFrame, length: int | None = None) -> pd.DataFrame:
     """ICT Section 1.4: clean-body, above-average-range candle."""
+    length = ICT.mss_pivot_len if length is None else length
+    perc_body = ICT.displacement_perc_body
     mx, mn = _mx_mn(df)
     body = (df["close"] - df["open"]).abs()
     mean_body = body.rolling(length).mean()
     clean_body = (
-        (df["high"] - mx < body * ICT.displacement_perc_body)
-        & (mn - df["low"] < body * ICT.displacement_perc_body)
+        (df["high"] - mx < body * perc_body)
+        & (mn - df["low"] < body * perc_body)
     )
     up = (body > mean_body) & clean_body & (df["close"] > df["open"])
     dn = (body > mean_body) & clean_body & (df["close"] < df["open"])
@@ -63,8 +81,25 @@ def detect_volume_imbalance(df: pd.DataFrame) -> pd.DataFrame:
     )
 
 
-def detect_fvg(df: pd.DataFrame, mode: str = ICT.fvg_mode) -> pd.DataFrame:
-    """ICT Section 1.6: 3-candle gap, gated by a displacement candle one bar prior."""
+def detect_fvg(
+    df: pd.DataFrame, mode: str | None = None, fill_window: int | None = None
+) -> pd.DataFrame:
+    """ICT Section 1.6: 3-candle gap, gated by a displacement candle one bar prior.
+
+    Formal rule (docs/specs/ict_fvg.yaml)
+    ------------------------------------
+    Bullish FVG forms at bar i iff bar i-1 was a bullish displacement candle
+    and ``low[i] > high[i-2]`` (a true 3-bar gap). The gap region is
+    ``[high[i-2], low[i]]``.
+
+    "Filled" is an OUTCOME LABEL, not a detection input: the gap counts as
+    filled if price enters the gap region within ``fill_window`` bars *after*
+    formation (default N = 60 = the longest holding period backtested). It is
+    returned with a ``_label`` suffix and is excluded from the tradeable event
+    table -- see the module docstring.
+    """
+    mode = ICT.fvg_mode if mode is None else mode
+    fill_window = MAX_FORWARD_SEARCH if fill_window is None else fill_window
     disp = detect_displacement(df)
     up_disp_prev = disp["ict_displacement_bullish"].shift(1).fillna(False)
     dn_disp_prev = disp["ict_displacement_bearish"].shift(1).fillna(False)
@@ -77,78 +112,119 @@ def detect_fvg(df: pd.DataFrame, mode: str = ICT.fvg_mode) -> pd.DataFrame:
         imbalance_up = up_disp_prev & (df["low"] < h2)
         imbalance_dn = dn_disp_prev & (df["high"] > l2)
 
-    top_up = np.where(imbalance_up, df["high"].shift(2), np.nan)
-    bot_up = np.where(imbalance_up, df["low"], np.nan)
-    top_dn = np.where(imbalance_dn, df["high"], np.nan)
-    bot_dn = np.where(imbalance_dn, df["low"].shift(2), np.nan)
+    # Gap regions, stored as (lower edge, upper edge). The previous code named
+    # these "top"/"bottom" the other way round: a bullish FVG spans
+    # [high[i-2], low[i]] with high[i-2] < low[i], so the column called "_top"
+    # actually held the LOWER edge. detect_bpr then compared them as if the
+    # naming were literal, producing an unsatisfiable condition -- which is why
+    # ict_bpr_bullish/bearish fired exactly zero times across the entire
+    # universe and silently never reached the event table.
+    lo_up = np.where(imbalance_up, df["high"].shift(2), np.nan)
+    hi_up = np.where(imbalance_up, df["low"], np.nan)
+    lo_dn = np.where(imbalance_dn, df["high"], np.nan)
+    hi_dn = np.where(imbalance_dn, df["low"].shift(2), np.nan)
 
-    filled_up = _bounded_forward_fill(df["low"].to_numpy(), bot_up, imbalance_up.to_numpy(), "below")
-    filled_dn = _bounded_forward_fill(df["high"].to_numpy(), top_dn, imbalance_dn.to_numpy(), "above")
+    filled_up = _bounded_forward_fill(
+        df["low"].to_numpy(), lo_up, imbalance_up.to_numpy(), "below", fill_window
+    )
+    filled_dn = _bounded_forward_fill(
+        df["high"].to_numpy(), hi_dn, imbalance_dn.to_numpy(), "above", fill_window
+    )
 
     return pd.DataFrame(
         {
             "ict_fvg_bullish_formed": imbalance_up.fillna(False),
-            "ict_fvg_bullish_top": top_up,
-            "ict_fvg_bullish_bottom": bot_up,
-            "ict_fvg_bullish_filled": filled_up,
+            "ict_fvg_bullish_lower": lo_up,
+            "ict_fvg_bullish_upper": hi_up,
+            "ict_fvg_bullish_filled_label": filled_up,
             "ict_fvg_bearish_formed": imbalance_dn.fillna(False),
-            "ict_fvg_bearish_top": top_dn,
-            "ict_fvg_bearish_bottom": bot_dn,
-            "ict_fvg_bearish_filled": filled_dn,
+            "ict_fvg_bearish_lower": lo_dn,
+            "ict_fvg_bearish_upper": hi_dn,
+            "ict_fvg_bearish_filled_label": filled_dn,
         },
         index=df.index,
     )
 
 
 def _bounded_forward_fill(
-    price: np.ndarray, boundary: np.ndarray, formed: np.ndarray, direction: str
+    price: np.ndarray,
+    boundary: np.ndarray,
+    formed: np.ndarray,
+    direction: str,
+    window: int = MAX_FORWARD_SEARCH,
 ) -> np.ndarray:
-    """For each formation bar, was the gap boundary breached within
-    MAX_FORWARD_SEARCH bars? Bounded simplification documented in the module
-    docstring -- exact for horizons <= MAX_FORWARD_SEARCH, which covers every
-    holding period this project backtests.
+    """For each formation bar, was the gap boundary breached within `window`
+    bars *after* it?
+
+    FORWARD-LOOKING BY CONSTRUCTION. The result is stamped on the formation
+    bar, so it is only ever valid as an outcome label -- never as an entry
+    signal. Callers must surface it with a ``_label`` suffix.
     """
     n = len(price)
     out = np.zeros(n, dtype=bool)
     idx = np.where(formed)[0]
     for i in idx:
-        end = min(n, i + 1 + MAX_FORWARD_SEARCH)
-        window = price[i + 1 : end]
-        if len(window) == 0:
+        end = min(n, i + 1 + window)
+        seg = price[i + 1 : end]
+        if len(seg) == 0:
             continue
         b = boundary[i]
-        out[i] = (window < b).any() if direction == "below" else (window > b).any()
+        out[i] = (seg < b).any() if direction == "below" else (seg > b).any()
     return out
 
 
 def detect_bpr(df: pd.DataFrame) -> pd.DataFrame:
-    """ICT Section 1.7: overlap of the most recent bullish and bearish FVG.
+    """ICT Section 1.7: Balanced Price Range -- the overlap of the most recent
+    bullish and bearish Fair Value Gaps.
 
-    Simplification: evaluated using the latest still-open FVG on each side as
-    of each bar (forward-filled boundaries), matching the source's "most
-    recent FVG box" semantics without replaying the exact box-mutation
-    sequence.
+    Two intervals ``[a_lo, a_hi]`` and ``[b_lo, b_hi]`` overlap iff
+    ``max(a_lo, b_lo) < min(a_hi, b_hi)``. The event fires on the bar the
+    *second* of the two gaps forms, which is the bar on which the overlap
+    first becomes observable, so the detector stays causal.
+
+    Bug fixed here
+    --------------
+    The previous condition was ``(up_bot < dn_top) & (dn_bot < up_bot)``,
+    written against column names whose meaning was inverted (see
+    ``detect_fvg``). Substituting the real edges makes it require
+    ``dn_upper < dn_lower``, which is unsatisfiable by construction -- so
+    ``ict_bpr_bullish`` and ``ict_bpr_bearish`` were identically False for
+    every ticker and every bar. ``melt_events`` drops all-False columns
+    silently, so the two concepts vanished from the study without any error:
+    the "42 concepts tested" headline was really 42 of 44 declared detectors.
     """
     fvg = detect_fvg(df)
-    up_top = fvg["ict_fvg_bullish_top"].where(fvg["ict_fvg_bullish_formed"]).ffill()
-    up_bot = fvg["ict_fvg_bullish_bottom"].where(fvg["ict_fvg_bullish_formed"]).ffill()
-    dn_top = fvg["ict_fvg_bearish_top"].where(fvg["ict_fvg_bearish_formed"]).ffill()
-    dn_bot = fvg["ict_fvg_bearish_bottom"].where(fvg["ict_fvg_bearish_formed"]).ffill()
+    formed_up = fvg["ict_fvg_bullish_formed"]
+    formed_dn = fvg["ict_fvg_bearish_formed"]
 
-    bull_bpr = (up_bot < dn_top) & (dn_bot < up_bot) & fvg["ict_fvg_bullish_formed"].cumsum().gt(0)
-    bear_bpr = (dn_bot < up_top) & (up_bot < dn_bot) & fvg["ict_fvg_bearish_formed"].cumsum().gt(0)
+    # Most recent gap of each polarity, carried forward.
+    up_lo = fvg["ict_fvg_bullish_lower"].where(formed_up).ffill()
+    up_hi = fvg["ict_fvg_bullish_upper"].where(formed_up).ffill()
+    dn_lo = fvg["ict_fvg_bearish_lower"].where(formed_dn).ffill()
+    dn_hi = fvg["ict_fvg_bearish_upper"].where(formed_dn).ffill()
+
+    overlap = (
+        np.maximum(up_lo, dn_lo) < np.minimum(up_hi, dn_hi)
+    ) & up_lo.notna() & dn_lo.notna()
+
+    # Fire only on the bar that completes the pair, not on every subsequent
+    # bar the (unchanged) overlap keeps holding.
+    bull_bpr = overlap & formed_up
+    bear_bpr = overlap & formed_dn
 
     return pd.DataFrame(
-        {"ict_bpr_bullish": bull_bpr.fillna(False), "ict_bpr_bearish": bear_bpr.fillna(False)}
+        {"ict_bpr_bullish": bull_bpr.fillna(False), "ict_bpr_bearish": bear_bpr.fillna(False)},
+        index=df.index,
     )
 
 
-def detect_mss_bos(df: pd.DataFrame, length: int = ICT.mss_pivot_len) -> pd.DataFrame:
+def detect_mss_bos(df: pd.DataFrame, length: int | None = None) -> pd.DataFrame:
     """ICT Section 1.1 + 1.2: zigzag pivots -> Market Structure Shift -> BOS.
 
     Sequential (stateful) by necessity -- mirrors Pine's aZZ ring buffer and
     MSS.dir state machine bar by bar.
     """
+    length = ICT.mss_pivot_len if length is None else length
     _, conf_high = pivot_high(df["high"], length, 1)
     _, conf_low = pivot_low(df["low"], length, 1)
     high_val = df["high"].shift(1).to_numpy()  # Pine: y2 := nz(hi[1]) at the confirmation bar
@@ -226,7 +302,9 @@ def detect_mss_bos(df: pd.DataFrame, length: int = ICT.mss_pivot_len) -> pd.Data
     )
 
 
-def detect_order_blocks(df: pd.DataFrame, length: int = ICT.ob_swing_len, use_body: bool = ICT.ob_use_body) -> pd.DataFrame:
+def detect_order_blocks(
+    df: pd.DataFrame, length: int | None = None, use_body: bool | None = None
+) -> pd.DataFrame:
     """ICT Section 1.3: order blocks formed at the extreme candle between a
     swing point and the bar structure breaks it, with breaker-block
     (mitigation) state tracking.
@@ -242,6 +320,8 @@ def detect_order_blocks(df: pd.DataFrame, length: int = ICT.ob_swing_len, use_bo
     Task 6 validation: AAPL produced zero bearish order blocks across 16
     years because the code was stuck testing its all-time-low 2010 swing).
     """
+    length = ICT.ob_swing_len if length is None else length
+    use_body = ICT.ob_use_body if use_body is None else use_body
     mx, mn = _mx_mn(df)
     max_src = mx if use_body else df["high"]
     min_src = mn if use_body else df["low"]
@@ -322,8 +402,12 @@ def detect_order_blocks(df: pd.DataFrame, length: int = ICT.ob_swing_len, use_bo
     )
 
 
-def detect_liquidity(df: pd.DataFrame, length: int = ICT.mss_pivot_len, margin: float = ICT.liquidity_margin) -> pd.DataFrame:
+def detect_liquidity(
+    df: pd.DataFrame, length: int | None = None, margin: float | None = None
+) -> pd.DataFrame:
     """ICT Section 1.8: clustered-pivot liquidity pools and sweeps."""
+    length = ICT.mss_pivot_len if length is None else length
+    margin = ICT.liquidity_margin if margin is None else margin
     _, conf_high = pivot_high(df["high"], length, 1)
     _, conf_low = pivot_low(df["low"], length, 1)
     high_val = df["high"].shift(1).to_numpy()
@@ -407,32 +491,146 @@ def detect_liquidity(df: pd.DataFrame, length: int = ICT.mss_pivot_len, margin: 
     )
 
 
-def detect_nwog_ndog(df: pd.DataFrame) -> pd.DataFrame:
-    """ICT Section 1.9. On daily bars this reduces to simple gap checks;
-    NWOG uses the most recent completed week's Friday close (see Ambiguity
-    A7 -- deliberately not replicating the stale-on-holiday var carry-over).
+def detect_liquidity_sweep(
+    df: pd.DataFrame,
+    swing_len: int | None = None,
+    penetration_atr: float | None = None,
+    reclaim_frac: float | None = None,
+    confirm_bars: int | None = None,
+) -> pd.DataFrame:
+    """Formal, prospective liquidity sweep (stop run + rejection).
+
+    Rule (docs/specs/ict_liquidity_sweep.yaml)
+    ------------------------------------------
+    Buy-side sweep (bearish reversal expected) at bar ``k``:
+
+    1. ``L`` is the most recently *confirmed* swing high, taken from
+       ``extract_swing_points`` so its confirmation lag is preserved.
+    2. Penetration at some bar ``j``: ``high[j] > L + X * ATR[j]``.
+    3. Reclaim at bar ``k``, with ``j < k <= j + Z``:
+       ``close[k] < L - Y * ATR[k]``.
+
+    The event is stamped on bar ``k``, the reclaim bar, and every input is
+    from bars ``<= k``, so the detector is causal. This replaces the previous
+    ``ict_liquidity_*_swept`` logic, which fired the moment price merely
+    *entered* the pool (``close > pool_bottom``) with no rejection leg at all
+    -- that is a breakout, not a sweep, and it is why the "swept" signals
+    behaved almost identically to the pool-formation signals.
+
+    Sell-side sweep is the mirror image and is bullish.
     """
-    dow = df.index.to_series().dt.dayofweek  # Monday=0 ... Sunday=6
-    is_monday = dow == 0
-    prior_close = df["close"].shift(1)
+    swing_len = ICT.sweep_swing_len if swing_len is None else swing_len
+    penetration_atr = (
+        ICT.sweep_penetration_atr if penetration_atr is None else penetration_atr
+    )
+    reclaim_frac = ICT.sweep_reclaim_frac if reclaim_frac is None else reclaim_frac
+    confirm_bars = ICT.sweep_confirm_bars if confirm_bars is None else confirm_bars
+    high, low, close = df["high"], df["low"], df["close"]
+    atr_v = atr(high, low, close, ICT.sweep_atr_len).to_numpy()
+    swing_high, swing_low = extract_swing_points(high, low, swing_len)
+    sh, sl = swing_high.to_numpy(), swing_low.to_numpy()
+    h, l, c = high.to_numpy(), low.to_numpy(), close.to_numpy()
+    n = len(df)
 
-    ndog_gap = (df["open"] - prior_close).abs()
-    ndog_formed = pd.Series(True, index=df.index) & df["open"].notna() & prior_close.notna()
+    buy_sweep = np.zeros(n, dtype=bool)
+    sell_sweep = np.zeros(n, dtype=bool)
 
-    # NWOG: only meaningful on the first trading bar after a weekend/gap in
-    # weekday sequence (Monday, or the first bar after a multi-day gap).
-    day_gap = dow.diff().fillna(1)
-    is_week_open = (day_gap < 0) | (day_gap > 1) | ((dow == 0) & (day_gap != 0))
-    nwog_formed = is_week_open & df["open"].notna() & prior_close.notna()
-    nwog_gap = (df["open"] - prior_close).abs()
+    level_high = np.nan
+    level_low = np.nan
+    pen_high_bar, pen_high_level = -1, np.nan
+    pen_low_bar, pen_low_level = -1, np.nan
+
+    for i in range(n):
+        a = atr_v[i]
+        if np.isnan(a):
+            if not np.isnan(sh[i]):
+                level_high = sh[i]
+            if not np.isnan(sl[i]):
+                level_low = sl[i]
+            continue
+
+        # --- reclaim leg (evaluated before levels are refreshed) ---
+        if pen_high_bar >= 0:
+            if i - pen_high_bar > confirm_bars:
+                pen_high_bar = -1
+            elif c[i] < pen_high_level - reclaim_frac * a:
+                buy_sweep[i] = True
+                pen_high_bar = -1
+        if pen_low_bar >= 0:
+            if i - pen_low_bar > confirm_bars:
+                pen_low_bar = -1
+            elif c[i] > pen_low_level + reclaim_frac * a:
+                sell_sweep[i] = True
+                pen_low_bar = -1
+
+        # --- penetration leg ---
+        if not np.isnan(level_high) and h[i] > level_high + penetration_atr * a:
+            pen_high_bar, pen_high_level = i, level_high
+        if not np.isnan(level_low) and l[i] < level_low - penetration_atr * a:
+            pen_low_bar, pen_low_level = i, level_low
+
+        # --- refresh reference levels with newly confirmed swings ---
+        if not np.isnan(sh[i]):
+            level_high = sh[i]
+        if not np.isnan(sl[i]):
+            level_low = sl[i]
 
     return pd.DataFrame(
         {
-            "ict_nwog_formed": nwog_formed.fillna(False),
-            "ict_nwog_gap_size": nwog_gap,
-            "ict_ndog_formed": ndog_formed.fillna(False),
-            "ict_ndog_gap_size": ndog_gap,
-        }
+            # A buy-side sweep runs stops ABOVE highs then rejects -> bearish.
+            "ict_sweep_buyside_bearish": buy_sweep,
+            "ict_sweep_sellside_bullish": sell_sweep,
+        },
+        index=df.index,
+    )
+
+
+def detect_nwog_ndog(df: pd.DataFrame) -> pd.DataFrame:
+    """ICT Section 1.9: New Week / New Day Opening Gaps.
+
+    Formal rule (docs/specs/ict_opening_gap.yaml)
+    --------------------------------------------
+    A gap event requires a *material* gap:
+    ``|open[i] - close[i-1]| >= gap_min_atr * ATR(gap_atr_len)[i-1]``.
+
+    The previous implementation set ``ict_ndog_formed = True`` on every bar
+    with a non-null open and prior close -- i.e. essentially every bar in the
+    sample. That produced 1,946,675 "events" (45% of the entire event table)
+    for a concept meant to mark notable gaps, and it dominated every pooled
+    aggregate it entered. It also ignored the ``ICT.ndog_enabled`` /
+    ``ICT.nwog_enabled`` config flags entirely.
+
+    Gaps are also split by direction, which the original did not do: an
+    unsigned ``gap_size`` carries no directional hypothesis, so the melted
+    event inherited ``direction = 0`` and was forced long by the backtester.
+    """
+    dow = df.index.to_series().dt.dayofweek  # Monday=0 ... Sunday=6
+    prior_close = df["close"].shift(1)
+    gap = df["open"] - prior_close
+    atr_prev = atr(df["high"], df["low"], df["close"], ICT.gap_atr_len).shift(1)
+
+    material = (gap.abs() >= ICT.gap_min_atr * atr_prev) & gap.notna() & atr_prev.notna()
+
+    # A new week opens on the first bar whose weekday is <= the previous bar's
+    # (the calendar week rolled over). This is robust to Monday holidays,
+    # unlike the previous `dow.diff() > 1` test, which also fired on a
+    # mid-week holiday gap (e.g. Mon -> Wed) and mislabelled it a week open.
+    is_week_open = dow.diff().fillna(-1) <= 0
+
+    false_series = pd.Series(False, index=df.index)
+    nwog = (material & is_week_open) if ICT.nwog_enabled else false_series
+    ndog = material if ICT.ndog_enabled else false_series
+
+    return pd.DataFrame(
+        {
+            "ict_nwog_gap_up": (nwog & (gap > 0)).fillna(False),
+            "ict_nwog_gap_down": (nwog & (gap < 0)).fillna(False),
+            "ict_ndog_gap_up": (ndog & (gap > 0)).fillna(False),
+            "ict_ndog_gap_down": (ndog & (gap < 0)).fillna(False),
+            "ict_nwog_gap_size": gap.abs().where(nwog),
+            "ict_ndog_gap_size": gap.abs().where(ndog),
+        },
+        index=df.index,
     )
 
 
@@ -446,6 +644,7 @@ def detect_all_ict(df: pd.DataFrame) -> pd.DataFrame:
         detect_mss_bos(df),
         detect_order_blocks(df),
         detect_liquidity(df),
+        detect_liquidity_sweep(df),
         detect_nwog_ndog(df),
     ]
     return pd.concat(parts, axis=1)

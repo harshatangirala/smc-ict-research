@@ -1,0 +1,20 @@
+# Schema for docs/specs/*.yaml
+concept:                  str    # human-readable concept name
+id:                       str    # file stem
+source_script:            str    # originating Pine file
+source_section:           str    # section in docs/concepts_extraction.md
+implementation:           str    # module::function that implements it
+signals:                         # tradeable event columns produced
+  - name:                 str
+    direction:            int    # +1 long, -1 short; must match EVENT_REGISTRY
+definition:               str    # boolean expression over OHLCV/indicators
+parameters:
+  - name:                 str
+    type:                 str
+    default:              any
+    allowed_range:        str
+    description:          str
+causality:                str    # argument that the detector reads no future bar
+expected_min_occurrences: int    # universe-wide floor; below this the concept
+                                 # is reported but not treated as evidence
+notes:                    str

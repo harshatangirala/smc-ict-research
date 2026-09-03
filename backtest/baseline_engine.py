@@ -13,7 +13,8 @@ from pathlib import Path
 import pandas as pd
 
 from backtest.baselines import detect_all_baselines
-from utils.config import DATA_CACHE_DIR
+from utils.config import DATA_CACHE_DIR, MIN_BARS_FOR_DETECTION
+from utils.prices import load_prices
 from utils.logging_config import get_logger
 
 log = get_logger("backtest.baseline_engine")
@@ -38,17 +39,20 @@ def melt_baseline_events(ticker: str, wide: pd.DataFrame) -> pd.DataFrame:
     return out[["ticker", "date", "signal", "direction", "close"]]
 
 
-def build_baseline_events(cache_dir: Path = DATA_CACHE_DIR, n_random_signals: int = 50) -> pd.DataFrame:
+def build_baseline_events(cache_dir: Path = DATA_CACHE_DIR, n_random_signals: int | None = None) -> pd.DataFrame:
+    """Detect every baseline strategy across the cached universe."""
+    from backtest.baselines import DEFAULT_RANDOM_ENTRIES_PER_TICKER
+    if n_random_signals is None:
+        n_random_signals = DEFAULT_RANDOM_ENTRIES_PER_TICKER
     files = sorted(Path(cache_dir).glob("*.parquet"))
     all_events = []
     for i, f in enumerate(files, 1):
         ticker = f.stem
         try:
-            df = pd.read_parquet(f).sort_index()
-            df = df[~df.index.duplicated(keep="first")]
-            if len(df) < 300:
+            df = load_prices(f)
+            if len(df) < MIN_BARS_FOR_DETECTION:
                 continue
-            wide = detect_all_baselines(df, n_random_signals=n_random_signals)
+            wide = detect_all_baselines(df, n_random_signals=n_random_signals, ticker=ticker)
             wide["close"] = df["close"]
             events = melt_baseline_events(ticker, wide)
             all_events.append(events)

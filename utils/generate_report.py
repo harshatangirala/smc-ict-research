@@ -41,16 +41,36 @@ def generate_report() -> str:
     sectors = pd.read_csv(RESULTS_DIR / "sector_analysis.csv") if (RESULTS_DIR / "sector_analysis.csv").exists() else pd.DataFrame()
 
     n_total_concepts = len(concepts)
-    n_sig_zero = int(concepts["significant_vs_zero"].sum()) if "significant_vs_zero" in concepts else 0
-    n_sig_baseline = int(concepts["statistically_significant"].sum()) if "statistically_significant" in concepts else 0
+    _zflag = "reject_vs_zero" if "reject_vs_zero" in concepts else "significant_vs_zero"
+    n_sig_zero = int(concepts[_zflag].sum()) if _zflag in concepts else 0
+    _bflag = "beats_matched_random" if "beats_matched_random" in concepts else "statistically_significant"
+    n_sig_baseline = int(concepts[_bflag].sum()) if _bflag in concepts else 0
+    # Reported separately, never folded into the count above.
+    n_loses = 0
+    if "reject_vs_matched_random" in concepts and "excess_return_vs_matched_random" in concepts:
+        n_loses = int(
+            (concepts["reject_vs_matched_random"].fillna(False)
+             & (concepts["excess_return_vs_matched_random"] < 0)).sum()
+        )
 
     n_total_combos = len(combos)
-    n_combo_sig_baseline = int(combos["statistically_significant"].sum()) if "statistically_significant" in combos else 0
+    _cflag = "beats_matched_random" if "beats_matched_random" in combos else "statistically_significant"
+    n_combo_sig_baseline = int(combos[_cflag].sum()) if _cflag in combos else 0
 
     n_sectors_positive = int((sectors["excess_return_vs_baseline"] > 0).sum()) if "excess_return_vs_baseline" in sectors else 0
     n_sectors_total = len(sectors)
 
-    top_vs_baseline = concepts[concepts.get("significant_vs_baseline", False) == True].head(10) if not concepts.empty and "significant_vs_baseline" in concepts else pd.DataFrame()  # noqa: E712
+    # MUST filter on the direction-aware flag. The previous version selected on
+    # `significant_vs_baseline`, a TWO-SIDED result, and printed the rows under
+    # the heading "Signals that beat the random-entry baseline" -- so concepts
+    # that significantly LOST to random entry were presented as winners. In the
+    # committed results 27 of the 28 rows selected here had a negative effect
+    # size. See CHANGES.md 1.2.
+    _flag = "beats_matched_random" if "beats_matched_random" in concepts else "statistically_significant"
+    top_vs_baseline = (
+        concepts[concepts.get(_flag, False) == True].head(10)  # noqa: E712
+        if not concepts.empty and _flag in concepts else pd.DataFrame()
+    )
     failing_concepts = concepts[(concepts.get("statistically_significant", False) == False) & (concepts.get("n_trades", 0) >= 30)].sort_values("sharpe").head(10) if not concepts.empty else pd.DataFrame()  # noqa: E712
 
     top_combos = combos[combos.get("statistically_significant", False) == True].head(10) if not combos.empty else pd.DataFrame()  # noqa: E712
@@ -100,12 +120,22 @@ def generate_report() -> str:
     )
 
     lines.append("\n## 2. Which concepts provide the strongest statistical edge?")
-    lines.append("\n_Signals that beat the random-entry baseline after FDR correction (`significant_vs_baseline=True`):_\n")
+    lines.append(
+        "\n_Signals that BEAT the composition-matched random-entry null after "
+        "BH-FDR correction -- i.e. a positive excess return that survives "
+        "multiple-testing control (`beats_matched_random=True`). Concepts that "
+        "significantly UNDERPERFORM the null are reported separately below and "
+        "are not evidence of an edge:_\n"
+    )
     if not top_vs_baseline.empty:
         lines.append("| Signal | n trades | Win rate | Sharpe | Avg return | p vs baseline (FDR-adj) |")
         lines.append("|---|---|---|---|---|---|")
         for _, r in top_vs_baseline.iterrows():
-            lines.append(f"| {r['signal']} | {int(r['n_trades'])} | {_fmt_pct(r['win_rate'])} | {_fmt(r['sharpe'])} | {_fmt_pct(r['avg_return'])} | {_fmt(r.get('p_adjusted_vs_baseline'), 4)} |")
+            lines.append(
+                f"| {r['signal']} | {int(r['n_trades'])} | {_fmt_pct(r['win_rate'])} | "
+                f"{_fmt(r['sharpe'])} | {_fmt_pct(r['avg_return'])} | "
+                f"{_fmt(r.get('p_adj_vs_matched_random', r.get('p_adjusted_vs_baseline')), 4)} |"
+            )
     else:
         lines.append("No concepts reached statistical significance vs. the baseline at the current sample/threshold.")
 
@@ -133,7 +163,7 @@ def generate_report() -> str:
         lines.append("| Ticker | n trades | Avg return | Baseline avg return | Excess vs baseline | Significant? |")
         lines.append("|---|---|---|---|---|---|")
         for _, r in best_stocks.head(15).iterrows():
-            sig = "yes" if r.get("significant_vs_baseline") else "no"
+            sig = "yes" if r.get("beats_matched_random", r.get("statistically_significant")) else "no"
             lines.append(f"| {r['ticker']} | {int(r['n_trades'])} | {_fmt_pct(r['avg_return'])} | {_fmt_pct(r.get('baseline_avg_return'))} | {_fmt_pct(r.get('excess_return_vs_baseline'))} | {sig} |")
         lines.append("\n_Bottom 10 (least responsive / signals underperform that stock's own baseline):_\n")
         lines.append("| Ticker | n trades | Avg return | Baseline avg return | Excess vs baseline |")
@@ -183,7 +213,7 @@ def generate_report() -> str:
         f"Every ranking module (concepts, combinations, stocks, sectors, regimes) now compares "
         f"against a random-entry baseline run through identical backtest mechanics, in addition "
         f"to a zero-return null, with Benjamini-Hochberg FDR correction applied to both "
-        f"(`analytics/statistics.py`). The headline `statistically_significant` flag requires "
+        f"(`analytics/statistics.py`). The headline `beats_matched_random` flag requires "
         f"clearing the FDR-corrected **baseline** comparison (alpha={FDR_ALPHA}) *and* a minimum "
         f"sample size — concepts/combinations below that sample size are explicitly flagged "
         f"`low_sample_warning` rather than reported with false confidence. Per-ticker "

@@ -25,8 +25,19 @@ REQUIRED_COLUMNS = ["open", "high", "low", "close", "volume"]
 
 
 def normalize_ticker(raw_ticker: str) -> str:
-    """Convert constituents-list tickers to yfinance-compatible symbols."""
-    return TICKER_SYMBOL_OVERRIDES.get(raw_ticker, raw_ticker)
+    """Convert constituents-list tickers to yfinance-compatible symbols.
+
+    Yahoo encodes share-class separators as '-' where the index constituent
+    list uses '.' (BRK.B -> BRK-B, BF.B -> BF-B). The explicit override table
+    is consulted first; any *other* dotted symbol falls through to the general
+    '.' -> '-' rule rather than being silently passed through unchanged and
+    failing to download. The original code only handled the two hard-coded
+    cases, so a future constituent-list refresh introducing a new dotted
+    ticker would have dropped it with no error.
+    """
+    if raw_ticker in TICKER_SYMBOL_OVERRIDES:
+        return TICKER_SYMBOL_OVERRIDES[raw_ticker]
+    return raw_ticker.replace(".", "-")
 
 
 def load_constituents() -> pd.DataFrame:

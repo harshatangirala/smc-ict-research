@@ -84,7 +84,8 @@ def home_scoreboard() -> dict:
     n_sig_zero = int(concepts["significant_vs_zero"].sum()) if "significant_vs_zero" in concepts else None
     n_sig_baseline = int(concepts["statistically_significant"].sum()) if "statistically_significant" in concepts else None
     n_sectors = len(sectors)
-    n_sectors_positive = int((sectors["excess_return_vs_baseline"] > 0).sum()) if "excess_return_vs_baseline" in sectors else None
+    _sec_col = _excess_column(sectors) if len(sectors) else ""
+    n_sectors_positive = int((sectors[_sec_col] > 0).sum()) if _sec_col else None
     return {
         "n_concepts": n_concepts,
         "n_sig_zero": n_sig_zero,
@@ -183,15 +184,31 @@ def rankings_view(holding_period: int) -> tuple[pd.DataFrame, pd.DataFrame, pd.D
 # ---------------------------------------------------------------------------
 # Sector & Regime
 # ---------------------------------------------------------------------------
+def _excess_column(df) -> str:
+    """Name of the excess-return column, new schema first.
+
+    `sector_analysis` and `regime_analysis` now report
+    `excess_return_vs_matched_random` (a direction-matched null) rather than
+    `excess_return_vs_baseline` (a long-only benchmark subtracted from a
+    half-short signal population, which measured net exposure). Older result
+    directories still carry the legacy name, so both are accepted.
+    """
+    for col in ("excess_return_vs_matched_random", "excess_return_vs_baseline"):
+        if col in df.columns:
+            return col
+    return ""
+
+
 def sector_regime_view() -> tuple[go.Figure, pd.DataFrame, go.Figure, pd.DataFrame]:
     sectors = da.get_sector_analysis()
     regimes = da.get_regime_analysis()
 
     if not sectors.empty:
-        sorted_sectors = sectors.sort_values("excess_return_vs_baseline", ascending=False)
+        sec_col = _excess_column(sectors)
+        sorted_sectors = sectors.sort_values(sec_col, ascending=False)
         sector_fig = px.bar(
-            sorted_sectors, x="sector", y="excess_return_vs_baseline",
-            color=sorted_sectors["excess_return_vs_baseline"] > 0,
+            sorted_sectors, x="sector", y=sec_col,
+            color=sorted_sectors[sec_col] > 0,
             color_discrete_map={True: "#2E6B4F", False: "#9C3B32"},
             title="Excess return vs. random-entry baseline, by sector (10-day hold)",
         )
@@ -202,7 +219,7 @@ def sector_regime_view() -> tuple[go.Figure, pd.DataFrame, go.Figure, pd.DataFra
 
     if not regimes.empty:
         regime_fig = px.density_heatmap(
-            regimes, x="trend_regime", y="vol_regime", z="excess_return_vs_baseline",
+            regimes, x="trend_regime", y="vol_regime", z=_excess_column(regimes),
             histfunc="avg", color_continuous_scale="RdYlGn", color_continuous_midpoint=0,
             title="Excess return vs. baseline by trend x volatility regime (10-day hold)",
         )
