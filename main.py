@@ -101,6 +101,13 @@ def stage_backtest() -> None:
     path = RESULTS_DIR / "trades.parquet"
     trades.to_parquet(path)
     log.info("Backtest trade table written to %s (%d rows)", path, len(trades))
+    # The statistics table is deliberately a separate stage: it takes ~15
+    # minutes at the final bootstrap budget and is re-run far more often than
+    # the backtest. Say so, so nobody waits for a file this stage never writes.
+    log.info(
+        "Next: `python main.py statistics` -> results/statistics_master.csv "
+        "(this stage produces trades.parquet only)"
+    )
 
 
 def stage_baseline() -> None:
@@ -132,7 +139,7 @@ def stage_analyze() -> None:
     from analytics.combinations import rank_combinations
     from analytics.concept_ranking import rank_concepts, rank_concepts_all_horizons
     from analytics.regimes import regime_analysis
-    from analytics.sectors import sector_analysis
+    from analytics.sectors import sector_analysis, sector_power_analysis
     from analytics.stock_ranking import rank_stocks
 
     log.info("Loading trades.parquet once for the whole analyze stage")
@@ -149,7 +156,14 @@ def stage_analyze() -> None:
     log.info("Combination rankings written")
     regime_analysis(trades).to_csv(RESULTS_DIR / "regime_analysis.csv", index=False)
     log.info("Regime analysis written")
-    sector_analysis(trades).to_csv(RESULTS_DIR / "sector_analysis.csv", index=False)
+    sectors = sector_analysis(trades)
+    sectors.to_csv(RESULTS_DIR / "sector_analysis.csv", index=False)
+    # Sample size alone does not say whether a null sector result is meaningful;
+    # the minimum detectable effect does.
+    sector_power_analysis(sectors).to_csv(
+        RESULTS_DIR / "sector_power.csv", index=False
+    )
+    log.info("Sector analysis and power table written")
     log.info("Analytics stage complete")
 
 

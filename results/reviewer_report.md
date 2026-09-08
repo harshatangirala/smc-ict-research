@@ -1,6 +1,6 @@
 # Reviewer Report
 
-*Generated 2026-09-03 17:43 UTC*
+*Generated 2026-09-08 08:59 UTC*
 
 An adversarial pre-read: the objections a referee or an informed reader is most likely to raise, checked programmatically against the artefacts this run produced. `EXPOSED` items are genuine weaknesses that are **not** fixed; they are listed so the paper can state them rather than have a reader discover them.
 
@@ -146,7 +146,7 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 **PARTIAL** · severity: medium
 
-**Evidence.** 11 machine-readable specifications give each concept a formal boolean definition, directionality, parameter ranges and an explicit causality argument. Ambiguities in the Pine transcription are named and the chosen reading is justified.
+**Evidence.** 14 machine-readable specifications give each concept a formal boolean definition, directionality, parameter ranges and an explicit causality argument. Ambiguities in the Pine transcription are named and the chosen reading is justified.
 
 **Response.** Irreducible limitation: these are two specific LuxAlgo implementations, not the SMC/ICT literature as a whole. The title and scope section say so. A practitioner can reasonably object that their own variant differs.
 

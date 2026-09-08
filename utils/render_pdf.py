@@ -1,7 +1,13 @@
-"""Render docs/findings_report.html to a PDF via a real browser engine
-(Playwright + Chromium), so the PDF matches the published Artifact exactly
--- same fonts, same layout, same print media rules -- rather than being a
-separately hand-built document that could drift from it.
+"""Render the standalone findings HTML page to a PDF via Playwright + Chromium.
+
+SUPERSEDED. The page this renders was generated from the pre-correction
+pipeline and now lives in docs/superseded/ -- see that directory's README for
+what it gets wrong. The paths below point there so the script still runs, but
+the output should not be published.
+
+For the current paper use ``tools/build_manuscript_pdf.py``, which renders
+docs/manuscript.md and needs only a Chrome/Chromium/Edge binary rather than a
+Playwright install.
 """
 
 from __future__ import annotations
@@ -11,8 +17,8 @@ from pathlib import Path
 from playwright.sync_api import sync_playwright
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SOURCE_HTML = REPO_ROOT / "docs" / "findings_report.html"
-OUTPUT_PDF = REPO_ROOT / "docs" / "findings_report.pdf"
+SOURCE_HTML = REPO_ROOT / "docs" / "superseded" / "findings_report.html"
+OUTPUT_PDF = REPO_ROOT / "docs" / "superseded" / "findings_report.pdf"
 
 
 def render() -> None:

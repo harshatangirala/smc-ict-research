@@ -1,53 +1,39 @@
 # Executive Research Report — SMC/ICT Statistical Edge Study
 
-_Generated 2026-07-14 directly from `results/*` — every figure below is read from the pipeline's saved output, not hand-transcribed._
+_Generated 2026-09-08 directly from `results/*` — every figure below is read from the pipeline's saved output, not hand-transcribed._
 
 ## Scope
-- Stocks with usable data: **501** of 503 S&P 500 constituents
-- Total SMC/ICT events detected: **4,348,698**
-- Total backtested trades (events x holding periods): **34,632,327**
-- Distinct signal families tested: **42**
+- Stocks with usable data: **498** of 503 S&P 500 constituents
+- Total SMC/ICT events detected: **2,226,881**
+- Total backtested trades (events x holding periods): **17,731,944**
+- Distinct signal families tested: **44**
 - FDR significance threshold used throughout: alpha = 0.05
 - **Every ranking below (concepts, combinations, stocks, sectors, regimes) is tested against a random-entry baseline run through identical backtest mechanics** (`backtest/baseline_engine.py`), not only a zero-return null. This matters: over 2010-2026 (a long bull market), almost any long-biased signal clears a zero-return null from broad market drift alone. The gap between the two tests is itself one of this study's main findings (Section 1).
 
 ## 1. Do SMC/ICT concepts outperform random entries and standard technical strategies?
-**No, not uniformly — and the two significance tests reported diverge sharply, which is itself the key finding.** Of 42 SMC/ICT signal families tested at the 10-day holding horizon: **42/42** show a mean return significantly different from **zero** after FDR correction — but that is a weak bar over a long bull market. Testing instead against a **random-entry baseline** at the same frequency, only **28/42** concepts remain significant, and of 60 tested concept combinations, only **44** clear the same bar.
+**No, not uniformly — and the two significance tests reported diverge sharply, which is itself the key finding.** Of 44 SMC/ICT signal families tested at the 10-day holding horizon: **39/44** show a mean return significantly different from **zero** after FDR correction — but that is a weak bar over a long bull market. Testing instead against a **random-entry baseline** at the same frequency, only **5/44** concepts remain significant, and of 60 tested concept combinations, only **1** clear the same bar.
 
-The picture gets more sobering when sliced by sector and regime (Section 5): only **2/12** sectors show *positive* average excess return over the random baseline at all — in most sectors, including Information Technology (the largest, most heavily represented sector in this universe), a plain random long entry outperformed the aggregate SMC/ICT signal population. This does not mean every individual concept is worthless — a real minority clear a genuine, statistically defensible bar (Section 2) — but it does mean the aggregate, unconditional claim "SMC/ICT signals beat chance" is **not supported** by this dataset. The edge, where it exists, is concept-specific and regime/sector-dependent, not a property of the methodology as a whole.
+The picture gets more sobering when sliced by sector and regime (Section 5): only **1/12** sectors show *positive* average excess return over the random baseline at all — in most sectors, including Information Technology (the largest, most heavily represented sector in this universe), a plain random long entry outperformed the aggregate SMC/ICT signal population. This does not mean every individual concept is worthless — a real minority clear a genuine, statistically defensible bar (Section 2) — but it does mean the aggregate, unconditional claim "SMC/ICT signals beat chance" is **not supported** by this dataset. The edge, where it exists, is concept-specific and regime/sector-dependent, not a property of the methodology as a whole.
 
 ## 2. Which concepts provide the strongest statistical edge?
 
-_Signals that beat the random-entry baseline after FDR correction (`significant_vs_baseline=True`):_
+_Signals that BEAT the composition-matched random-entry null after BH-FDR correction -- i.e. a positive excess return that survives multiple-testing control (`beats_matched_random=True`). Concepts that significantly UNDERPERFORM the null are reported separately below and are not evidence of an edge:_
 
 | Signal | n trades | Win rate | Sharpe | Avg return | p vs baseline (FDR-adj) |
 |---|---|---|---|---|---|
-| ict_ob_bullish_mitigated | 20676 | 58.01% | 0.539 | 0.94% | 0.0008 |
-| ict_ob_bullish_formed | 32750 | 56.39% | 0.487 | 0.55% | 0.0088 |
-| ict_fvg_bullish_formed | 112764 | 55.91% | 0.478 | 0.56% | 0.0075 |
-| ict_displacement_bullish | 213796 | 56.04% | 0.473 | 0.57% | 0.0066 |
-| smc_internal_ob_bullish_formed | 58717 | 55.76% | 0.452 | 0.51% | 0.0004 |
-| ict_volume_imbalance_bullish | 118438 | 55.42% | 0.421 | 0.49% | 0.0000 |
-| ict_bos_bullish | 81274 | 55.14% | 0.393 | 0.43% | 0.0000 |
-| smc_internal_bos_bullish | 32142 | 54.93% | 0.384 | 0.42% | 0.0000 |
-| ict_fvg_bullish_filled | 101087 | 51.09% | -0.093 | -0.10% | 0.0000 |
-| smc_swing_choch_bearish | 2674 | 43.27% | -0.199 | -0.39% | 0.0000 |
+| smc_swing_choch_bearish | 2653 | 43.27% | -0.189 | -0.37% | 0.0335 |
+| ict_sweep_sellside_bullish | 49304 | 57.13% | 0.639 | 0.82% | 0.0001 |
+| ict_sweep_buyside_bearish | 65448 | 43.74% | -0.497 | -0.59% | 0.0000 |
+| smc_internal_ob_bearish_mitigated | 42268 | 57.06% | 0.609 | 0.79% | 0.0382 |
+| ict_nwog_gap_up | 147321 | 56.98% | 0.615 | 0.77% | 0.0111 |
 
 ## 3. Which concept combinations are most robust?
 
-44 of 60 tested combinations (pairs with >=30 co-occurrences, top 60 by frequency) beat the random-entry baseline after FDR correction:
+1 of 60 tested combinations (pairs with >=30 co-occurrences, top 60 by frequency) beat the random-entry baseline after FDR correction:
 
 | Combination | n trades | Win rate | Sharpe | Avg return | p vs baseline (FDR-adj) |
 |---|---|---|---|---|---|
-| ict_ob_bullish_formed+smc_internal_ob_bullish_formed | 23490 | 56.22% | 0.474 | 0.53% | 0.0064 |
-| ict_ob_bullish_formed+smc_internal_bos_bullish | 12623 | 55.64% | 0.454 | 0.49% | 0.0022 |
-| ict_displacement_bullish+smc_internal_ob_bullish_formed | 25573 | 55.58% | 0.440 | 0.50% | 0.0008 |
-| ict_bos_bullish+ict_displacement_bullish | 34179 | 55.68% | 0.436 | 0.48% | 0.0001 |
-| ict_bos_bullish+ict_liquidity_buyside_swept | 8890 | 55.76% | 0.416 | 0.46% | 0.0017 |
-| ict_fvg_bullish_formed+ict_volume_imbalance_bullish | 20053 | 55.33% | 0.402 | 0.46% | 0.0001 |
-| ict_displacement_bullish+smc_internal_bos_bullish | 13816 | 54.81% | 0.401 | 0.44% | 0.0001 |
-| ict_fvg_bullish_formed+smc_internal_ob_bullish_formed | 8953 | 55.69% | 0.390 | 0.45% | 0.0024 |
-| smc_internal_bos_bullish+smc_internal_ob_bullish_formed | 32142 | 54.93% | 0.384 | 0.42% | 0.0000 |
-| ict_bos_bullish+ict_ob_bullish_formed | 12310 | 55.22% | 0.375 | 0.42% | 0.0000 |
+| ict_sweep_buyside_bearish+smc_internal_ob_bullish_mitigated | 12275 | 44.85% | -0.428 | -0.53% | 1.0000 |
 
 ## 4. Which S&P 500 stocks are most responsive?
 
@@ -55,69 +41,69 @@ Ranked by **excess return vs. that same ticker's own random-entry baseline** —
 
 | Ticker | n trades | Avg return | Baseline avg return | Excess vs baseline | Significant? |
 |---|---|---|---|---|---|
-| VRT | 4370 | 1.33% | -2.21% | 3.54% | no |
-| LVS | 9253 | 0.22% | -1.64% | 1.86% | no |
-| MRNA | 4039 | 1.26% | -0.58% | 1.85% | no |
-| HAL | 9312 | 0.40% | -1.23% | 1.63% | no |
-| DOW | 4016 | 0.21% | -1.24% | 1.45% | no |
-| CMI | 9169 | 0.41% | -0.97% | 1.38% | no |
-| WDAY | 7652 | 0.19% | -1.14% | 1.33% | no |
-| VLO | 9224 | 0.69% | -0.57% | 1.26% | no |
-| SLB | 9327 | 0.26% | -0.86% | 1.12% | no |
-| FCX | 9206 | 0.58% | -0.54% | 1.12% | no |
-| LULU | 9265 | 0.42% | -0.67% | 1.10% | no |
-| TRGP | 8541 | 1.03% | -0.01% | 1.04% | no |
-| AKAM | 9230 | 0.17% | -0.86% | 1.03% | no |
-| CAT | 9319 | 0.57% | -0.44% | 1.01% | no |
-| EXPD | 9278 | 0.15% | -0.86% | 1.01% | no |
+| KVUE | 780 | 0.19% | -0.45% | 0.63% | no |
+| WBD | 5049 | -0.06% | -0.29% | 0.22% | no |
+| CCL | 5043 | 0.09% | -0.01% | 0.10% | no |
+| BXP | 4969 | -0.12% | -0.18% | 0.06% | no |
+| IR | 2679 | 0.08% | 0.09% | -0.01% | no |
+| KHC | 3037 | -0.01% | 0.05% | -0.07% | no |
+| WELL | 4632 | 0.21% | 0.30% | -0.09% | no |
+| NTAP | 4765 | 0.26% | 0.37% | -0.11% | no |
+| BG | 4575 | -0.08% | 0.04% | -0.12% | no |
+| CFG | 3353 | 0.28% | 0.41% | -0.13% | no |
+| SLB | 4890 | 0.29% | 0.42% | -0.13% | no |
+| TECH | 4637 | -0.01% | 0.12% | -0.14% | no |
+| MET | 4843 | 0.01% | 0.14% | -0.14% | no |
+| MCHP | 5236 | 0.09% | 0.23% | -0.14% | no |
+| VZ | 4754 | 0.01% | 0.16% | -0.15% | no |
 
 _Bottom 10 (least responsive / signals underperform that stock's own baseline):_
 
 | Ticker | n trades | Avg return | Baseline avg return | Excess vs baseline |
 |---|---|---|---|---|
-| FSLR | 9205 | 0.23% | 2.51% | -2.28% |
-| TTD | 5304 | 0.65% | 3.00% | -2.35% |
-| HWM | 5283 | 0.86% | 3.22% | -2.36% |
-| NFLX | 9008 | 0.91% | 3.39% | -2.48% |
-| BLDR | 8962 | 0.87% | 3.46% | -2.59% |
-| FANG | 7610 | 0.55% | 3.15% | -2.60% |
-| CRWD | 3883 | 1.21% | 3.98% | -2.77% |
-| COIN | 2982 | 0.39% | 3.18% | -2.79% |
-| LITE | 6077 | 1.05% | 4.13% | -3.07% |
-| TSLA | 9237 | 1.36% | 4.68% | -3.33% |
+| VRT | 2262 | 0.16% | 2.31% | -2.15% |
+| WYNN | 4709 | -0.40% | 1.85% | -2.25% |
+| MGM | 4947 | -0.51% | 1.74% | -2.25% |
+| VST | 2728 | -0.30% | 1.98% | -2.28% |
+| DELL | 2792 | -0.08% | 2.30% | -2.38% |
+| PLTR | 1590 | 0.70% | 3.17% | -2.47% |
+| LITE | 3111 | 0.04% | 2.55% | -2.50% |
+| APP | 1375 | 0.38% | 3.19% | -2.81% |
+| GEV | 524 | 0.24% | 3.97% | -3.73% |
+| SNDK | 333 | 8.62% | 14.10% | -5.48% |
 
 ## 5. Which sectors and market regimes are most responsive?
 
-**2 of 12 sectors** show positive average excess return over the random-entry baseline:
+**1 of 12 sectors** show positive average excess return over the random-entry baseline:
 
 | Sector | Avg return | Baseline avg return | Excess vs baseline | n tickers |
 |---|---|---|---|---|
-| Energy | 0.34% | 0.08% | 0.26% | 20 |
-| Materials | 0.28% | 0.20% | 0.08% | 24 |
-| Consumer Staples | 0.21% | 0.35% | -0.14% | 32 |
-| Industrials | 0.37% | 0.55% | -0.18% | 65 |
-| Financials | 0.31% | 0.63% | -0.32% | 69 |
-| Utilities | 0.20% | 0.56% | -0.35% | 29 |
-| Consumer Discretionary | 0.40% | 0.75% | -0.35% | 49 |
-| Health Care | 0.29% | 0.68% | -0.39% | 53 |
-| Communication Services | 0.28% | 0.75% | -0.48% | 20 |
-| Real Estate | 0.20% | 0.70% | -0.50% | 30 |
-| Unknown | 0.36% | 0.86% | -0.50% | 48 |
-| Information Technology | 0.53% | 1.31% | -0.79% | 60 |
+| Energy | 0.05% | n/a | 0.01% | 20 |
+| Materials | -0.04% | n/a | -0.08% | 24 |
+| Unknown | -0.04% | n/a | -0.10% | 48 |
+| Financials | -0.06% | n/a | -0.11% | 69 |
+| Consumer Discretionary | -0.05% | n/a | -0.11% | 49 |
+| Industrials | -0.05% | n/a | -0.12% | 66 |
+| Information Technology | -0.04% | n/a | -0.13% | 61 |
+| Consumer Staples | -0.10% | n/a | -0.14% | 32 |
+| Health Care | -0.10% | n/a | -0.15% | 52 |
+| Communication Services | -0.11% | n/a | -0.16% | 19 |
+| Real Estate | -0.12% | n/a | -0.16% | 27 |
+| Utilities | -0.16% | n/a | -0.21% | 29 |
 
 ### By market regime
 
 | Trend regime | Vol regime | Avg return | Baseline avg return | Excess vs baseline | n trades |
 |---|---|---|---|---|---|
-| bear | high_vol | 0.77% | 1.31% | -0.54% | 268722 |
-| bear | low_vol | 0.23% | 1.51% | -1.27% | 15662 |
-| bear | normal_vol | 0.31% | 0.91% | -0.61% | 643111 |
-| bull | high_vol | 0.64% | 0.56% | 0.08% | 180610 |
-| bull | low_vol | 0.31% | 0.65% | -0.34% | 198660 |
-| bull | normal_vol | 0.29% | 0.49% | -0.20% | 2109184 |
-| sideways | high_vol | 0.62% | 1.94% | -1.32% | 130204 |
-| sideways | low_vol | 0.26% | 0.74% | -0.48% | 27140 |
-| sideways | normal_vol | 0.20% | 0.74% | -0.54% | 763918 |
+| bear | high_vol | -0.47% | 2.17% | -0.51% | 144311 |
+| bear | low_vol | 0.19% | 0.06% | 0.24% | 7739 |
+| bear | normal_vol | -0.05% | 0.75% | 0.01% | 334658 |
+| bull | high_vol | 0.07% | 1.19% | -0.19% | 95253 |
+| bull | low_vol | 0.07% | 0.55% | -0.01% | 92635 |
+| bull | normal_vol | -0.01% | 0.61% | -0.10% | 1055491 |
+| sideways | high_vol | -0.40% | 1.58% | -0.43% | 73152 |
+| sideways | low_vol | 0.06% | 0.47% | 0.10% | 13552 |
+| sideways | normal_vol | -0.10% | 0.53% | -0.09% | 403722 |
 
 ## 6. Which concepts fail consistently?
 
@@ -125,22 +111,22 @@ Lowest-Sharpe signals with at least 30 trades (10-day hold) that did *not* beat 
 
 | Signal | n trades | Win rate | Sharpe |
 |---|---|---|---|
-| smc_fvg_bullish_formed | 68299 | 55.58% | 0.496 |
-| smc_swing_ob_bullish_mitigated | 6820 | 56.94% | 0.498 |
-| smc_equal_lows | 9388 | 55.14% | 0.508 |
-| smc_internal_choch_bullish | 26575 | 56.76% | 0.527 |
-| smc_internal_ob_bullish_mitigated | 54395 | 56.41% | 0.547 |
-| ict_mss_bullish | 36729 | 56.60% | 0.549 |
-| ict_liquidity_buyside_swept | 44563 | 57.02% | 0.574 |
-| ict_ndog_formed | 1941685 | 56.55% | 0.584 |
-| smc_swing_bos_bullish | 4598 | 56.87% | 0.607 |
-| ict_nwog_formed | 421965 | 56.98% | 0.614 |
+| ict_bos_bearish | 42496 | 40.24% | -0.810 |
+| smc_fvg_bearish_formed | 67673 | 42.10% | -0.705 |
+| smc_internal_bos_bearish | 16549 | 41.22% | -0.700 |
+| ict_volume_imbalance_bearish | 84642 | 41.63% | -0.698 |
+| ict_displacement_bearish | 190415 | 42.69% | -0.694 |
+| ict_mss_bearish | 36553 | 42.94% | -0.668 |
+| ict_liquidity_sellside_swept | 32884 | 42.05% | -0.644 |
+| smc_equal_highs | 10483 | 42.48% | -0.642 |
+| ict_fvg_bearish_formed | 90730 | 42.86% | -0.640 |
+| ict_liquidity_sellside_pool_formed | 51635 | 42.52% | -0.638 |
 
 ## 7. Are results stable across bull, bear, and sideways markets?
 No, not fully — see the regime table in Section 5. Excess return vs. baseline is negative in most trend/volatility regime cells (`results/regime_analysis.csv`), and the one clearly positive cell (bull + high volatility) is a narrow slice of the data. Regime classification uses each stock's own trailing SMA(200) trend and realized-volatility-vs-own-history state, not an external index. See the dashboard's Sector & Regime tab and `analytics/regimes.py:regime_analysis_by_signal` for the per-signal breakdown by regime.
 
 ## 8. Are results statistically significant after correcting for sample size and multiple testing?
-Every ranking module (concepts, combinations, stocks, sectors, regimes) now compares against a random-entry baseline run through identical backtest mechanics, in addition to a zero-return null, with Benjamini-Hochberg FDR correction applied to both (`analytics/statistics.py`). The headline `statistically_significant` flag requires clearing the FDR-corrected **baseline** comparison (alpha=0.05) *and* a minimum sample size — concepts/combinations below that sample size are explicitly flagged `low_sample_warning` rather than reported with false confidence. Per-ticker significance tests (Section 4) have limited statistical power due to small per-ticker baseline samples (~50 trades) — reported as a ranking with honest p-values, not a list of proven stock-specific edges.
+Every ranking module (concepts, combinations, stocks, sectors, regimes) now compares against a random-entry baseline run through identical backtest mechanics, in addition to a zero-return null, with Benjamini-Hochberg FDR correction applied to both (`analytics/statistics.py`). The headline `beats_matched_random` flag requires clearing the FDR-corrected **baseline** comparison (alpha=0.05) *and* a minimum sample size — concepts/combinations below that sample size are explicitly flagged `low_sample_warning` rather than reported with false confidence. Per-ticker significance tests (Section 4) have limited statistical power due to small per-ticker baseline samples (~50 trades) — reported as a ranking with honest p-values, not a list of proven stock-specific edges.
 
 ## Key limitations
 - In-sample results across the full 2010-2026 window (no held-out walk-forward split yet — see README Future Improvements).

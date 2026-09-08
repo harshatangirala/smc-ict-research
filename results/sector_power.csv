@@ -1,0 +1,13 @@
+sector,n_tickers,n_trades,observed_excess_bps,mde_bps,adequately_powered,power_note
+Energy,20,90991,1.074322758864997,4.541899848702975,True,null result is informative
+Materials,24,108053,-7.674588949716466,3.3860755879306805,True,null result is informative
+Unknown,48,207900,-9.659291525095448,2.6643923674619674,True,null result is informative
+Financials,69,318334,-11.424422696404628,1.7748212383054185,True,null result is informative
+Consumer Discretionary,49,218440,-11.468502449087328,2.851442925550936,True,null result is informative
+Industrials,66,298712,-11.94453677409658,1.8105812098616934,True,null result is informative
+Information Technology,61,266732,-13.482338969406308,2.564941273781186,True,null result is informative
+Consumer Staples,32,145634,-13.576664070957722,2.133912687693142,True,null result is informative
+Health Care,52,228958,-15.059473535759127,2.28049971241401,True,null result is informative
+Communication Services,19,81145,-16.246894705101656,4.067217159820272,True,null result is informative
+Real Estate,27,123682,-16.406919412944948,2.603185327170914,True,null result is informative
+Utilities,29,131932,-21.26979139712504,2.247316133387465,True,null result is informative

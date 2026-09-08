@@ -75,6 +75,32 @@ class TestEventRegistry:
         ]
         assert not unclassified, f"unclassified boolean columns: {unclassified}"
 
+    def test_every_registered_signal_has_a_specification(self):
+        """The brief requires a spec per detector; enforce it mechanically.
+
+        Ten registered signals (ICT market structure, volume imbalance, and the
+        liquidity pool/sweep pair) were tested and reported but had no
+        specification until this was checked.
+        """
+        import pathlib
+        import re
+
+        from signals.event_engine import EVENT_REGISTRY
+
+        spec_dir = pathlib.Path("docs/specs")
+        if not spec_dir.exists():
+            pytest.skip("specs not generated")
+        documented = set()
+        for f in spec_dir.glob("*.yaml"):
+            if f.name.startswith("_"):
+                continue
+            documented |= set(re.findall(r"- name: (\w+)", f.read_text(encoding="utf-8")))
+        missing = sorted(set(EVENT_REGISTRY) - documented)
+        assert not missing, (
+            f"{len(missing)} registered signal(s) have no specification in "
+            f"docs/specs/: {missing}"
+        )
+
     def test_registry_directions_match_the_yaml_specs(self):
         """The specs are the contract; drift between them and code is a bug."""
         import pathlib

@@ -289,6 +289,21 @@ periods, α = 0.05, or the FDR method.**
 | **Order block mitigation** | Direction inverted relative to formation (§1.5). |
 | **Equal highs / lows** | Explicit directions: highs −1, lows +1 (§1.5). |
 
+## 5b. Deliverable gaps closed after the first PR
+
+An audit against the original brief found seven items that were specified but
+not delivered. All are now closed.
+
+| # | Gap | Resolution |
+|---|---|---|
+| 1 | **`analytics/sectors` docstring described `load_sector_map`, which did not exist.** A docstring that promises an API is worse than none. | Implemented `load_sector_map(source="static"\|"live")` and `fetch_live_sectors()`. Static remains the default and is what every published number uses; a live lookup would make results depend on when they were run. |
+| 2 | **Per-sector statistical power was never computed** (brief §8: "report sample size and power"). | `sector_power_analysis()` reports the minimum detectable effect per sector from its design-based standard error. All 12 sectors are adequately powered (MDE 1.8-4.5 bp against observed excesses of -21 to +1 bp), so the negative sector results are evidence of absence rather than absence of evidence. Written to `results/sector_power.csv`. |
+| 3 | **10 of 46 registered signals had no specification** -- ICT market structure, volume imbalance, and the liquidity pool/sweep pair were tested and reported but undocumented. | Three spec families added; coverage is now 46/46, enforced by `test_every_registered_signal_has_a_specification`. |
+| 4 | **No disambiguation artefact** (brief §1). | `docs/disambiguation.md`: 13 ambiguous readings, the choice made, the rationale, and a table of which could move a published number. Three (A5, A6, A7) are genuine judgement calls; A8 is the one that does move a result, and is why `ict_nwog_gap_up` is withdrawn. |
+| 5 | **The `export` stage had never been run on the full universe.** | Run; `exports/` now holds the CSV/JSON/Excel deliverables. |
+| 6 | **`docs/findings_report.html` / `.pdf` still stated the pre-correction numbers**, and `docs/final_research_report.md` had a stale sector count (0/12 rather than 1/12, from reading a renamed column). | Findings report moved to `docs/superseded/` with a README naming exactly what it gets wrong; `utils/render_pdf.py` repointed and marked superseded. `utils/generate_report.py` now resolves the excess-return column dynamically, and the report is regenerated. |
+| 7 | **Acceptance criterion mismatch**: the brief says `main.py backtest` produces `statistics_master.csv`; it produces `trades.parquet`. | Kept separate by design -- statistics takes ~15 min and is re-run far more often than the 4-min backtest. The stage now logs the handoff, and the deviation is documented in `docs/replication_guide.md` §4. |
+
 ## 6. New files
 
 ```

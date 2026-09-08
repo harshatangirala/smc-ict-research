@@ -65,6 +65,15 @@ python tools/make_figures.py # ~10 s    -> results/figures/*.png + matching *.cs
 detection once per grid point and dominates total runtime. Add `--skip ingest`
 to reuse an existing cache.
 
+**One deviation from the original brief.** The brief's acceptance criteria say
+`python main.py backtest` should produce `results/statistics_master.csv`. It
+does not, by design: `backtest` writes `trades.parquet`, and `statistics` writes
+`statistics_master.csv`. Keeping them separate matters because the statistics
+stage takes ~15 minutes at the final bootstrap budget and is re-run far more
+often than the 4-minute backtest, so fusing them would force a full recompute of
+17.7M trades every time a test changes. `python main.py all` produces both, and
+the `backtest` stage logs the handoff explicitly.
+
 ## 5. Determinism
 
 Reproducibility is a property the code enforces, not a hope:

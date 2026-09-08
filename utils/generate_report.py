@@ -30,6 +30,21 @@ def _fmt(x, nd=3) -> str:
     return f"{x:.{nd}f}" if pd.notna(x) else "n/a"
 
 
+def _excess_col(df) -> str:
+    """Excess-return column name, new schema first.
+
+    `sector_analysis` / `regime_analysis` now report
+    `excess_return_vs_matched_random` (a direction-matched null) instead of
+    `excess_return_vs_baseline` (a long-only benchmark subtracted from a
+    half-short population, which measured net exposure). Reading only the old
+    name silently yielded 0 positive sectors when one is positive.
+    """
+    for c in ("excess_return_vs_matched_random", "excess_return_vs_baseline"):
+        if c in getattr(df, "columns", []):
+            return c
+    return ""
+
+
 def generate_report() -> str:
     dq = pd.read_csv(RESULTS_DIR / "data_quality_report.csv") if (RESULTS_DIR / "data_quality_report.csv").exists() else pd.DataFrame()
     events = pd.read_parquet(RESULTS_DIR / "master_events.parquet") if (RESULTS_DIR / "master_events.parquet").exists() else pd.DataFrame()
@@ -57,7 +72,9 @@ def generate_report() -> str:
     _cflag = "beats_matched_random" if "beats_matched_random" in combos else "statistically_significant"
     n_combo_sig_baseline = int(combos[_cflag].sum()) if _cflag in combos else 0
 
-    n_sectors_positive = int((sectors["excess_return_vs_baseline"] > 0).sum()) if "excess_return_vs_baseline" in sectors else 0
+    _sec_col = _excess_col(sectors)
+    _reg_col = _excess_col(regimes)
+    n_sectors_positive = int((sectors[_sec_col] > 0).sum()) if _sec_col else 0
     n_sectors_total = len(sectors)
 
     # MUST filter on the direction-aware flag. The previous version selected on
@@ -76,7 +93,7 @@ def generate_report() -> str:
     top_combos = combos[combos.get("statistically_significant", False) == True].head(10) if not combos.empty else pd.DataFrame()  # noqa: E712
     best_stocks = stocks[stocks.get("eligible", False) == True].head(20) if not stocks.empty else pd.DataFrame()
     worst_stocks = stocks[stocks.get("eligible", False) == True].tail(10) if not stocks.empty else pd.DataFrame()
-    sectors_sorted = sectors.sort_values("excess_return_vs_baseline", ascending=False) if "excess_return_vs_baseline" in sectors else sectors
+    sectors_sorted = sectors.sort_values(_sec_col, ascending=False) if _sec_col else sectors
 
     lines = []
     lines.append("# Executive Research Report — SMC/ICT Statistical Edge Study")
@@ -179,13 +196,13 @@ def generate_report() -> str:
         lines.append("| Sector | Avg return | Baseline avg return | Excess vs baseline | n tickers |")
         lines.append("|---|---|---|---|---|")
         for _, r in sectors_sorted.iterrows():
-            lines.append(f"| {r['sector']} | {_fmt_pct(r['avg_return'])} | {_fmt_pct(r.get('baseline_avg_return'))} | {_fmt_pct(r.get('excess_return_vs_baseline'))} | {int(r['n_tickers'])} |")
+            lines.append(f"| {r['sector']} | {_fmt_pct(r['avg_return'])} | {_fmt_pct(r.get('baseline_avg_return'))} | {_fmt_pct(r.get(_sec_col))} | {int(r['n_tickers'])} |")
     if not regimes.empty:
         lines.append("\n### By market regime\n")
         lines.append("| Trend regime | Vol regime | Avg return | Baseline avg return | Excess vs baseline | n trades |")
         lines.append("|---|---|---|---|---|---|")
         for _, r in regimes.iterrows():
-            lines.append(f"| {r['trend_regime']} | {r['vol_regime']} | {_fmt_pct(r['avg_return'])} | {_fmt_pct(r.get('baseline_avg_return'))} | {_fmt_pct(r.get('excess_return_vs_baseline'))} | {int(r['n_trades'])} |")
+            lines.append(f"| {r['trend_regime']} | {r['vol_regime']} | {_fmt_pct(r['avg_return'])} | {_fmt_pct(r.get('baseline_avg_return'))} | {_fmt_pct(r.get(_reg_col))} | {int(r['n_trades'])} |")
 
     lines.append("\n## 6. Which concepts fail consistently?")
     if not failing_concepts.empty:

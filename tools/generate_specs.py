@@ -173,6 +173,106 @@ SPECS = {
            "ignored the enable flags, and carried an unsigned gap size, so the "
            "melted event had direction 0 and was coerced long."),
 ),
+"ict_market_structure": dict(
+    concept="ICT Market Structure Shift and Break of Structure",
+    source="ICT_Concepts_LuxAlgo.pine", source_section="1.1 + 1.2",
+    module="signals/ict_signals.py::detect_mss_bos",
+    signals=[("ict_mss_bullish", 1), ("ict_mss_bearish", -1),
+             ("ict_bos_bullish", 1), ("ict_bos_bearish", -1)],
+    definition="""
+      # Zigzag vertices from CONFIRMED pivots (ta.pivothigh/low, right = 1),
+      # so a vertex is only usable one bar after the pivot bar itself.
+      on confirmed pivot high at bar i:  push/extend an up-vertex at high[i-1]
+      on confirmed pivot low  at bar i:  push/extend a down-vertex at low[i-1]
+
+      swing_high = price of the most recent up-vertex
+      swing_low  = price of the most recent down-vertex
+
+      # MSS -- the first break that REVERSES the prevailing direction
+      mss_bullish_i = close_i > swing_high AND dir < +1   -> dir := +1
+      mss_bearish_i = close_i < swing_low  AND dir > -1   -> dir := -1
+
+      # BOS -- a subsequent break CONTINUING the established direction, against
+      # a level not already consumed by an MSS or an earlier BOS
+      bos_bullish_i = dir == +1 AND close_i > swing_high
+                      AND swing_high not in {last_bos_level, last_mss_level}
+      bos_bearish_i = mirror
+    """,
+    params=[("mss_pivot_len","int",5,"3..10","Pivot left-lookback (Pine `len`); right lookback is 1")],
+    causal=("Vertices come from pivots confirmed with right = 1 and priced at "
+            "bar i-1, so bar i uses only bars <= i. The dir/level state machine "
+            "is sequential and reads no future bar."),
+    min_occurrences=500,
+    notes=("MSS and BOS are distinguished only by the state machine: the same "
+           "geometric break is an MSS if it reverses `dir` and a BOS if it "
+           "continues it. The de-duplication against `last_bos_level` and "
+           "`last_mss_level` prevents one swing level from emitting repeatedly "
+           "as price oscillates across it."),
+),
+"ict_volume_imbalance": dict(
+    concept="ICT Volume Imbalance", source="ICT_Concepts_LuxAlgo.pine",
+    source_section="1.5", module="signals/ict_signals.py::detect_volume_imbalance",
+    signals=[("ict_volume_imbalance_bullish", 1), ("ict_volume_imbalance_bearish", -1)],
+    definition="""
+      mx_i = max(close_i, open_i);  mn_i = min(close_i, open_i)
+
+      bullish_i = open_i  > close_{i-1}      # gap up on the open
+                  AND high_{i-1} > low_i     # wicks still overlap
+                  AND close_i > close_{i-1}
+                  AND open_i  > open_{i-1}
+                  AND high_{i-1} < mn_i      # prior high below this body
+
+      bearish_i = open_i  < close_{i-1}
+                  AND low_{i-1} < high_i
+                  AND close_i < close_{i-1}
+                  AND open_i  < open_{i-1}
+                  AND low_{i-1} > mx_i
+    """,
+    params=[],
+    causal="Uses bars i and i-1 only.",
+    min_occurrences=1000,
+    notes=("A volume imbalance is the body-level gap that remains when two "
+           "candles' wicks overlap but their bodies do not -- distinct from a "
+           "Fair Value Gap, which requires a true 3-bar wick-to-wick void."),
+),
+"ict_liquidity_pool": dict(
+    concept="ICT Liquidity Pool (clustered equal highs/lows)",
+    source="ICT_Concepts_LuxAlgo.pine", source_section="1.8",
+    module="signals/ict_signals.py::detect_liquidity",
+    signals=[("ict_liquidity_buyside_pool_formed", 1),
+             ("ict_liquidity_sellside_pool_formed", -1),
+             ("ict_liquidity_buyside_swept", 1),
+             ("ict_liquidity_sellside_swept", -1)],
+    definition="""
+      a    = 10 / margin
+      band = ATR(liquidity_atr_len)_i / a
+
+      # POOL FORMATION, on a confirmed pivot at bar i with price p
+      cluster = { q : q is a same-direction vertex in the last 50
+                      AND |q - p| < band }
+      pool forms iff |cluster| > liquidity_min_cluster
+        mid    = (min(cluster) + max(cluster)) / 2
+        region = [mid - band, mid + band]
+
+      # SWEEP (legacy semantics, retained for comparison -- see notes)
+      buyside_swept_i  = close_i > region.bottom, first time only
+      sellside_swept_i = close_i < region.top,    first time only
+    """,
+    params=[("mss_pivot_len","int",5,"3..10","Pivot lookback feeding the vertex list"),
+            ("liquidity_margin","float",4.0,"1.0..20.0","Band width divisor; a = 10/margin"),
+            ("liquidity_atr_len","int",10,"5..50","ATR length for the band"),
+            ("liquidity_min_cluster","int",2,"1..10","Pivots required in-band, exclusive (> not >=)")],
+    causal="Pivots carry their confirmation lag; ATR and the vertex list are trailing.",
+    min_occurrences=500,
+    notes=("The `*_swept` signals fire when price merely ENTERS the pool region, "
+           "with no rejection leg -- that is a breakout, not a sweep, which is "
+           "why they behave almost identically to pool formation. They are "
+           "retained under their original names so the reformulation is visible "
+           "as a comparison; the prospective replacement is "
+           "docs/specs/ict_liquidity_sweep.yaml. Also note the cluster test "
+           "contains a redundant conjunct in the source translation "
+           "(`|q-p| < band` AND `p-band < q < p+band` are the same condition)."),
+),
 "smc_structure": dict(
     concept="SMC Break of Structure / Change of Character",
     source="SMC_Concepts_LuxAlgo.pine", source_section="2.2",

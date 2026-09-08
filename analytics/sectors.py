@@ -6,7 +6,9 @@ has no sector column. SECTOR_MAP below is a manually curated static mapping
 covering the large-cap/high-weight majority of the index; tickers not present
 fall back to "Unknown" and are reported separately rather than silently
 dropped or mis-bucketed. ``load_sector_map`` offers an optional live lookup
-path, but the static map is the reproducible default.
+path (``source="live"``), but the static map is the reproducible default and is
+what every published number in this study uses: a live lookup would make results
+depend on when they were run.
 
 Duplicate-key defect fixed here
 -------------------------------
@@ -128,6 +130,135 @@ SECTOR_MAP: dict[str, str] = {
 }
 
 
+def fetch_live_sectors(
+    tickers: list[str], max_workers: int = 8, timeout: float = 10.0
+) -> dict[str, str]:
+    """Look up GICS-style sectors from Yahoo Finance. Optional, non-reproducible.
+
+    Returns ``{ticker: sector}`` for whatever resolves; tickers that fail are
+    simply absent, so a caller can fall back to the static map per ticker rather
+    than losing the whole lookup to one bad symbol.
+
+    This is deliberately NOT the default. Yahoo's sector labels change over time
+    and the endpoint is unversioned, so a study that depended on it would not
+    reproduce. Use it to audit or extend ``SECTOR_MAP``, not to generate results.
+    """
+    from concurrent.futures import ThreadPoolExecutor, as_completed
+
+    try:
+        import yfinance as yf
+    except ImportError as exc:  # pragma: no cover - optional dependency
+        raise ImportError(
+            "fetch_live_sectors needs yfinance: pip install yfinance"
+        ) from exc
+
+    def _one(ticker: str) -> tuple[str, str | None]:
+        try:
+            info = yf.Ticker(ticker).get_info()
+            return ticker, info.get("sector") or None
+        except Exception:  # noqa: BLE001 - network call, any failure is a miss
+            return ticker, None
+
+    out: dict[str, str] = {}
+    with ThreadPoolExecutor(max_workers=max_workers) as pool:
+        futures = {pool.submit(_one, t): t for t in tickers}
+        for fut in as_completed(futures, timeout=timeout * len(tickers)):
+            try:
+                ticker, sector = fut.result()
+            except Exception:  # noqa: BLE001
+                continue
+            if sector:
+                out[ticker] = sector
+    log.info("Live sector lookup resolved %d/%d tickers", len(out), len(tickers))
+    return out
+
+
+def load_sector_map(
+    tickers: list[str] | None = None, source: str = "static"
+) -> dict[str, str]:
+    """Sector map for `tickers`.
+
+    ``source="static"`` (default) returns the curated map -- reproducible, and
+    what the study uses. ``source="live"`` queries Yahoo and falls back to the
+    static entry for any ticker that does not resolve, so the result is never
+    worse than the default.
+    """
+    if source == "static" or tickers is None:
+        return dict(SECTOR_MAP)
+    if source != "live":
+        raise ValueError(f"source must be 'static' or 'live', got {source!r}")
+    live = fetch_live_sectors(list(tickers))
+    merged = {t: live.get(t, SECTOR_MAP.get(t, "Unknown")) for t in tickers}
+    disagreements = {
+        t: (SECTOR_MAP[t], live[t])
+        for t in live
+        if t in SECTOR_MAP and SECTOR_MAP[t] != live[t]
+    }
+    if disagreements:
+        log.warning(
+            "Live lookup disagrees with the static map for %d ticker(s): %s",
+            len(disagreements), dict(list(disagreements.items())[:5]),
+        )
+    return merged
+
+
+def sector_power_analysis(
+    sectors: pd.DataFrame, alpha: float = 0.05, power: float = 0.80
+) -> pd.DataFrame:
+    """Minimum detectable effect per sector, given the sample actually observed.
+
+    A sector result that is "not significant" is uninformative unless the test
+    could have detected an effect worth caring about. For each sector this
+    reports the smallest true excess return a two-sided test at `alpha` would
+    reject with probability `power`:
+
+        MDE = (z_{1-alpha/2} + z_{power}) * SE
+
+    where ``SE`` is the matched-null standard error already computed for that
+    sector. ``adequately_powered`` marks sectors whose MDE is below 10 bp -- the
+    order of magnitude of the concept-level effects this study found at all --
+    so a null result there is genuinely evidence of absence rather than absence
+    of evidence.
+    """
+    from scipy import stats as _st
+
+    if sectors.empty:
+        return pd.DataFrame()
+    out = sectors.copy()
+
+    se_col = None
+    for cand in ("matched_null_se", "std_return"):
+        if cand in out.columns:
+            se_col = cand
+            break
+    if se_col == "std_return":
+        # Fall back to the iid SE of the mean when a matched-null SE is absent.
+        out["_se"] = out["std_return"] / np.sqrt(out["n_trades"].clip(lower=1))
+    elif se_col:
+        out["_se"] = out[se_col]
+    else:
+        out["_se"] = np.nan
+
+    z_alpha = _st.norm.ppf(1 - alpha / 2)
+    z_power = _st.norm.ppf(power)
+    out["mde_return"] = (z_alpha + z_power) * out["_se"]
+    out["mde_bps"] = out["mde_return"] * 10_000
+    out["observed_excess_bps"] = out.get(
+        "excess_return_vs_matched_random", pd.Series(np.nan, index=out.index)
+    ) * 10_000
+    out["adequately_powered"] = out["mde_bps"] < 10.0
+    out["power_note"] = np.where(
+        out["adequately_powered"],
+        "null result is informative",
+        "underpowered: a real effect of this size would likely be missed",
+    )
+    cols = [
+        "sector", "n_tickers", "n_trades", "observed_excess_bps",
+        "mde_bps", "adequately_powered", "power_note",
+    ]
+    return out[[c for c in cols if c in out.columns]].reset_index(drop=True)
+
+
 def _assert_no_duplicate_assignments(source_path: str = __file__) -> dict[str, list[str]]:
     """Raise if any ticker is declared under more than one sector.
 
@@ -212,7 +343,7 @@ def sector_analysis(
         metrics["n_tickers"] = grp["ticker"].nunique()
 
         # Direction-matched null, weighted by each direction's trade count.
-        null_total, n_total, excess_num = 0.0, 0, 0.0
+        null_total, n_total, excess_num, var_num = 0.0, 0, 0.0, 0.0
         for direction, dgrp in grp.groupby("direction"):
             mr = matched_randomization_test(
                 dgrp.groupby("ticker").size().to_dict(),
@@ -226,9 +357,19 @@ def sector_analysis(
                 null_total += mr["null_mean"] * n_d
                 excess_num += mr["excess_return"] * n_d
                 n_total += n_d
+                # Variance of the trade-count-weighted mean of two independent
+                # direction blocks. Carried through so the power analysis uses a
+                # design-based standard error; an iid SE would understate it by
+                # roughly the same factor the concept-level tests see (~5.8x)
+                # and would make every sector look adequately powered by default.
+                if np.isfinite(mr["null_se"]):
+                    var_num += (n_d * mr["null_se"]) ** 2
         metrics["matched_null_mean"] = null_total / n_total if n_total else np.nan
         metrics["excess_return_vs_matched_random"] = (
             excess_num / n_total if n_total else np.nan
+        )
+        metrics["matched_null_se"] = (
+            float(np.sqrt(var_num) / n_total) if n_total and var_num > 0 else np.nan
         )
         metrics["n_long_trades"] = int((grp["direction"] == 1).sum())
         metrics["n_short_trades"] = int((grp["direction"] == -1).sum())
