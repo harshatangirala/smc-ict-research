@@ -111,13 +111,39 @@ def run_checks() -> list[Finding]:
         "A zero-return null is meaningless over a bull market; the benchmark must be a "
         "real alternative strategy.",
         "ADDRESSED" if has_matched else "EXPOSED",
-        "The primary test is a design-based matched randomization: hold the ticker mix "
-        "and the per-ticker trade count fixed, then ask what mean randomly chosen entry "
-        "dates would produce. Its analytic moments are validated against a 2,000-run "
-        "simulation (null means agree to five decimals; SE ratios 0.99-1.04).",
+        "The benchmark is composition-matched: each trade is measured against its own "
+        "ticker's unconditional mean forward return, so ticker mix and per-ticker trade "
+        "counts are held fixed. Inference is a calendar-time Newey-West test on that "
+        "per-trade excess.",
         "The zero-return test is retained but labelled weak. Six conventional benchmarks "
         "run through the identical engine.",
-        "high", ["analytics/statistics.py::matched_randomization_test"]))
+        "high", ["analytics/statistics.py::matched_excess_calendar_test"]))
+
+    # 4b -- calibration of the primary test
+    cal = _read("test_calibration.csv")
+    if cal is not None and len(cal):
+        piv = cal.pivot(index="design", columns="test", values="rejection_rate")
+        worst_cal = float(cal.loc[cal["test"] == "calendar", "rejection_rate"].max())
+        worst_srs = float(cal.loc[cal["test"] == "srs", "rejection_rate"].max())
+        ev4b = (
+            "Uninformative entry dates drawn on real prices, nominal 5%: the first primary "
+            f"test (SRS variance) rejects up to {worst_srs:.0%} when signals fire on shared "
+            f"dates; the calendar-time test now used rejects at most {worst_cal:.1%}. "
+            + "; ".join(
+                f"{d}: srs {piv.loc[d, 'srs']:.3f} / calendar {piv.loc[d, 'calendar']:.3f}"
+                f" / rotation {piv.loc[d, 'rotation']:.3f}" for d in piv.index)
+        )
+        st4b = "ADDRESSED" if worst_cal <= 0.08 else "PARTIAL"
+    else:
+        ev4b, st4b = "No calibration study found -- run tools/calibration_study.py.", "EXPOSED"
+    F.append(Finding(
+        "Are the p-values calibrated? A test that assumes independent entry dates "
+        "overstates significance for signals that fire on the same dates.",
+        st4b, ev4b,
+        "Found by the authors' own audit, not a referee. Every headline count was "
+        "recomputed with the calendar-time test; the SRS p-value is kept beside it in "
+        "results/statistics_master.csv so the difference is auditable.",
+        "critical", ["tools/calibration_study.py", "results/test_calibration.csv"]))
 
     # 5 -- one-sided
     sign_ok = True
@@ -170,19 +196,34 @@ def run_checks() -> list[Finding]:
         "high", ["backtest/engine_tc.py"]))
 
     # 8 -- survivorship
+    surv = _read("survivorship_summary.csv")
+    sc_path = RESULTS_DIR / "survivorship_comparison.json"
+    if surv is not None and sc_path.exists():
+        import json as _json
+
+        sv = dict(zip(surv["metric"], surv["value"]))
+        sc = _json.loads(sc_path.read_text(encoding="utf-8"))
+        ev8 = (
+            f"Sized with published index-entry dates: of {sv.get('current_constituents')} "
+            f"analysed tickers, {sv.get('in_index_at_sample_start')} were members at the "
+            f"sample start and at least {sv.get('estimated_removed_names_missing')} "
+            "since-removed constituents are absent. Look-ahead membership is removed exactly "
+            "by a re-test that filters both signals and matched-null pools: "
+            f"{sc['trades_dropped_pct']}% of trades drop out; "
+            f"{len(sc['survived_filter'])} of {sc['n_beats_full']} headline concepts survive, "
+            f"{len(sc['lost_under_filter'])} are lost."
+        )
+    else:
+        ev8 = "Survivorship outputs not found -- run `python main.py survivorship`."
     F.append(Finding(
         "The universe is a current index snapshot applied retroactively -- survivorship bias.",
-        "PARTIAL" if dq is not None else "EXPOSED",
-        "Acknowledged and quantified: the constituent list is a 2026 snapshot, five "
-        "tickers are permanently unavailable, and roughly 80 begin after 2010. The bias "
-        "inflates absolute return levels for signals and baselines alike.",
-        "NOT fully corrected -- a point-in-time constituent history is not available to "
-        "this pipeline. The matched-random comparison largely cancels it, since the null "
-        "is drawn from the same survivor-biased tickers, which is the main reason that "
-        "comparison carries the headline rather than raw returns. A referee may still "
-        "reasonably require a point-in-time universe. This is the study's single largest "
-        "unaddressed threat to validity.",
-        "high", ["results/validation_report.md"]))
+        "PARTIAL", ev8,
+        "The removed firms cannot be recovered from free sources; Wikipedia no longer "
+        "publishes its historical changes table. Survivor bias inflates signal and null "
+        "alike, so it largely cancels in the excess -- unless removed firms, which are "
+        "disproportionately distressed, responded to these patterns differently. A "
+        "point-in-time universe remains the largest open threat to validity.",
+        "high", ["analytics/survivorship.py", "results/survivorship_comparison.json"]))
 
     # 9 -- parameter mining
     F.append(Finding(
@@ -214,35 +255,40 @@ def run_checks() -> list[Finding]:
         "practitioner can reasonably object that their own variant differs.",
         "medium", ["docs/specs/"]))
 
-    # 11 -- bootstrap validity
+    # 11 -- resampling validity
+    has_rot = mc is not None and "rotation_p_value" in getattr(mc, "columns", [])
     F.append(Finding(
-        "Bootstrap confidence intervals assume iid draws, which these returns are not.",
-        "ADDRESSED" if mc is not None and len(mc) else "PARTIAL",
-        "Three resampling schemes are reported: matched random re-entry, iid trade "
-        "shuffling, and a circular block bootstrap (21-bar blocks) that preserves serial "
-        "dependence. The bootstrap interval is reported beside a HAC interval, and "
-        "`ci_method` records which bootstrap path was taken.",
-        "The HAC interval, not the bootstrap one, is used for inference; the bootstrap "
-        "is reported because the specification requires it and for comparability with "
-        "the prior version.",
-        "medium", ["analytics/montecarlo.py"]))
+        "Resampling schemes that draw dates independently per ticker ignore that trades "
+        "cluster on the same dates.",
+        "ADDRESSED" if has_rot else "PARTIAL",
+        "The primary Monte Carlo is a calendar rotation: the whole entry calendar shifts "
+        "by one random offset for every ticker, preserving which trades share a date. "
+        "The independent-draw and per-ticker block schemes are kept for comparison and "
+        "labelled anti-conservative. Confidence intervals used for inference are HAC, not "
+        "iid bootstrap.",
+        "The iid bootstrap interval is still reported because the brief requires it; "
+        "`ci_method` records when it ran on a subsample.",
+        "medium", ["analytics/montecarlo.py::monte_carlo_rotation_null"]))
 
     # 12 -- sector power
-    thin = ""
-    sector_ok = sect is not None and "n_tickers" in getattr(sect, "columns", [])
-    if sector_ok:
-        small = sect[sect["n_tickers"] < 25]
-        thin = f" {len(small)} of {len(sect)} sectors rest on fewer than 25 tickers."
+    pw = _read("sector_power.csv")
+    if pw is not None and len(pw) and "mde_bps" in pw.columns:
+        n_ok = int(pw["adequately_powered"].sum())
+        st12 = "ADDRESSED" if n_ok == len(pw) else "PARTIAL"
+        ev12 = (
+            "Minimum detectable effect per sector from its calendar-time standard error: "
+            f"{pw['mde_bps'].min():.1f}-{pw['mde_bps'].max():.1f} bp; {n_ok} of {len(pw)} "
+            "sectors are adequately powered (MDE < 10 bp). Sectors are published GICS, "
+            "with no unclassified tickers."
+        )
+    else:
+        st12, ev12 = "EXPOSED", "No sector power analysis found."
     F.append(Finding(
         "Sector-level conclusions rest on too few names to have statistical power.",
-        "PARTIAL" if sector_ok else "EXPOSED",
-        "Per-sector ticker and trade counts are reported alongside every sector result, "
-        "and roughly 10% of the universe is unmapped and shown as `Unknown` rather than "
-        "dropped." + thin,
-        "Sector results are presented as descriptive, not as tested hypotheses with "
-        "their own power analysis. A referee may reasonably ask for formal power "
-        "calculations before any sector claim is made.",
-        "medium", ["analytics/sectors.py"]))
+        st12, ev12,
+        "Sector differences are still presented as descriptive rather than pre-registered "
+        "hypotheses, and GICS labels are current rather than point-in-time.",
+        "medium", ["analytics/sectors.py", "results/sector_power.csv"]))
 
     # 13 -- mechanism
     F.append(Finding(

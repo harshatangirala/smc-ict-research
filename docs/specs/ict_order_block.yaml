@@ -27,10 +27,10 @@ definition: |
   
   # FORMATION at the breaking bar i
   bullish_formed_i = (not top_crossed) AND close_i > top_level
-    -> block candle j = argmin over [top_bar .. i] of min_src
+    -> block candle j = argmin over [top_bar+1, i-1] of min_src
     -> block region   = [min_src_j, max_src_j]
   bearish_formed_i = (not btm_crossed) AND close_i < btm_level
-    -> block candle j = argmax over [btm_bar .. i] of max_src
+    -> block candle j = argmax over [btm_bar+1, i-1] of max_src
   
   # MITIGATION (a formed block being violated)
   bullish_mitigated_i = min(close_i, open_i) < block_bottom

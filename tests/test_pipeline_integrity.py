@@ -461,3 +461,43 @@ class TestDashboardViews:
             except Exception as exc:  # noqa: BLE001
                 failures.append(f"{name}: {type(exc).__name__}: {exc}")
         assert not failures, "dashboard views failed to render: " + "; ".join(failures)
+
+
+class TestSpecDefaultsMatchConfig:
+    """Every spec parameter that names a config field must state its live default.
+
+    The audit checked the 27 such parameters and found none stale; this keeps
+    it that way when a default changes in utils/config.py.
+    """
+
+    def test_spec_defaults_equal_config(self):
+        import dataclasses
+        import pathlib
+        import re
+
+        from utils.config import ICT, SMC
+
+        live = {}
+        for obj in (ICT, SMC):
+            for f in dataclasses.fields(obj):
+                live.setdefault(f.name, []).append(getattr(obj, f.name))
+        pattern = re.compile(r"- name: (\w+)\n\s+type: \w+\n\s+default: ([^\n]+)")
+        stale, checked = [], 0
+        for spec in pathlib.Path("docs/specs").glob("*.yaml"):
+            if spec.name.startswith("_"):
+                continue
+            for name, default in pattern.findall(spec.read_text(encoding="utf-8")):
+                if name not in live:
+                    continue
+                checked += 1
+                d = default.strip().strip('"')
+                numeric = re.fullmatch(r"-?\d+(\.\d+)?", d) is not None
+                if not any(
+                    str(v) == d
+                    or (numeric and isinstance(v, (int, float)) and not isinstance(v, bool)
+                        and float(d) == float(v))
+                    for v in live[name]
+                ):
+                    stale.append((spec.stem, name, d, live[name]))
+        assert checked >= 20, f"only {checked} spec parameters matched config fields"
+        assert not stale, f"spec defaults disagree with utils/config.py: {stale}"

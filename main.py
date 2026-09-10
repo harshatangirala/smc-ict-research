@@ -11,6 +11,7 @@ Stages, in dependency order::
     python main.py walkforward   # rolling out-of-sample evaluation
     python main.py costs         # transaction-cost-aware restatement
     python main.py montecarlo    # resampling evidence for the headline concepts
+    python main.py survivorship  # membership-aware robustness test + GICS audit
     python main.py sensitivity   # parameter sweeps (subsample; slow)
     python main.py report        # validation report + master summary
     python main.py export        # CSV/Excel/JSON deliverables
@@ -220,7 +221,11 @@ def stage_costs() -> None:
 def stage_montecarlo() -> None:
     import pandas as pd
 
-    from analytics.montecarlo import monte_carlo_block_bootstrap, monte_carlo_matched_null
+    from analytics.montecarlo import (
+        monte_carlo_block_bootstrap,
+        monte_carlo_matched_null,
+        monte_carlo_rotation_null,
+    )
     from backtest.engine import _load_price_cache
     from utils.config import MONTE_CARLO_RUNS, PRIMARY_HOLDING_PERIOD
 
@@ -255,9 +260,14 @@ def stage_montecarlo() -> None:
             prices, counts, PRIMARY_HOLDING_PERIOD, direction, observed,
             n_runs=MONTE_CARLO_RUNS, label=f"blk:{sig}",
         )
+        rot = monte_carlo_rotation_null(
+            grp, prices, PRIMARY_HOLDING_PERIOD,
+            n_runs=MONTE_CARLO_RUNS, label=f"rot:{sig}",
+        )
         rows.append(
             {
                 "signal": sig, "n_trades": len(grp), "observed_mean": observed,
+                "rotation_null_mean": rot["null_mean"], "rotation_p_value": rot["p_value"],
                 "mc_null_mean": mc["null_mean"], "mc_p_value": mc["p_value"],
                 "block_null_mean": blk["null_mean"], "block_p_value": blk["p_value"],
                 "n_runs": MONTE_CARLO_RUNS,
@@ -268,8 +278,35 @@ def stage_montecarlo() -> None:
     log.info("Monte Carlo table written")
 
 
+def stage_survivorship() -> None:
+    """Size the survivorship hole and re-run the headline test membership-aware."""
+    import json
+
+    from analytics.survivorship import (
+        compare_membership_aware,
+        sector_map_disagreements,
+        survivorship_summary,
+    )
+
+    survivorship_summary().to_csv(RESULTS_DIR / "survivorship_summary.csv", index=False)
+    comp, summary = compare_membership_aware()
+    comp.to_csv(RESULTS_DIR / "survivorship_membership_aware.csv", index=False)
+    (RESULTS_DIR / "survivorship_comparison.json").write_text(
+        json.dumps(summary, indent=2, default=str), encoding="utf-8"
+    )
+    sector_map_disagreements().to_csv(
+        RESULTS_DIR / "sector_map_disagreements.csv", index=False
+    )
+    log.info("Survivorship tables written")
+
+
 def stage_sensitivity() -> None:
-    from analytics.sensitivity import grid_sweep, random_sweep, stability_summary
+    from analytics.sensitivity import (
+        grid_sweep,
+        random_sweep,
+        run_targeted_sweep,
+        stability_summary,
+    )
 
     grid = grid_sweep(
         {"ict.ob_swing_len": [5, 10, 15, 20], "ict.mss_pivot_len": [3, 5, 7, 10]},
@@ -284,6 +321,9 @@ def stage_sensitivity() -> None:
         n_draws=16, n_tickers=30,
     )
     rand.to_csv(RESULTS_DIR / "sensitivity_random.csv", index=False)
+    # The broad grid does not touch the parameters the reformulated concepts
+    # read; this sweep does (manuscript Table 6).
+    run_targeted_sweep()
     log.info("Sensitivity tables written")
 
 
@@ -313,6 +353,7 @@ STAGES = {
     "walkforward": stage_walkforward,
     "costs": stage_costs,
     "montecarlo": stage_montecarlo,
+    "survivorship": stage_survivorship,
     "sensitivity": stage_sensitivity,
     "report": stage_report,
     "export": stage_export,

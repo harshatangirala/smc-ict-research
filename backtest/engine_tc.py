@@ -11,9 +11,11 @@ This module applies an explicit round-trip cost to every trade::
     cost_bps = fixed_bps + spread_bps + slippage_bps
     net_return = gross_return - cost_bps / 10_000
 
-where ``slippage_bps ~ Uniform(slippage_bps_low, slippage_bps_high)``, drawn
-from a stably-seeded generator so the cost applied to a given trade is
-identical on every rerun (see ``utils/rng.py``).
+where ``slippage_bps ~ Uniform(slippage_bps_low, slippage_bps_high)``. The draw
+is keyed to the trade's identity -- (ticker, date, signal, holding period) --
+so a given trade gets the same cost on every rerun and whatever order or
+subset it arrives in. The first version drew by row position, so filtering
+or re-sorting the input silently changed which trade paid which cost.
 
 Cost is charged once per round trip and is direction-agnostic: crossing the
 spread costs the same going long or short. Defaults (1 bp fixed + 5 bp spread
@@ -46,6 +48,22 @@ def per_trade_cost_bps(
     return costs.fixed_bps + costs.spread_bps + slippage
 
 
+def _trade_uniforms(trades: pd.DataFrame, seed_label: str) -> np.ndarray:
+    """One Uniform[0,1) per trade, a function of the trade's identity only."""
+    from utils.rng import derive_seed
+
+    key = [c for c in ("ticker", "date", "signal", "holding_period") if c in trades.columns]
+    if not key:
+        return get_rng(seed_label).uniform(size=len(trades))
+    frame = trades[key].copy()
+    # Identical keys are identical trades; the occurrence counter still gives
+    # each duplicate its own draw.
+    frame["_occ"] = frame.groupby(key, sort=False).cumcount()
+    hash_key = f"{derive_seed(seed_label):016d}"[-16:]
+    h = pd.util.hash_pandas_object(frame, index=False, hash_key=hash_key).to_numpy()
+    return (h >> np.uint64(11)).astype(np.float64) / float(2**53)
+
+
 def apply_costs(
     trades: pd.DataFrame, costs: CostParams = COSTS, seed_label: str = "slippage"
 ) -> pd.DataFrame:
@@ -61,7 +79,11 @@ def apply_costs(
         return out
 
     out = trades.copy()
-    out["cost_bps"] = per_trade_cost_bps(len(out), costs, seed_label)
+    u = _trade_uniforms(out, seed_label)
+    out["cost_bps"] = (
+        costs.fixed_bps + costs.spread_bps + costs.slippage_bps_low
+        + (costs.slippage_bps_high - costs.slippage_bps_low) * u
+    )
     out["net_return"] = out["fwd_return"] - out["cost_bps"] / 10_000.0
     log.info(
         "Applied transaction costs to %d trades: mean %.2f bps (%.4f%% of notional)",

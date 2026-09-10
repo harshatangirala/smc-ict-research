@@ -91,9 +91,12 @@ def random_entry(
     ``utils.rng.derive_seed`` (BLAKE2b), which is stable across processes,
     machines and Python versions.
 
-    Entries are drawn without replacement from bars that have at least one
-    tradeable forward bar, so the baseline is not silently truncated at the
-    end of the sample relative to the concepts it is compared against.
+    Entries are drawn without replacement from ALL bars. An entry too close to
+    the end of the series for a given horizon is dropped by the backtest at
+    that horizon -- exactly as a concept event near the end is -- so baseline
+    and concepts are truncated identically. (An earlier version of this
+    docstring claimed the draw was restricted to bars with a forward bar; the
+    code never did that.)
     """
     n = len(df)
     if n_signals <= 0 or n == 0:

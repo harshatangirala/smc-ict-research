@@ -13,6 +13,7 @@ import pandas as pd
 from analytics.statistics import (
     apply_fdr_correction,
     build_return_pools,
+    matched_excess_calendar_test,
     matched_randomization_test,
     one_sample_significance,
     two_sample_significance,
@@ -131,7 +132,8 @@ def rank_combinations(holding_period: int = PRIMARY_HOLDING_PERIOD) -> pd.DataFr
             )
             row["matched_null_mean"] = mr["null_mean"]
             row["excess_return_vs_matched_random"] = mr["excess_return"]
-            row["p_value_vs_matched_random"] = mr["p_value"]
+            row["p_value_vs_matched_random"] = matched_excess_calendar_test(grp, pools, holding_period, int(grp["direction"].iloc[0]))["p_value"]
+            row["p_value_vs_matched_random_srs"] = mr["p_value"]
         rows.append(row)
 
     ranking = pd.DataFrame(rows)

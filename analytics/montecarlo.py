@@ -212,3 +212,62 @@ def monte_carlo_block_bootstrap(
         "observed_mean": float(observed_mean),
         "n_runs": int(n_runs),
     }
+
+
+def monte_carlo_rotation_null(
+    trades: pd.DataFrame,
+    prices: dict[str, pd.DataFrame],
+    holding_period: int,
+    n_runs: int = MONTE_CARLO_RUNS,
+    seed: int = RANDOM_SEED,
+    label: str = "mc_rotation",
+) -> dict:
+    """Randomization null that PRESERVES cross-sectional clustering.
+
+    Shifts the signal's whole entry calendar by one random offset -- the same
+    offset for every ticker, wrapping circularly -- and re-reads each trade's
+    h-day forward return at the shifted date. That keeps the ticker mix, the
+    per-ticker counts, the spacing of entries within each ticker and, crucially,
+    which trades share a date.
+
+    ``monte_carlo_matched_null`` and ``monte_carlo_block_bootstrap`` draw dates
+    independently per ticker, which destroys that clustering; like the analytic
+    SRS variance they were built to validate, they are anti-conservative for
+    signals that fire together. This is the primary Monte Carlo scheme.
+    """
+    rng = get_rng(label, master_seed=seed)
+    tickers = sorted(set(trades["ticker"]) & set(prices))
+    h = int(holding_period)
+    empty = {"p_value": np.nan, "null_mean": np.nan, "null_se": np.nan,
+             "observed_mean": np.nan, "n_runs": 0, "n_trades": 0}
+    if not tickers:
+        return empty
+    cal = pd.DatetimeIndex(sorted(set().union(*(prices[t].index for t in tickers))))
+    T = len(cal)
+    if T <= 2 * h + 4:
+        return empty
+    F = np.full((len(tickers), T), np.nan)
+    for k, t in enumerate(tickers):
+        c = prices[t]["close"].to_numpy(dtype=float)
+        if len(c) <= h:
+            continue
+        F[k, cal.get_indexer(prices[t].index[:-h])] = c[h:] / c[:-h] - 1.0
+    sub = trades[trades["ticker"].isin(tickers)]
+    kidx = sub["ticker"].map({t: i for i, t in enumerate(tickers)}).to_numpy()
+    pos = cal.get_indexer(pd.to_datetime(sub["date"]))
+    ok = pos >= 0
+    kidx, pos = kidx[ok], pos[ok]
+    d = sub["direction"].to_numpy(dtype=float)[ok]
+    observed = float(np.nanmean(d * F[kidx, pos]))
+    sims = np.empty(n_runs, dtype=float)
+    for b in range(n_runs):
+        off = int(rng.integers(h + 1, T - h - 1))
+        sims[b] = np.nanmean(d * F[kidx, (pos + off) % T])
+    return {
+        "p_value": float((np.sum(sims >= observed) + 1) / (n_runs + 1)),
+        "null_mean": float(np.nanmean(sims)),
+        "null_se": float(np.nanstd(sims, ddof=1)),
+        "observed_mean": observed,
+        "n_runs": int(n_runs),
+        "n_trades": int(ok.sum()),
+    }

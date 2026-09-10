@@ -359,9 +359,13 @@ def detect_order_blocks(
 
         if not top_crossed and not np.isnan(top_level) and close[i] > top_level:
             top_crossed = True
-            lo = max(top_bar, 0)
-            seg_min = min_arr[lo : i + 1]
-            seg_max = max_arr[lo : i + 1]
+            # Pine: `for i = 1 to (n - top.x) - 1` -- bars strictly between the
+            # swing bar and the break bar, [top.x + 1, n - 1]. The first version
+            # included both endpoints, so a break bar with a deep lower body
+            # could become its own order block. Found in the audit.
+            lo = max(top_bar + 1, 0)
+            seg_min = min_arr[lo : i]
+            seg_max = max_arr[lo : i]
             if len(seg_min) > 0:
                 j = int(np.argmin(seg_min))
                 bullish_obs.append({"top": seg_max[j], "btm": seg_min[j], "breaker": False})
@@ -371,9 +375,10 @@ def detect_order_blocks(
 
         if not btm_crossed and not np.isnan(btm_level) and close[i] < btm_level:
             btm_crossed = True
-            lo = max(btm_bar, 0)
-            seg_min = min_arr[lo : i + 1]
-            seg_max = max_arr[lo : i + 1]
+            # Pine: `for i = 1 to (n - btm.x) - 1` -- mirror of the bullish case.
+            lo = max(btm_bar + 1, 0)
+            seg_min = min_arr[lo : i]
+            seg_max = max_arr[lo : i]
             if len(seg_max) > 0:
                 j = int(np.argmax(seg_max))
                 bearish_obs.append({"top": seg_max[j], "btm": seg_min[j], "breaker": False})

@@ -32,7 +32,11 @@ from __future__ import annotations
 import numpy as np
 import pandas as pd
 
-from analytics.statistics import build_return_pools, matched_randomization_test
+from analytics.statistics import (
+    build_return_pools,
+    matched_excess_calendar_test,
+    matched_randomization_test,
+)
 from utils.config import (
     MIN_SAMPLE_SIZE,
     PRIMARY_HOLDING_PERIOD,
@@ -74,6 +78,25 @@ def make_folds(
     return folds
 
 
+def purge_train(
+    trades: pd.DataFrame,
+    train_start: pd.Timestamp,
+    train_end: pd.Timestamp,
+    holding_period: int,
+) -> pd.DataFrame:
+    """Training trades whose outcome is fully known before the test window opens.
+
+    A trade entered within ``holding_period`` business days of ``train_end``
+    exits inside the test window, so its return is test-period information.
+    Dropping those -- purging, in Lopez de Prado's terms -- keeps the training
+    statistic free of test data. Before this was added about 1% of training
+    trades (at most 1.3% in any fold) leaked in exactly this way.
+    """
+    purge_from = pd.Timestamp(train_end) - pd.tseries.offsets.BDay(int(holding_period))
+    d = pd.to_datetime(trades["date"])
+    return trades[(d >= pd.Timestamp(train_start)) & (d < purge_from)]
+
+
 def _window_stats(
     trades: pd.DataFrame, pools: dict, holding_period: int
 ) -> pd.DataFrame:
@@ -96,7 +119,9 @@ def _window_stats(
                 "mean_return": float(r.mean()),
                 "matched_null_mean": mr["null_mean"],
                 "excess_return": mr["excess_return"],
-                "p_value": mr["p_value"],
+                "p_value": matched_excess_calendar_test(
+                    grp, pools, holding_period, direction
+                )["p_value"],
             }
         )
     return pd.DataFrame(rows)
@@ -133,7 +158,7 @@ def walk_forward_analysis(
     detail_rows = []
     summary_rows = []
     for f in folds:
-        tr = trades[(trades["date"] >= f["train_start"]) & (trades["date"] < f["train_end"])]
+        tr = purge_train(trades, f["train_start"], f["train_end"], holding_period)
         te = trades[(trades["date"] >= f["test_start"]) & (trades["date"] < f["test_end"])]
         if tr.empty or te.empty:
             continue

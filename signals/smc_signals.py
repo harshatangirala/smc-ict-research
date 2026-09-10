@@ -103,10 +103,16 @@ def _structure_and_ob(
                 (choch_bull if is_choch else bos_bull)[i] = True
                 trend_bias = BULLISH
                 high_crossed = True
-                seg_hi = parsed_high[max(high_pivot_bar, 0) : i + 1]
-                seg_lo = parsed_low[max(high_pivot_bar, 0) : i + 1]
+                # Pine storeOrdeBlock(p_ivot, internal, BULLISH): the block is the
+                # bar with the LOWEST parsed low in [pivot bar, break bar) -- the
+                # pullback low the move launched from. The first version took the
+                # HIGHEST parsed high and included the break bar, which put every
+                # bullish block at the top of the move and fired its mitigation
+                # almost at once. Found in the end-to-end audit.
+                seg_hi = parsed_high[max(high_pivot_bar, 0) : i]
+                seg_lo = parsed_low[max(high_pivot_bar, 0) : i]
                 if len(seg_lo) > 0:
-                    j = int(np.argmax(seg_hi))
+                    j = int(np.argmin(seg_lo))
                     bullish_obs.append({"top": seg_hi[j], "btm": seg_lo[j]})
                     if len(bullish_obs) > ob_max_retained:
                         bullish_obs.pop(0)
@@ -122,24 +128,28 @@ def _structure_and_ob(
                 (choch_bear if is_choch else bos_bear)[i] = True
                 trend_bias = BEARISH
                 low_crossed = True
-                seg_hi = parsed_high[max(low_pivot_bar, 0) : i + 1]
-                seg_lo = parsed_low[max(low_pivot_bar, 0) : i + 1]
+                # Pine storeOrdeBlock(..., BEARISH): the bar with the HIGHEST
+                # parsed high in [pivot bar, break bar). Mirror of the fix above.
+                seg_hi = parsed_high[max(low_pivot_bar, 0) : i]
+                seg_lo = parsed_low[max(low_pivot_bar, 0) : i]
                 if len(seg_hi) > 0:
-                    j = int(np.argmin(seg_lo))
+                    j = int(np.argmax(seg_hi))
                     bearish_obs.append({"top": seg_hi[j], "btm": seg_lo[j]})
                     if len(bearish_obs) > ob_max_retained:
                         bearish_obs.pop(0)
                     ob_bear_formed[i] = True
 
-        # Mitigation (High/Low mode -- SMC's default mitigation source)
-        for ob in bullish_obs:
-            if not ob.get("mitigated") and l[i] < ob["btm"]:
-                ob["mitigated"] = True
-                ob_bull_mitigated[i] = True
-        for ob in bearish_obs:
-            if not ob.get("mitigated") and h[i] > ob["top"]:
-                ob["mitigated"] = True
-                ob_bear_mitigated[i] = True
+        # Mitigation (High/Low mode -- SMC's default mitigation source). Pine
+        # REMOVES a mitigated block from its array, so the 100-block cap counts
+        # live blocks only. Keeping mitigated blocks in the list (the first
+        # version) evicted older live blocks early and suppressed their later
+        # mitigations.
+        if bullish_obs and any(l[i] < ob["btm"] for ob in bullish_obs):
+            ob_bull_mitigated[i] = True
+            bullish_obs = [ob for ob in bullish_obs if not l[i] < ob["btm"]]
+        if bearish_obs and any(h[i] > ob["top"] for ob in bearish_obs):
+            ob_bear_mitigated[i] = True
+            bearish_obs = [ob for ob in bearish_obs if not h[i] > ob["top"]]
 
     events = pd.DataFrame(
         {

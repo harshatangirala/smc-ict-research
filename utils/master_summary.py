@@ -65,6 +65,10 @@ def build_master_summary(path: Path | None = None) -> Path:
         "* **p (vs zero)** uses a calendar-time Newey-West standard error, not "
         "the iid t-test. Forward returns overlap and cluster cross-sectionally; "
         "the iid p-values (retained as `p_value_vs_zero_iid`) are far too small.",
+        "* **p (vs null)** is a calendar-time Newey-West test on each trade's "
+        "excess over its ticker's matched mean. The simple-random-sampling "
+        "version (`p_value_vs_matched_random_srs`) is anti-conservative for "
+        "signals that fire on shared dates; see `results/test_calibration.csv`.",
         "* **Beats null** requires a positive excess AND survival of BH-FDR at "
         f"alpha = {FDR_ALPHA} AND an adequate sample. A significant *negative* "
         "excess is reported as losing to the null, never as an edge.", "",

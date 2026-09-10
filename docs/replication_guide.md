@@ -55,10 +55,12 @@ python main.py statistics    # ~15 min  -> results/statistics_master.csv
 python main.py analyze       # ~5 min   -> concept/stock/combination/sector/regime CSVs
 python main.py walkforward   # ~3 min   -> results/walkforward_{detail,summary}.csv
 python main.py costs         # ~1 min   -> net-of-cost and break-even tables
-python main.py montecarlo    # ~5 min   -> results/monte_carlo.csv
-python main.py sensitivity   # ~30 min  -> parameter sweeps (excluded from `all`)
+python main.py montecarlo    # ~10 min  -> results/monte_carlo.csv (rotation null is primary)
+python main.py survivorship  # ~3 min   -> survivorship_*.csv, sector_map_disagreements.csv
+python main.py sensitivity   # ~40 min  -> broad, random and targeted sweeps (excluded from `all`)
 python main.py report        # ~5 s     -> validation_report.md, master_summary.md
 python tools/make_figures.py # ~10 s    -> results/figures/*.png + matching *.csv
+python tools/calibration_study.py  # ~1 h -> results/test_calibration.csv (size of each test)
 ```
 
 `python main.py all` runs everything except `sensitivity`, which re-runs
@@ -97,7 +99,7 @@ a change to the derivation scheme fails CI rather than silently changing results
 | Source | Effect |
 |---|---|
 | **Yahoo Finance revisions** | Yahoo back-adjusts for splits and dividends, so a cache rebuilt on a later date differs slightly from one built earlier. Mean returns move in the fourth decimal; no headline count has changed across rebuilds during this work. |
-| **Universe drift** | `data/raw/sp500_constituents.csv` is a fixed snapshot. Five tickers (AVB, EA, EQR, HONA, SATS) return no data and are permanently unavailable; 498 of 503 download, 496 pass the 300-bar minimum. |
+| **Universe drift** | `data/raw/sp500_constituents.csv` is a fixed snapshot. Five tickers (AVB, EA, EQR, HONA, SATS) return no data and are permanently unavailable; 498 of 503 download, 496 pass the 300-bar minimum. Sectors and index-entry dates come from `data/raw/sp500_wikipedia_snapshot.csv`, a committed September 2026 snapshot refreshed only by `tools/refresh_universe.py`; it differs from the June list by four removals and four additions, none of which are in the analysed universe. |
 | **Everything else** | Deterministic. Same cache + same seed + same profile ⇒ identical output, verified across processes. |
 
 ## 7. Verifying a run
@@ -124,6 +126,9 @@ direction ±1. It exits non-zero naming the first failure.
 | Sector and regime breakdowns | `results/sector_analysis.csv`, `results/regime_analysis.csv` |
 | Data coverage and repairs | `results/data_quality_report.csv`, `results/validation_report.md` §2 |
 | Figures (with their underlying data) | `results/figures/*.png` and matching `*.csv` |
+| Calibration of the significance tests | `results/test_calibration.csv` (`tools/calibration_study.py`) |
+| Survivorship: size of the gap, membership-aware re-test | `results/survivorship_*.csv`, `results/survivorship_comparison.json` |
+| Sector power and the GICS audit | `results/sector_power.csv`, `results/sector_map_disagreements.csv` |
 
 ## 9. Concept definitions
 
@@ -145,10 +150,11 @@ tree needed to rerun.
 
 ## 11. Known limitations that affect replication
 
-* **Survivorship bias.** The constituent list is a 2026 snapshot applied to
-  2010–2026, so only firms in the index today are tested. This inflates absolute
-  return levels for signals and baselines alike; it largely cancels in the
-  matched-random comparison, which is why that comparison carries the headline.
+* **Survivorship bias, partly corrected.** The constituent list is a 2026
+  snapshot applied to 2010–2026. Trading a firm before it joined the index is
+  removed by the membership-aware re-test (`python main.py survivorship`); firms
+  removed from the index since 2010 are absent and cannot be recovered from free
+  sources.
 * **Daily bars only.** Kill zones and intraday structure are out of scope. This
   is a study of the daily-bar subset of SMC/ICT, not of the methodology as
   traded.

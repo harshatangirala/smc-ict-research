@@ -213,12 +213,9 @@ def build_validation_report(path: Path | None = None) -> Path:
         n_short_hist = int((dq["start"] > "2010-01-05").sum()) if "start" in dq.columns else 0
         L += [
             f"* **{n_short_hist} tickers begin after 2010-01-05** (later listings). "
-            "Combined with the constituent list being a *2026* snapshot, the "
-            "universe is survivorship-biased: only firms in the index today are "
-            "tested over 2010-2026. This inflates absolute returns for every "
-            "signal and every baseline alike, so it biases the *level* of returns "
-            "but largely cancels in the matched-random comparison, which is why "
-            "that comparison is the headline test.",
+            "The constituent list is a *2026* snapshot, so the universe is "
+            "survivorship-biased; section 11 sizes the bias and reports the "
+            "membership-aware re-test.",
             "* Invalid OHLC bars (low above open, or high below open -- Yahoo "
             "back-adjustment artefacts) are now **repaired** by clamping high/low "
             "to enclose open and close, rather than only counted. Materially "
@@ -367,6 +364,33 @@ def build_validation_report(path: Path | None = None) -> Path:
                 "market factor the understatement is roughly 16x "
                 "(`tests/test_statistics.py`).", "",
             ]
+        calib = _read(RESULTS_DIR / "test_calibration.csv")
+        if calib is not None and len(calib):
+            piv = calib.pivot(index="design", columns="test", values="rejection_rate")
+            L += [
+                "### Calibration of the primary test", "",
+                "Entry dates drawn at random on real prices, so the true edge is "
+                "zero; each cell is the rejection rate at a nominal 5% "
+                "(`tools/calibration_study.py`).", "",
+                "| Entry design | SRS variance (first version) | Calendar-time (primary) | Rotation MC |",
+                "|---|---:|---:|---:|",
+            ]
+            for d in ("independent", "semi", "clustered"):
+                if d in piv.index:
+                    L.append(
+                        f"| {d} | {piv.loc[d].get('srs', float('nan')):.3f} | "
+                        f"{piv.loc[d].get('calendar', float('nan')):.3f} | "
+                        f"{piv.loc[d].get('rotation', float('nan')):.3f} |"
+                    )
+            L += [
+                "",
+                "The first version of the headline test used the simple-random-"
+                "sampling variance. It is close to calibrated when every ticker "
+                "draws its own dates, and badly anti-conservative when signals "
+                "fire on shared dates -- which is what SMC/ICT signals do, because "
+                "market-wide moves trigger them on many tickers at once. Every "
+                "count in this report uses the calendar-time test.", "",
+            ]
     else:
         L += ["`statistics_master.csv` not found -- run `python main.py statistics`.", ""]
 
@@ -460,16 +484,21 @@ def build_validation_report(path: Path | None = None) -> Path:
     # -- 9. Monte Carlo -----------------------------------------------------
     L += ["## 9. Monte Carlo", ""]
     if mc is not None and len(mc):
+        has_rot = "rotation_p_value" in mc.columns
         L += [
-            f"{int(mc['n_runs'].iloc[0]):,} runs per signal, two independent "
-            "schemes: composition-matched random re-entry, and a circular block "
-            "bootstrap (block = 21 bars) that preserves serial dependence.", "",
-            "| Signal | Observed mean | Matched-null p | Block-bootstrap p |",
-            "|---|---:|---:|---:|",
+            f"{int(mc['n_runs'].iloc[0]):,} runs per signal. The **calendar-rotation** "
+            "null is primary: it shifts the whole entry calendar by one random offset "
+            "for every ticker, preserving which trades share a date. The other two "
+            "schemes draw dates independently per ticker, destroy that clustering, "
+            "and are anti-conservative for signals that fire together; they are "
+            "kept for comparison.", "",
+            "| Signal | Observed mean | Rotation p (primary) | Matched-null p | Block-bootstrap p |",
+            "|---|---:|---:|---:|---:|",
         ]
         for _, r in mc.iterrows():
             L.append(
                 f"| `{r['signal']}` | {_fmt(r['observed_mean'], pct=True)} | "
+                f"{_fmt(r.get('rotation_p_value') if has_rot else None, dp=4)} | "
                 f"{_fmt(r['mc_p_value'], dp=4)} | {_fmt(r['block_p_value'], dp=4)} |"
             )
         L.append("")
@@ -497,18 +526,53 @@ def build_validation_report(path: Path | None = None) -> Path:
                 f"{_fmt(r.get('matched_null_mean'), pct=True)} | "
                 f"{_fmt(r.get('excess_return_vs_matched_random'), pct=True)} |"
             )
-        L += ["", "Three tickers were previously mis-bucketed by duplicate keys in the "
-              "sector map (AME to Real Estate, GEN to Health Care, KVUE resolved "
-              "correctly by luck); a duplicate guard now raises at import. Roughly 10% "
-              "of the universe remains unmapped and is reported as `Unknown` rather "
-              "than silently dropped.", ""]
+        L += ["", "Sectors are the published GICS classification from the committed "
+              "snapshot `data/raw/sp500_wikipedia_snapshot.csv`; no analysed ticker "
+              "is unclassified. The hand-curated map used previously left 54 of 503 "
+              "constituents as `Unknown` and mis-classified six "
+              "(`results/sector_map_disagreements.csv`). Minimum detectable effects "
+              "per sector are in `results/sector_power.csv`.", ""]
 
-    # -- 11. Known limitations ---------------------------------------------
+    # -- 11. Survivorship --------------------------------------------------
+    surv = _read(RESULTS_DIR / "survivorship_summary.csv")
+    cmp_path = RESULTS_DIR / "survivorship_comparison.json"
+    if surv is not None and cmp_path.exists():
+        sv = dict(zip(surv["metric"], surv["value"]))
+        sc = json.loads(cmp_path.read_text(encoding="utf-8"))
+
+        def _names(xs):
+            return ", ".join(f"`{x}`" for x in xs) or "none"
+
+        L += [
+            "## 11. Survivorship", "",
+            "The constituent list is a 2026 snapshot applied to 2010-2026. Index-entry "
+            "dates published with it (`data/raw/sp500_wikipedia_snapshot.csv`) size "
+            f"the problem over the {sv.get('current_constituents')} analysed tickers:", "",
+            f"* members at the sample start: **{sv.get('in_index_at_sample_start')}**; "
+            f"joined during the sample: {sv.get('joined_during_sample')};",
+            "* lower bound on since-removed constituents absent from the data: "
+            f"**{sv.get('estimated_removed_names_missing')}** "
+            f"({sv.get('estimated_survivorship_gap_pct')}% of the index).", "",
+            "**Membership-aware re-test.** Trades dated before a ticker's index entry "
+            "are dropped, and the matched-null pools are restricted the same way.", "",
+            "| | Full universe | Membership-aware |", "|---|---:|---:|",
+            f"| Trades at h = {sc['holding_period']} | {sc['trades_full']:,} | "
+            f"{sc['trades_membership_aware']:,} |",
+            f"| Concepts beating the null | {sc['n_beats_full']} | "
+            f"{sc['n_beats_membership_aware']} |", "",
+            f"* Survived the filter: {_names(sc['survived_filter'])}.",
+            f"* Lost under the filter: {_names(sc['lost_under_filter'])}.",
+            f"* Gained under the filter: {_names(sc['gained_under_filter'])}.",
+            f"* Sign of the excess preserved for {sc['sign_preserved_pct']}% of "
+            f"concepts; median shift {sc['median_excess_shift_bps']} bp.", "",
+        ]
+
+    # -- 12. Known limitations ---------------------------------------------
     L += [
-        "## 11. Known limitations of this run", "",
-        "* **Survivorship bias.** The constituent list is a 2026 snapshot applied "
-        "to 2010-2026. Absolute return levels are inflated for signals and "
-        "baselines alike.",
+        "## 12. Known limitations of this run", "",
+        "* **Survivorship bias, partly corrected.** Look-ahead membership is "
+        "removed by the section 11 re-test; constituents removed from the index "
+        "since 2010 are absent and cannot be recovered from free sources.",
         "* **No intraday concepts.** Kill zones and any sub-daily structure are "
         "out of scope on daily bars; this is a study of the daily-bar subset of "
         "SMC/ICT, not of the methodology as traded.",

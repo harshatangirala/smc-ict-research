@@ -201,6 +201,37 @@ nothing. **Where:** `docs/specs/smc_fvg.yaml`.
 
 ---
 
+## A14 — Sector classification: current GICS, applied retroactively · medium
+
+**Ambiguity.** Sector membership changes over time. GICS was restructured in
+2018, when Communication Services was created and GOOGL, META, NFLX and others
+moved into it, and in 2023, when payments firms such as V and MA moved from
+Information Technology to Financials. A point-in-time classification would
+bucket a 2012 GOOGL trade under Information Technology; the current one puts it
+under Communication Services.
+
+**Chosen.** Current GICS sectors from the committed constituent snapshot
+(`data/raw/sp500_wikipedia_snapshot.csv`), applied to the whole sample.
+
+**Rationale.** This is the standard choice when no point-in-time sector history
+is available, and it is reproducible. It changes only which sector a trade is
+attributed to, never a concept-level result. It replaced a hand-curated map that
+left 54 constituents unclassified and mis-classified six.
+**Where:** `analytics/sectors.py::resolve_sector_map`.
+
+## A15 — "Date added" is the most recent addition · low
+
+**Ambiguity.** A firm that was removed from the index and later re-added carries
+only its latest entry date in the published table.
+
+**Chosen.** Treat the firm as a non-member before that date.
+
+**Rationale.** This errs toward dropping data from the membership-aware re-test,
+never toward keeping look-ahead. It affects only that robustness check.
+**Where:** `utils/universe.py::membership_mask`.
+
+---
+
 ## Which of these could change a conclusion
 
 | ID | Choice | Could it move a published number? |
@@ -212,6 +243,8 @@ nothing. **Where:** `docs/specs/smc_fvg.yaml`.
 | A2 | Fill as a label | Yes; the alternative is look-ahead |
 | A3, A9, A11, A12 | Zones, week open, scope | No published significance result depends on these |
 | A1, A13 | IFVG mode, FVG scaling | Provably none |
+| A14 | Current GICS applied retroactively | Sector attribution only; no concept-level result |
+| A15 | Most-recent index-entry date | Only the membership-aware re-test; errs toward dropping data |
 
 Three choices (A5, A6, A7) are genuine judgement calls that a reviewer might
 make differently. Each is a one-line change in `EVENT_REGISTRY` or a parameter

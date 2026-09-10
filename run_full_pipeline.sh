@@ -41,6 +41,7 @@ step analyze
 step walkforward
 step costs
 step montecarlo
+step survivorship
 [[ $WITH_SENSITIVITY -eq 1 ]] && step sensitivity
 step report
 step export

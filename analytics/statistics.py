@@ -25,6 +25,17 @@ Three defects in the original module produced the study's headline numbers:
    sample size is far below the nominal trade count. The iid t-test p-values
    were correspondingly tiny (many reported as exactly 0.0).
    ``hac_mean_test`` uses Newey-West standard errors instead.
+
+4. **The first matched-null test was anti-conservative for clustered
+   signals.** ``matched_randomization_test`` derives its variance from entry
+   dates drawn independently at random. Real signals fire together: a
+   market-wide move triggers the same pattern on many tickers on one day, so
+   their trades share a single market outcome. Simulating uninformative
+   signals on real prices (``tools/calibration_study.py``), it rejects at 28%
+   when tickers draw from a shared pool of dates and 40% when all fire on the
+   same dates, at a nominal 5%. ``matched_excess_calendar_test`` -- the
+   per-trade excess over the same benchmark, with calendar-time Newey-West
+   inference -- is calibrated in those designs and is now the primary test.
 """
 
 from __future__ import annotations
@@ -239,8 +250,11 @@ def calendar_time_mean_test(
     n_total = float(grp["count"].sum())
     mu = float(grp["sum"].sum() / n_total)
 
-    # Reindex onto the full calendar of observed dates so lags are contiguous.
-    full_idx = pd.date_range(grp.index.min(), grp.index.max(), freq="D")
+    # Reindex onto a BUSINESS-day grid so a lag of h means h trading days.
+    # A calendar-day grid (the first version) pads weekends with zeros and
+    # shrinks the effective bandwidth to roughly 5h/7 trading days. Any
+    # non-business date that does carry trades is kept by the union.
+    full_idx = pd.bdate_range(grp.index.min(), grp.index.max()).union(grp.index)
     counts = grp["count"].reindex(full_idx, fill_value=0).to_numpy(dtype=float)
     sums = grp["sum"].reindex(full_idx, fill_value=0.0).to_numpy(dtype=float)
     x = (sums - counts * mu) / n_total
@@ -463,6 +477,50 @@ def matched_randomization_test(
     }
 
 
+def matched_excess_calendar_test(
+    subset: pd.DataFrame,
+    pools: dict[tuple[str, int], tuple[int, float, float]],
+    holding_period: int,
+    direction: int | None,
+    alternative: str = "greater",
+) -> dict:
+    """Primary test: calendar-time Newey-West on per-trade excess over the matched null.
+
+    Each trade is measured against its own ticker's unconditional mean h-day
+    forward return, signed by direction -- the same composition-matched
+    benchmark as ``matched_randomization_test``, so the point estimate is
+    identical. Inference collapses the per-trade excess to calendar time and
+    applies Newey-West: the calendar-time abnormal-return test of the
+    event-study literature (Fama 1998; Lyon, Barber and Tsai 1999).
+
+    It replaces the simple-random-sampling variance because real signals cluster
+    in time; see the module docstring, item 4. ``direction=None`` reads each
+    trade's own direction, which lets a mixed long/short population (a sector,
+    say) be tested in one pass with the same-day covariance between its long and
+    short legs counted rather than assumed away.
+    """
+    mu = subset["ticker"].map(
+        {t: pools[(t, holding_period)][1] for t in subset["ticker"].unique()
+         if (t, holding_period) in pools}
+    )
+    d = subset["direction"] if direction is None else direction
+    sub_ = subset.assign(_excess=subset["fwd_return"] - d * mu).dropna(subset=["_excess"])
+    if sub_.empty:
+        return {"excess_return": np.nan, "se": np.nan, "z_stat": np.nan,
+                "p_value": np.nan, "n": 0, "n_dates": 0}
+    cal = calendar_time_mean_test(
+        sub_, holding_period, return_col="_excess", alternative=alternative
+    )
+    return {
+        "excess_return": cal["mean"],
+        "se": cal["hac_se"],
+        "z_stat": cal["t_stat"],
+        "p_value": cal["p_value"],
+        "n": cal["n"],
+        "n_dates": cal["n_dates"],
+    }
+
+
 # ---------------------------------------------------------------------------
 # Multiple testing
 # ---------------------------------------------------------------------------
@@ -575,10 +633,15 @@ def evaluate_signal(
             counts, float(np.nanmean(returns)), direction, pools, holding_period,
             alternative="greater",
         )
-        result["p_value_vs_matched_random"] = mr["p_value"]
+        ct = matched_excess_calendar_test(subset, pools, holding_period, direction)
+        # Primary inference is the calendar-time test. The SRS-variance p-value
+        # is kept beside it only to document how anti-conservative it is.
         result["excess_return_vs_matched_random"] = mr["excess_return"]
         result["matched_null_mean"] = mr["null_mean"]
-        result["matched_null_se"] = mr["null_se"]
-        result["matched_z"] = mr["z_stat"]
+        result["p_value_vs_matched_random"] = ct["p_value"]
+        result["matched_null_se"] = ct["se"]
+        result["matched_z"] = ct["z_stat"]
+        result["p_value_vs_matched_random_srs"] = mr["p_value"]
+        result["matched_null_se_srs"] = mr["null_se"]
 
     return result

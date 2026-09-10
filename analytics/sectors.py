@@ -1,6 +1,19 @@
 """Sector Analysis (Task 12): group stocks by GICS-style sector and compare
 performance.
 
+Sector source (current)
+-----------------------
+Sectors come from the published GICS classification in the committed
+Wikipedia constituent snapshot (``data/raw/sp500_wikipedia_snapshot.csv``,
+see ``utils/universe.py``), through ``resolve_sector_map``. Against that
+source the hand-curated SECTOR_MAP below left 54 of 503 constituents
+unmapped ("Unknown") and mis-classified 6 (APP, AWK, BLDR, DD, TKO, UBER);
+the full list is written to ``results/sector_map_disagreements.csv``.
+SECTOR_MAP is retained only as a fallback for a ticker absent from the
+snapshot. GICS labels are current, not point-in-time: the 2018 and 2023
+GICS reclassifications are applied retroactively -- standard practice, but
+it means a 2012 trade in GOOGL is bucketed under Communication Services.
+
 LIMITATION (documented, not hidden): the supplied S&P 500 constituents list
 has no sector column. SECTOR_MAP below is a manually curated static mapping
 covering the large-cap/high-weight majority of the index; tickers not present
@@ -36,9 +49,16 @@ import pandas as pd
 
 import numpy as np
 
-from analytics.statistics import build_return_pools, matched_randomization_test
+from analytics.statistics import (
+    build_return_pools,
+    matched_excess_calendar_test,
+    matched_randomization_test,
+)
 from backtest.metrics import summarize_returns
 from utils.config import PRIMARY_HOLDING_PERIOD, RESULTS_DIR
+from utils.logging_config import get_logger
+
+log = get_logger("analytics.sectors")
 
 SECTOR_MAP: dict[str, str] = {
     # Information Technology
@@ -173,6 +193,27 @@ def fetch_live_sectors(
     return out
 
 
+def resolve_sector_map() -> dict[str, str]:
+    """The sector map every analysis uses: published GICS, curated fallback.
+
+    Reads the committed snapshot, never the network, so a rerun cannot pick up a
+    different classification. Falls back to SECTOR_MAP entry by entry, so a
+    ticker missing from the snapshot is still bucketed rather than dropped.
+    """
+    try:
+        from utils.universe import sector_map_from_snapshot
+
+        official = sector_map_from_snapshot()
+    except FileNotFoundError:
+        log.warning(
+            "GICS snapshot missing -- falling back to the hand-curated SECTOR_MAP"
+        )
+        return dict(SECTOR_MAP)
+    merged = dict(SECTOR_MAP)
+    merged.update({t: s for t, s in official.items() if isinstance(s, str)})
+    return merged
+
+
 def load_sector_map(
     tickers: list[str] | None = None, source: str = "static"
 ) -> dict[str, str]:
@@ -184,15 +225,16 @@ def load_sector_map(
     worse than the default.
     """
     if source == "static" or tickers is None:
-        return dict(SECTOR_MAP)
+        return resolve_sector_map()
     if source != "live":
         raise ValueError(f"source must be 'static' or 'live', got {source!r}")
     live = fetch_live_sectors(list(tickers))
-    merged = {t: live.get(t, SECTOR_MAP.get(t, "Unknown")) for t in tickers}
+    base = resolve_sector_map()
+    merged = {t: live.get(t, base.get(t, "Unknown")) for t in tickers}
     disagreements = {
-        t: (SECTOR_MAP[t], live[t])
+        t: (base[t], live[t])
         for t in live
-        if t in SECTOR_MAP and SECTOR_MAP[t] != live[t]
+        if t in base and base[t] != live[t]
     }
     if disagreements:
         log.warning(
@@ -291,7 +333,8 @@ def sector_coverage_report(tickers) -> pd.DataFrame:
     Sector conclusions rest on how many distinct names actually back each
     bucket; a sector carried by three tickers is not evidence about a sector.
     """
-    mapped = pd.Series({t: SECTOR_MAP.get(t, "Unknown") for t in tickers})
+    smap = resolve_sector_map()
+    mapped = pd.Series({t: smap.get(t, "Unknown") for t in tickers})
     counts = mapped.value_counts().rename_axis("sector").reset_index(name="n_tickers")
     counts["share_of_universe"] = counts["n_tickers"] / max(len(mapped), 1)
     return counts.sort_values("n_tickers", ascending=False).reset_index(drop=True)
@@ -332,7 +375,7 @@ def sector_analysis(
     if trades is None:
         trades = pd.read_parquet(RESULTS_DIR / "trades.parquet")
     subset = trades[trades["holding_period"] == holding_period].copy()
-    subset["sector"] = subset["ticker"].map(SECTOR_MAP).fillna("Unknown")
+    subset["sector"] = subset["ticker"].map(resolve_sector_map()).fillna("Unknown")
 
     pools = _build_pools(holding_period)
 
@@ -343,7 +386,7 @@ def sector_analysis(
         metrics["n_tickers"] = grp["ticker"].nunique()
 
         # Direction-matched null, weighted by each direction's trade count.
-        null_total, n_total, excess_num, var_num = 0.0, 0, 0.0, 0.0
+        null_total, n_total, excess_num = 0.0, 0, 0.0
         for direction, dgrp in grp.groupby("direction"):
             mr = matched_randomization_test(
                 dgrp.groupby("ticker").size().to_dict(),
@@ -357,20 +400,20 @@ def sector_analysis(
                 null_total += mr["null_mean"] * n_d
                 excess_num += mr["excess_return"] * n_d
                 n_total += n_d
-                # Variance of the trade-count-weighted mean of two independent
-                # direction blocks. Carried through so the power analysis uses a
-                # design-based standard error; an iid SE would understate it by
-                # roughly the same factor the concept-level tests see (~5.8x)
-                # and would make every sector look adequately powered by default.
-                if np.isfinite(mr["null_se"]):
-                    var_num += (n_d * mr["null_se"]) ** 2
         metrics["matched_null_mean"] = null_total / n_total if n_total else np.nan
         metrics["excess_return_vs_matched_random"] = (
             excess_num / n_total if n_total else np.nan
         )
-        metrics["matched_null_se"] = (
-            float(np.sqrt(var_num) / n_total) if n_total and var_num > 0 else np.nan
+        # Design-based SE for the power analysis: calendar-time Newey-West on
+        # the per-trade excess, pooling both directions so their same-day
+        # covariance is counted. The first version summed per-direction SRS
+        # variances, which ignores clustering across tickers and understates
+        # the SE -- making every sector look better powered than it is.
+        ct = matched_excess_calendar_test(
+            grp, pools, holding_period, direction=None, alternative="two-sided"
         )
+        metrics["matched_null_se"] = ct["se"]
+        metrics["p_value_vs_matched_random"] = ct["p_value"]
         metrics["n_long_trades"] = int((grp["direction"] == 1).sum())
         metrics["n_short_trades"] = int((grp["direction"] == -1).sum())
         # Long-only view, so a reader can still see the directional split.

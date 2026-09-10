@@ -33,8 +33,9 @@ definition: |
   parsed_low_i   = high_i if high_vol_bar_i else low_i
   
   # FORMATION on a structure break at bar i (see smc_structure)
-  bullish: j = argmax parsed_high over [pivot_bar .. i]
-  bearish: j = argmin parsed_low  over [pivot_bar .. i]
+  # Pine storeOrdeBlock; the range EXCLUDES the break bar itself
+  bullish: j = argmin parsed_low  over [pivot_bar, i)
+  bearish: j = argmax parsed_high over [pivot_bar, i)
   block region = [parsed_low_j, parsed_high_j]
   
   # MITIGATION (High/Low mode, the source default)
@@ -67,4 +68,9 @@ causality: |
 expected_min_occurrences: 200
 
 notes: |
-  Mitigation direction is inverted relative to formation, as for ICT.
+  Mitigation direction is inverted relative to formation, as for ICT. A
+  mitigated block is removed from the live set, so the 100-block cap counts
+  live blocks only, as in the Pine source. DEFECT FIXED: the first
+  translation selected the block candle with the opposite extreme (argmax
+  parsed_high for a bullish block) and included the break bar, contradicting
+  storeOrdeBlock; found in the final audit.

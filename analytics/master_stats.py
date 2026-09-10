@@ -19,8 +19,11 @@ Three p-values are reported per bucket, and they answer different questions:
     a long-biased signal clears it on market drift alone.
 ``p_value_vs_matched_random``
     Is it better than entering the *same tickers* the *same number of times*
-    on random dates? This is the primary test -- see
-    ``analytics.statistics.matched_randomization_test``.
+    on random dates? This is the primary test: the per-trade excess over that
+    benchmark with a calendar-time Newey-West standard error -- see
+    ``analytics.statistics.matched_excess_calendar_test``. The column
+    ``p_value_vs_matched_random_srs`` keeps the simple-random-sampling variant,
+    which is anti-conservative for signals that fire on the same dates.
 ``p_value_vs_baseline_welch``
     One-sided Welch against the pooled random-entry baseline. Retained for
     continuity with the original results; it does not control ticker mix, so

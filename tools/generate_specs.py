@@ -92,10 +92,10 @@ SPECS = {
 
       # FORMATION at the breaking bar i
       bullish_formed_i = (not top_crossed) AND close_i > top_level
-        -> block candle j = argmin over [top_bar .. i] of min_src
+        -> block candle j = argmin over [top_bar+1, i-1] of min_src
         -> block region   = [min_src_j, max_src_j]
       bearish_formed_i = (not btm_crossed) AND close_i < btm_level
-        -> block candle j = argmax over [btm_bar .. i] of max_src
+        -> block candle j = argmax over [btm_bar+1, i-1] of max_src
 
       # MITIGATION (a formed block being violated)
       bullish_mitigated_i = min(close_i, open_i) < block_bottom
@@ -316,8 +316,9 @@ SPECS = {
       parsed_low_i   = high_i if high_vol_bar_i else low_i
 
       # FORMATION on a structure break at bar i (see smc_structure)
-      bullish: j = argmax parsed_high over [pivot_bar .. i]
-      bearish: j = argmin parsed_low  over [pivot_bar .. i]
+      # Pine storeOrdeBlock; the range EXCLUDES the break bar itself
+      bullish: j = argmin parsed_low  over [pivot_bar, i)
+      bearish: j = argmax parsed_high over [pivot_bar, i)
       block region = [parsed_low_j, parsed_high_j]
 
       # MITIGATION (High/Low mode, the source default)
@@ -330,7 +331,12 @@ SPECS = {
             ("ob_max_retained","int",100,"10..500","Matches the source array cap")],
     causal="All inputs <= i.",
     min_occurrences=200,
-    notes="Mitigation direction is inverted relative to formation, as for ICT.",
+    notes=("Mitigation direction is inverted relative to formation, as for ICT. "
+           "A mitigated block is removed from the live set, so the 100-block cap "
+           "counts live blocks only, as in the Pine source. DEFECT FIXED: the "
+           "first translation selected the block candle with the opposite "
+           "extreme (argmax parsed_high for a bullish block) and included the "
+           "break bar, contradicting storeOrdeBlock; found in the final audit."),
 ),
 "smc_fvg": dict(
     concept="SMC Fair Value Gap", source="SMC_Concepts_LuxAlgo.pine",
