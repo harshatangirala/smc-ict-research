@@ -400,28 +400,33 @@ uninformative signals, so we do not read it as evidence.
 ## 5.2 The largest point estimates
 
 **Table 4.** Every concept with a positive excess at h = 10. Returns in basis
-points over ten trading days; SE is the calendar-time standard error of the
-excess; p-values one-sided and unadjusted.
+points over ten trading days; SE and p are the calendar-time standard error and
+one-sided, unadjusted p-value of the excess. The rotation and SRS p-values for
+these seven rows are in `results/statistics_master.csv` and
+`results/rotation_null_all.csv`; the SRS figure for the row discussed below is
+quoted in the text.
 
-| Signal | Dir | n trades | Entry dates | Mean | Matched null | Excess | SE | p (primary) | p (rotation) | p (SRS) |
-|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `smc_swing_choch_bearish` | −1 | 2,653 | 1,074 | −36.8 | −69.4 | +32.5 | 115.3 | 0.39 | 0.16 | 0.003 |
-| `smc_swing_ob_bearish_formed` | −1 | 3,898 | 1,404 | −49.3 | −68.7 | +19.4 | 91.6 | 0.42 | 0.24 | 0.027 |
-| `ict_sweep_sellside_bullish` | +1 | 49,304 | 3,919 | +82.2 | +70.2 | +11.9 | 21.3 | 0.29 | 0.18 | <0.0001 |
-| `ict_sweep_buyside_bearish` | −1 | 65,448 | 4,002 | −59.2 | −70.6 | +11.4 | 15.3 | 0.23 | 0.10 | <0.0001 |
-| `ict_liquidity_buyside_pool_formed` | +1 | 58,941 | 3,921 | +74.3 | +68.5 | +5.8 | 15.1 | 0.35 | 0.20 | 0.008 |
-| `ict_nwog_gap_up` | +1 | 147,321 | 852 | +76.7 | +71.9 | +4.8 | 17.9 | 0.39 | 0.26 | 0.001 |
-| `smc_swing_choch_bullish` | +1 | 2,699 | 1,484 | +73.4 | +69.5 | +3.9 | 16.9 | 0.41 | 0.42 | 0.37 |
+| Signal | Dir | n trades | Mean | Matched null | Excess | SE | p (primary) |
+|---|---:|---:|---:|---:|---:|---:|---:|
+| `smc_swing_choch_bearish` | −1 | 2,653 | −36.8 | −69.4 | +32.5 | 115.3 | 0.39 |
+| `smc_swing_ob_bearish_formed` | −1 | 3,898 | −49.3 | −68.7 | +19.4 | 91.6 | 0.42 |
+| `ict_sweep_sellside_bullish` | +1 | 49,304 | +82.2 | +70.2 | +11.9 | 21.3 | 0.29 |
+| `ict_sweep_buyside_bearish` | −1 | 65,448 | −59.2 | −70.6 | +11.4 | 15.3 | 0.23 |
+| `ict_liquidity_buyside_pool_formed` | +1 | 58,941 | +74.3 | +68.5 | +5.8 | 15.1 | 0.35 |
+| `ict_nwog_gap_up` | +1 | 147,321 | +76.7 | +71.9 | +4.8 | 17.9 | 0.39 |
+| `smc_swing_choch_bullish` | +1 | 2,699 | +73.4 | +69.5 | +3.9 | 16.9 | 0.41 |
 
 Seven concepts have positive point estimates, and none is close to significant.
 The two liquidity-sweep detectors are the best measured of them — tens of
 thousands of trades on about 4,000 entry dates each — at +11–12 bp, with
 one-sided p-values of 0.23 and 0.29. The two largest estimates belong to
 swing-structure concepts with fewer than 4,000 trades concentrated on 1,000–1,400
-dates, whose standard errors of 92–115 bp make them uninformative. The SRS column
-shows how the superseded variance turned four of these into apparent
-discoveries: for `ict_nwog_gap_up`, 147,321 trades on 852 week-open dates, it
-reports a standard error of 1.5 bp against the calendar-time 17.9 bp.
+dates, whose standard errors of 92–115 bp make them uninformative. The rotation
+test (Section 4.3) gives p = 0.10–0.42 for these seven, none below its own
+uncorrected 5% line either. The superseded SRS variance turned four of these
+into apparent discoveries: for `ict_nwog_gap_up`, 147,321 trades on 852
+week-open dates, it reports a standard error of 1.5 bp against the
+calendar-time 17.9 bp.
 
 ## 5.3 What the data can exclude
 
