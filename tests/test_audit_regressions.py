@@ -108,6 +108,62 @@ class TestRotationNull:
         assert rej / reps < 0.2, f"rotation null rejected {rej / reps:.2f} at nominal 0.05"
 
 
+class TestExactRotation:
+    """The FFT rotation must equal brute force over every offset."""
+
+    def test_exact_matches_brute_force_over_every_offset(self):
+        from analytics.montecarlo import rotation_matrix, rotation_null_exact
+
+        prices, fwd, dates = _clustered_panel(3, n_tickers=6)
+        tr = _same_day_signal(fwd, dates, np.random.default_rng(1), n_dates=20)
+        tr.loc[tr.index[::3], "direction"] = -1          # mixed signs exercise W
+        tickers, cal, F = rotation_matrix(prices, H)
+        out = rotation_null_exact(tr, H, matrix=(tickers, cal, F))
+
+        k = tr["ticker"].map({t: i for i, t in enumerate(tickers)}).to_numpy()
+        pos = cal.get_indexer(pd.to_datetime(tr["date"]))
+        d = tr["direction"].to_numpy(float)
+        T = len(cal)
+        sims = np.array([np.nanmean(d * F[k, (pos + o) % T]) for o in range(H + 1, T - H - 1)])
+        observed = np.nanmean(d * F[k, pos])
+
+        assert out["n_offsets"] == len(sims)
+        assert np.isclose(out["observed_mean"], observed)
+        assert np.isclose(out["null_mean"], sims.mean(), rtol=1e-9)
+        assert np.isclose(out["null_se"], sims.std(ddof=1), rtol=1e-9)
+        assert np.isclose(out["p_value"], (1 + (sims >= observed).sum()) / (len(sims) + 1))
+        assert np.isclose(out["p_value_less"], (1 + (sims <= observed).sum()) / (len(sims) + 1))
+
+    def test_exact_rotation_is_not_fooled_by_clustering(self):
+        from analytics.montecarlo import rotation_matrix, rotation_null_exact
+
+        prices, fwd, dates = _clustered_panel(7, n_tickers=25)
+        matrix = rotation_matrix(prices, H)
+        rng = np.random.default_rng(8)
+        reps = 100
+        rej = sum(
+            rotation_null_exact(_same_day_signal(fwd, dates, rng, n_dates=50), H,
+                                matrix=matrix)["p_value"] < 0.05
+            for _ in range(reps)
+        )
+        assert rej / reps < 0.15, f"exact rotation rejected {rej / reps:.2f} at nominal 0.05"
+
+    def test_family_applies_fdr_and_flags_both_tails(self):
+        from analytics.montecarlo import rotation_null_family
+
+        prices, fwd, dates = _clustered_panel(5, n_tickers=10)
+        rng = np.random.default_rng(2)
+        tr = pd.concat([
+            _same_day_signal(fwd, dates, rng, n_dates=30).assign(signal=s, holding_period=H)
+            for s in ("a", "b")
+        ])
+        fam = rotation_null_family(tr, prices)
+        assert len(fam) == 2
+        assert {"p_adj", "beats_rotation_null", "p_value_two_sided",
+                "loses_to_rotation_null"} <= set(fam.columns)
+        assert (fam["p_adj"] >= fam["p_value"] - 1e-12).all()
+
+
 class TestWalkForwardPurge:
     """Audit finding: ~1% of training trades exited inside the test window."""
 

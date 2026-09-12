@@ -9,37 +9,39 @@ point and still have seen the parts that matter most.
 
 ## Read these five things first
 
-If you only review five files, make them these. Each one either changed a
-published number or prevents a class of error from recurring.
-
 | # | File | Why |
 |---|---|---|
-| 1 | `analytics/statistics.py` | The one-sided tests, the matched-randomization null, and the calendar-time HAC estimator. Everything downstream depends on these three being right. |
-| 2 | `signals/event_engine.py` | The fail-closed `EVENT_REGISTRY`. This is the structural fix for the look-ahead leak. |
-| 3 | `tests/test_no_lookahead.py` | The proof, including the canary test that keeps the proof from going vacuous. |
-| 4 | `CHANGES.md` | Every change with its rationale and measured impact. |
-| 5 | `results/validation_report.md` | What the corrected pipeline actually produced, generated from the artefacts. |
+| 1 | `analytics/statistics.py` | The composition-matched excess and `matched_excess_calendar_test`, which every headline count uses. |
+| 2 | `tools/calibration_study.py` and `results/test_calibration.csv` | Why that test, and not the other two. |
+| 3 | `signals/event_engine.py` | The fail-closed `EVENT_REGISTRY` — the structural fix for the look-ahead leak. |
+| 4 | `tests/test_no_lookahead.py`, `tests/test_ob_fidelity.py` | The proofs, including the canary that keeps the look-ahead proof from going vacuous. |
+| 5 | `CHANGES.md` §1 and §8 | Every defect, in the original pipeline and in this branch's own first draft, with measured impact. |
 
 ---
 
-## The four numbers that changed, and why
+## The numbers that changed, and why
 
-| Claim | Before | After |
-|---|---|---|
-| Concepts beating the random-entry benchmark | 28 / 42 | **5 / 44** |
-| — of those, robust to their own parameters | not tested | **2** |
-| Of those, actually better than the benchmark | 1 | 5 |
-| Concepts significant vs. a zero-return null | 42 / 42 | 39 / 44 |
-| Trades in the backtest | 34.6 M | 17.7 M |
+| Claim | Original | First draft of this branch | Now |
+|---|---:|---:|---:|
+| Concepts beating the random-entry benchmark (h = 10) | 28 / 42 | 5 / 44 | **0 / 44** |
+| — of those, actually better than the benchmark | 1 | 5 | 0 |
+| Hypotheses beating it, all horizons | — | — | 0 / 352 |
+| Concepts significant against a zero-return null (h = 10) | 42 / 42 | 39 / 44 | 38 / 44 |
+| Events | 4,348,698 | 2,226,881 | 2,204,425 |
+| Trades | 34.6 M | 17.7 M | 17.6 M |
 
-The first row is not a like-for-like comparison and should not be read as one.
-The old flag came from a **two-sided** test, so it counted concepts that
-significantly *lost* to random entry. The second row is the like-for-like
-number: of the 28 previously flagged, exactly one had a positive effect size.
+The first row is not a like-for-like comparison. The original flag came from a
+**two-sided** test, so it counted concepts that significantly *lost* to random
+entry: of its 28, exactly one had a positive effect size.
 
-The trade count halves because `ict_ndog_formed` (which fired on every bar,
-45% of all events) and the two look-ahead `*_filled` columns were removed from
-the tradeable set.
+The first draft's 5 came from a variance formula that is exact only when entry
+dates are independent (CHANGES §8.1) — on the corrected data it still reports 4
+winners, against none from the calendar-time test — plus an order-block
+detector that selected the wrong candle (§8.2).
+
+The event and trade counts fell because `ict_ndog_formed` (which fired on every
+bar, 45% of all events) and the two look-ahead `*_filled` columns left the
+tradeable set; the order-block fix moved the count again slightly.
 
 ---
 
@@ -48,149 +50,127 @@ the tradeable set.
 I've tried to list the weakest parts of my own work rather than leave you to
 find them.
 
-**1. Three of the five surviving concepts are ones I reformulated — and I
-tested that directly, with one failing.** `ict_sweep_sellside_bullish`,
-`ict_sweep_buyside_bearish` and `ict_nwog_gap_up` clear the bar only in the
-corrected forms in this branch. In their original forms they were not testable
-events at all (the "sweep" fired when price merely entered a liquidity pool; the
-gap fired on every bar), so there was no prior result to preserve — but I chose
-the new parameters, so I ran a 36-configuration targeted sweep over exactly
-those parameters (`results/sensitivity_targeted_grid.csv`):
+**1. I changed the primary test after seeing results.** The switch from the
+SRS variance to the calendar-time test came after the first draft had reported
+five winners. I think it is right — the calibration study shows the SRS variance
+rejecting 28–41% of uninformative clustered signals, and it was validated only by
+a simulation that shared its assumption — but it is a forking path, and you
+should hear it from me. What limits the damage: the switch moved toward *fewer*
+rejections, which cannot manufacture a null result; all three tests' p-values are
+in `statistics_master.csv` and `rotation_null_all.csv`; and the calibration study
+is deterministic and reproducible. The simulated designs, including the
+volatility-timed one that decides between calendar-time and rotation, were fixed
+before the full-universe rotation results were seen.
 
-| Signal | Configs with positive excess |
-|---|---:|
-| `ict_sweep_buyside_bearish` | **36 / 36** |
-| `ict_sweep_sellside_bullish` | **33 / 36** |
-| `ict_nwog_gap_up` | 24 / 36 |
+**2. The primary test is conservative when signals are dispersed.** It rejects
+0% of uninformative signals whose entries are spread independently across
+dates, because its Newey–West sum counts cross-ticker co-movement that does not
+enter the true variance. I chose it anyway because it is the only one of the
+three tests that stays near nominal when entries cluster or crowd into volatile
+periods — which is how these signals behave. The cost is power, and the paper
+leads with what the data can and cannot exclude (manuscript Table 5) rather than
+letting "no concept beats the null" be read as "no concept has an edge".
 
-The two sweep detectors hold up, and the default X = 0.25 ATR is *not* the most
-favourable setting (X = 0.10 gives a larger excess), so the result is not an
-artefact of my choice.
+**3. The rotation test flags 54 hypotheses as significantly worse than rotated
+timing; the primary test flags none.** They are mostly displacement and
+break-of-structure detectors, which fire on large-range bars. I discount the
+rotation result because the calibration study shows it rejecting 19% of
+uninformative volatility-timed signals. That is a judgement. If those negative
+excesses are real — short-term reversal would predict them — the paper
+understates a negative finding. It does not affect the headline.
 
-**The gap detector does not hold up, and I withdraw it.** Its mean excess is
-+2.6 bp at a 0.05 ATR threshold, **+0.4 bp at my default of 0.10**, and −1.6 bp
-at 0.25 — the default sits essentially at the sign change. It clears FDR at one
-parameter value and would not at a neighbouring one. The manuscript says so and
-counts **two** robust concepts, not three. This is the single change I'd most
-want a second opinion on.
+**4. Survivorship is only partly fixed.** Trading a firm before it joined the
+index is removed exactly by the membership-aware re-test (no concept beats the
+null either way). The at least 235 since-removed members cannot be recovered
+from free sources.
 
-**2. The sector and regime comparators changed, which changes those numbers a
-lot.** The old sector table compared a roughly half-short signal population
-against a long-only benchmark, which measures net directional exposure. That
-produced a uniform −0.5 to −1.2 pp across all twelve sectors — a suspiciously
-flat result that was an artefact. The new direction-matched comparison gives
-−0.08 to −0.21 pp. I believe the new one is right, but it is a judgement call
-about what the right comparator is, and it deserves a second opinion.
+**5. I chose the parameters of the reformulated detectors.** The sweep and gap
+detectors had to be reformulated to be testable at all, which means I picked X,
+Z and the gap threshold. The targeted sweep shows the sweep detectors' sign is
+stable across that space (36/36 and 33/36) but never significant, and that the
+gap threshold decides the gap detector's sign. It runs on 30 tickers.
 
-**3. Survivorship bias is acknowledged, not fixed.** The universe is a 2026
-constituent snapshot applied to 2010–2026. I argue it largely cancels in the
-matched comparison (the null is drawn from the same survivor-biased tickers),
-but a point-in-time universe would be strictly better and I did not build one.
-This is the study's largest unaddressed threat to validity.
-
-**4. The bootstrap subsamples above 20,000 observations.** For large concepts
-the bootstrap CI is computed on a 20,000-row subsample and is therefore *wider*
-than the true CI — conservative, but not the interval a reader might assume.
-The `ci_method` column records which path each row took, and the HAC interval
-beside it is the one used for inference.
-
-**5. `smc_swing_choch_bearish` should probably not be in the winners table.**
-It has the largest excess (+0.33 pp) and the smallest sample (2,653 trades), and
-its excess flips sign across horizons (+0.32 pp at h=10, −3.26 pp at h=60). It
-clears FDR, so I report it, but I flag it in the manuscript as the least
-reliable of the five rather than leading with it.
+**6. The bootstrap subsamples above 20,000 observations.** Large concepts get a
+bootstrap CI from a 20,000-row subsample — wider than the true CI, so
+conservative, but not what a reader might assume. `ci_method` records which path
+each row took; inference uses the calendar-time standard error, not the bootstrap.
 
 ---
 
 ## What to verify, and how
 
 ```bash
-pytest tests/ -v                          # 89 tests, ~15s, no network
+pytest tests/ -v                          # 121 tests, ~30 s, no network
 python tools/check_artifacts.py           # acceptance criteria on results/
-python tools/check_manuscript_numbers.py  # all 25 paper claims vs artefacts
+python tools/check_manuscript_numbers.py  # every paper number vs artefacts and text
+python tools/calibration_study.py         # Table 1 of the paper, ~20 min on 6 cores
 ./run_fast_validation.sh                  # hermetic end-to-end, 2-4 min
 ```
 
-To confirm the two defects that mattered most, without taking my word for it:
+To confirm the defects that mattered most without taking my word for it:
 
 ```bash
 # 1. The look-ahead was real, and the probe that finds it still works.
 pytest tests/test_no_lookahead.py -v
-#    test_forward_looking_label_is_correctly_identified_as_leaky is the canary:
-#    it FAILS if the probe stops being able to detect a known leak.
+#    test_forward_looking_label_is_correctly_identified_as_leaky is the canary.
 
-# 2. The old baseline was irreproducible. On the previous commit:
-git stash && git checkout master
-for i in 1 2 3; do python -c "
-import pandas as pd, hashlib
-from backtest.baselines import random_entry
-df = pd.read_parquet('data/bundle/prices/AAPL.parquet').sort_index()
-m = random_entry(df, 50)['baseline_random_bullish'].to_numpy()
-print(hashlib.md5(m.tobytes()).hexdigest()[:12])"; done
-#    -> three different hashes. On this branch -> three identical hashes.
-git checkout ssrn-ready/claude-opus-5 && git stash pop
+# 2. The SRS variance is anti-conservative for clustered signals.
+pytest tests/test_audit_regressions.py -v -k calibration
+
+# 3. The order block is the Pine source's candle, not its mirror image.
+pytest tests/test_ob_fidelity.py -v
 ```
 
 ---
 
 ## Structural changes worth knowing about
 
-**`utils/prices.py` is new and now owns all price loading.** Four modules
-previously re-implemented "read parquet, sort, drop duplicate index" inline and
-had already drifted — only some deduplicated. They all route through one loader
-now, which is what makes the OHLC repair apply everywhere rather than in three
-places out of four.
+**`analytics/master_stats.py` is the single source of the numbers.** Concept
+rankings are views onto `results/statistics_master.csv`, so a ranking and the
+master table cannot disagree. It now also carries the SRS p-value (for
+comparison) and a separate two-sided family (`loses_to_matched_random`).
 
-**`analytics/master_stats.py` is new and is the single source of the numbers.**
-`concept_ranking.py` is now a view onto `results/statistics_master.csv` rather
-than a separate computation, so a ranking and the master table cannot disagree.
+**`tools/manuscript_facts.py` computes every number the paper quotes**, and
+`tools/check_manuscript_numbers.py` recomputes them fresh and checks that each
+still appears in the manuscript text.
 
-**`main.py` gained six stages** (`statistics`, `walkforward`, `costs`,
-`montecarlo`, `sensitivity`, `report`) and a `--skip` flag. `all` excludes
-`sensitivity`, which re-runs detection per grid point and would dominate
-runtime.
+**`analytics/montecarlo.py::rotation_null_exact`** enumerates every rotation by
+FFT; `main.py montecarlo` runs it for all 352 hypotheses in about a minute.
 
-**Detector parameters are now resolved at call time, not as default arguments.**
-This was a real bug: `def detect(df, length=ICT.ob_swing_len)` freezes the value
-at import, so the sensitivity sweep silently produced identical results at every
-grid point (`std_excess` was exactly 0.0 for all 44 signals). `tests/
-test_pipeline_integrity.py::TestParametersAreLateBound` guards it.
+**`utils/universe.py`** owns sector labels (GICS) and index-entry dates, from a
+committed snapshot that the pipeline never refreshes on its own.
+
+**Detector parameters are resolved at call time, not as default arguments.**
+`def detect(df, length=ICT.ob_swing_len)` froze the value at import, so the
+sensitivity sweep silently produced identical results at every grid point.
+`tests/test_pipeline_integrity.py::TestParametersAreLateBound` guards it.
 
 ---
 
 ## Backwards compatibility
 
 - `concept_rankings.csv` and `combination_rankings.csv` keep a
-  `statistically_significant` column so the Gradio and Streamlit dashboards
-  still work, **but its meaning changed**: it now requires beating the matched
-  null, not merely differing from a pooled baseline in either direction. If you
-  have anything else reading that column, check it.
-- `ict_fvg_*_top` / `_bottom` are renamed `_lower` / `_upper` (the old names had
-  inverted meaning, which is what made BPR unsatisfiable).
-- `ict_ndog_formed` / `ict_nwog_formed` are replaced by directional
-  `*_gap_up` / `*_gap_down`.
-- The old `ict_liquidity_*_swept` columns are **kept** alongside the new
-  `ict_sweep_*` ones, deliberately, so the reformulation is visible as a
-  comparison rather than a silent substitution.
+  `statistically_significant` column for the dashboards, **but its meaning
+  changed**: it now requires beating the matched null under the calendar-time
+  test. Anything else reading that column should be checked.
+- Sector names are now GICS; `Unknown` no longer appears.
+- `monte_carlo.csv` rotation columns are exact (all offsets), not sampled.
+- `ict_fvg_*_top` / `_bottom` are renamed `_lower` / `_upper`;
+  `ict_ndog_formed` / `ict_nwog_formed` are replaced by directional
+  `*_gap_up` / `*_gap_down`; the old `ict_liquidity_*_swept` columns are kept
+  beside the new `ict_sweep_*` ones, deliberately.
 
 ---
 
 ## Not done
 
-- **Point-in-time universe.** See caveat 3 above. This is the one item from the
-  brief I could not close: a survivorship-free constituent history is not
-  available to this pipeline, and building one is a separate project.
-- **The live sector lookup is implemented but not used.**
-  `load_sector_map(source="live")` works; every published number uses the static
-  map deliberately, because a live lookup would make results depend on when they
-  were run. Use the live path to audit or extend `SECTOR_MAP`, not to generate
-  results.
-- **Launching the UIs.** I exercised all eight view functions in
-  `dashboard/analysis.py` programmatically (and added
-  `tests/test_pipeline_integrity.py::TestDashboardViews` so they stay
-  exercised). `sector_regime_view` was genuinely broken by the column rename and
-  is fixed. I have not started the Gradio or Streamlit servers and clicked
-  through them, so layout-level problems could remain.
-- **`docs/final_research_report.md`** is regenerated and correct, but it is
-  superseded by `docs/manuscript.md`. You may want to delete it rather than
-  maintain two overlapping documents.
+- **A point-in-time universe.** See item 4 above.
+- **An independent audit.** Auditor subagents were requested for this work; every
+  launch failed on a session rate limit. The audit in `CHANGES.md` §8 was done
+  directly, by the same process that wrote the code, and is not an independent
+  review.
+- **Launching the UIs.** All eight view functions in `dashboard/analysis.py` are
+  exercised programmatically (`TestDashboardViews`); the Gradio and Streamlit
+  servers have not been clicked through.
+- **`docs/final_research_report.md`** is regenerated from the artefacts but is
+  superseded by `docs/manuscript.md`; consider deleting it.

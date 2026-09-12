@@ -1,0 +1,61 @@
+ticker,curated,official,kind
+APP,Information Technology,Communication Services,mismatch
+AWK,Real Estate,Utilities,mismatch
+BLDR,Consumer Discretionary,Industrials,mismatch
+DD,Materials,Industrials,mismatch
+TKO,Consumer Discretionary,Communication Services,mismatch
+UBER,Consumer Discretionary,Industrials,mismatch
+AES,(absent -> Unknown),Utilities,missing
+AIZ,(absent -> Unknown),Financials,missing
+ARE,(absent -> Unknown),Real Estate,missing
+BAX,(absent -> Unknown),Health Care,missing
+BF-B,(absent -> Unknown),Consumer Staples,missing
+BRO,(absent -> Unknown),Financials,missing
+CDW,(absent -> Unknown),Information Technology,missing
+CIEN,(absent -> Unknown),Information Technology,missing
+CPRT,(absent -> Unknown),Industrials,missing
+CRH,(absent -> Unknown),Materials,missing
+CSGP,(absent -> Unknown),Real Estate,missing
+CTSH,(absent -> Unknown),Information Technology,missing
+DAL,(absent -> Unknown),Industrials,missing
+DGX,(absent -> Unknown),Health Care,missing
+DRI,(absent -> Unknown),Consumer Discretionary,missing
+ECHO,(absent -> Unknown),Communication Services,missing
+EL,(absent -> Unknown),Consumer Staples,missing
+FDXF,(absent -> Unknown),Industrials,missing
+FERG,(absent -> Unknown),Industrials,missing
+FFIV,(absent -> Unknown),Information Technology,missing
+FISV,(absent -> Unknown),Financials,missing
+FLEX,(absent -> Unknown),Information Technology,missing
+FTV,(absent -> Unknown),Industrials,missing
+HONA,(absent -> Unknown),Industrials,missing
+INTC,(absent -> Unknown),Information Technology,missing
+JBL,(absent -> Unknown),Information Technology,missing
+JKHY,(absent -> Unknown),Financials,missing
+LH,(absent -> Unknown),Health Care,missing
+LITE,(absent -> Unknown),Information Technology,missing
+LUV,(absent -> Unknown),Industrials,missing
+MMM,(absent -> Unknown),Industrials,missing
+MPWR,(absent -> Unknown),Information Technology,missing
+MRVL,(absent -> Unknown),Information Technology,missing
+MSCI,(absent -> Unknown),Financials,missing
+MTD,(absent -> Unknown),Health Care,missing
+NTAP,(absent -> Unknown),Information Technology,missing
+ODFL,(absent -> Unknown),Industrials,missing
+PYPL,(absent -> Unknown),Financials,missing
+RDDT,(absent -> Unknown),Communication Services,missing
+ROL,(absent -> Unknown),Industrials,missing
+SW,(absent -> Unknown),Materials,missing
+SWK,(absent -> Unknown),Industrials,missing
+TPL,(absent -> Unknown),Energy,missing
+TTD,(absent -> Unknown),Communication Services,missing
+UAL,(absent -> Unknown),Industrials,missing
+VEEV,(absent -> Unknown),Health Care,missing
+VLTO,(absent -> Unknown),Industrials,missing
+VMRK,(absent -> Unknown),Real Estate,missing
+VRT,(absent -> Unknown),Industrials,missing
+WDAY,(absent -> Unknown),Information Technology,missing
+WST,(absent -> Unknown),Health Care,missing
+WY,(absent -> Unknown),Real Estate,missing
+XYZ,(absent -> Unknown),Financials,missing
+ZBH,(absent -> Unknown),Health Care,missing

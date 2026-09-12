@@ -1,4 +1,4 @@
 role,signal,n_trades,excess_return_vs_matched_random
-positive,smc_swing_choch_bearish,2653,0.0032540845948921
-null,smc_internal_ob_bullish_mitigated,54035,-5.290696452509708e-05
-negative,ict_bos_bearish,42496,-0.0049264369736044
+highest excess,ict_sweep_sellside_bullish,49304,0.0011924374119934
+near-zero excess,smc_internal_ob_bearish_mitigated,38121,-9.722745377494998e-05
+lowest excess,ict_bos_bearish,42496,-0.0049264369736044

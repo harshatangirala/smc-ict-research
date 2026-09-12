@@ -124,7 +124,10 @@ def figure_forest(master: pd.DataFrame):
     x = m["excess_return_vs_matched_random"].to_numpy() * 10_000  # bps
     se = m["matched_null_se"].to_numpy() * 10_000
     lo, hi = x - 1.959964 * se, x + 1.959964 * se
-    beats = m["beats_matched_random"].fillna(False).to_numpy()
+    beats = m["beats_matched_random"].fillna(False).astype(bool).to_numpy()
+    # A few small-sample concepts have intervals of +-300 bp. Clip the axis so
+    # the other forty stay legible, and mark every clipped end.
+    LIM = 150.0
 
     fig, ax = plt.subplots(figsize=(7.4, max(4.5, 0.19 * len(m))))
     ax.axvline(0, color=INK_MUTED, lw=1.0, zorder=1)
@@ -132,7 +135,14 @@ def figure_forest(master: pd.DataFrame):
     ax.axvspan(11, 26, color=ORANGE, alpha=0.13, zorder=0)
 
     colors = [BLUE if b else INK_MUTED for b in beats]
-    ax.hlines(y, lo, hi, color=colors, lw=2.0, alpha=0.45, zorder=2)
+    ax.hlines(y, np.clip(lo, -LIM, LIM), np.clip(hi, -LIM, LIM),
+              color=colors, lw=2.0, alpha=0.45, zorder=2)
+    for yy, cut_lo, cut_hi in zip(y, lo < -LIM, hi > LIM):
+        if cut_lo:
+            ax.plot(-LIM, yy, marker="<", color=INK_MUTED, ms=4, zorder=3)
+        if cut_hi:
+            ax.plot(LIM, yy, marker=">", color=INK_MUTED, ms=4, zorder=3)
+    ax.set_xlim(-LIM - 10, LIM + 10)
     ax.scatter(x, y, s=30, c=colors, zorder=3, edgecolor=SURFACE, linewidth=1.2,
                marker="o")
     # Identity is not colour-alone: winners also carry a marker and a bold label.
@@ -153,15 +163,18 @@ def figure_forest(master: pd.DataFrame):
     ax.set_xlabel("excess return over the composition-matched random null (bps, 10-day trade)")
     ax.set_title(
         f"Does each concept beat random entry on the same names? (h = {PRIMARY_HOLDING_PERIOD} days)",
-        loc="left", pad=10,
+        loc="left", pad=20,
     )
     ax.grid(axis="x", zorder=0)
     ax.set_ylim(-1, len(m))
     _despine(ax)
-    ax.text(0.99, 0.015,
-            "★ = beats the null after BH-FDR   ·   shaded = 11-26 bp cost band",
-            transform=ax.transAxes, ha="right", va="bottom",
-            color=INK_MUTED, fontsize=7.5)
+    note = ("★ = beats the null after BH-FDR" if beats.any()
+             else "no concept beats the null after BH-FDR")
+    ax.text(0.0, 1.004,
+            f"{note}   ·   bars: 95% calendar-time CI, clipped at ±{LIM:.0f} bp   ·   "
+            "shaded: 11-26 bp round-trip cost band",
+            transform=ax.transAxes, ha="left", va="bottom",
+            color=INK_MUTED, fontsize=7)
     _save(fig, "fig1_concept_forest",
           m[["signal", "direction", "n_trades", "excess_return_vs_matched_random",
              "matched_null_se", "p_adj_vs_matched_random", "beats_matched_random",
@@ -215,13 +228,17 @@ def figure_trade_timelines(master: pd.DataFrame, events: pd.DataFrame):
     if m.empty:
         return
 
-    m = m[m["n_trades"] > 500]
+    # Large-sample concepts only: a rare concept (a few thousand trades over 496
+    # tickers) usually has no event on one ticker in a two-year window, and its
+    # point estimate is the noisiest in the table.
+    m = m[m["n_trades"] > 20_000]
     if len(m) < 3:
         return
     best = m.nlargest(1, "excess_return_vs_matched_random").iloc[0]
     worst = m.nsmallest(1, "excess_return_vs_matched_random").iloc[0]
     null_row = m.iloc[(m["excess_return_vs_matched_random"].abs()).argsort()].iloc[0]
-    picks = [("positive", best), ("null", null_row), ("negative", worst)]
+    # Roles are point-estimate ranks, not significance: no concept beats the null.
+    picks = [("highest excess", best), ("near-zero excess", null_row), ("lowest excess", worst)]
 
     from utils.prices import load_prices
 
@@ -246,7 +263,7 @@ def figure_trade_timelines(master: pd.DataFrame, events: pd.DataFrame):
         ev = ev[(ev["date"] >= window.index[0]) & (ev["date"] <= window.index[-1])]
         direction = int(row.get("direction", 1))
         colour = BLUE if row["excess_return_vs_matched_random"] > 0 else RED
-        if label == "null":
+        if label.startswith("near"):
             colour = INK_MUTED
         if len(ev):
             yy = window["close"].reindex(pd.to_datetime(ev["date"])).to_numpy()
@@ -263,7 +280,7 @@ def figure_trade_timelines(master: pd.DataFrame, events: pd.DataFrame):
         ax.grid(axis="y")
         _despine(ax)
     axes[-1].set_xlabel(f"{ticker} close")
-    fig.suptitle("Representative concepts on real price data",
+    fig.suptitle("Representative concepts on real price data, ranked by point estimate",
                  x=0.005, ha="left", fontsize=11, fontweight="bold", color=INK)
     fig.tight_layout(rect=(0, 0, 1, 0.98))
     _save(fig, "fig3_trade_timelines",
@@ -376,6 +393,70 @@ def figure_breakeven(be: pd.DataFrame):
     _save(fig, "fig6_breakeven_costs", b)
 
 
+# ---------------------------------------------------------------------------
+# 7. Calibration of the significance tests
+# ---------------------------------------------------------------------------
+def figure_calibration(cal: pd.DataFrame):
+    """Rejection rate, and SE honesty, of each test in every zero-edge design."""
+    if cal is None or cal.empty:
+        return
+    tests = [("srs", "SRS variance (superseded)", INK_MUTED),
+             ("calendar", "calendar-time (primary)", BLUE),
+             ("rotation", "exact rotation (secondary)", ORANGE)]
+    designs = list(dict.fromkeys(cal["design"]))
+    x = np.arange(len(designs))
+    w = 0.26
+
+    def _vals(col, test):
+        g = cal[cal["test"] == test].set_index("design")[col]
+        return np.array([float(g.get(d, np.nan)) for d in designs])
+
+    has_ratio = "se_ratio" in cal.columns
+    fig, axes = plt.subplots(2 if has_ratio else 1, 1, sharex=True,
+                             figsize=(7.4, 6.2 if has_ratio else 3.6))
+    axes = np.atleast_1d(axes)
+    ax = axes[0]
+    reps = int(cal["reps"].max())
+    band = 2.5 * np.sqrt(0.05 * 0.95 / reps)
+    ax.axhspan(0.05 - band, 0.05 + band, color=GRID, alpha=0.8, zorder=0)
+    ax.axhline(0.05, color=INK_MUTED, lw=1.0, zorder=1)
+    top = 0.0
+    for k, (test, label, colour) in enumerate(tests):
+        v = _vals("rejection_rate", test)
+        top = max(top, np.nanmax(v))
+        xs = x + (k - 1) * w
+        ax.bar(xs, v, w, color=colour, label=label, zorder=2)
+        # Direct labels: a 0% bar is otherwise invisible.
+        for xi, vi in zip(xs, v):
+            if np.isfinite(vi):
+                ax.text(xi, vi + 0.006, f"{100 * vi:.0f}", ha="center", va="bottom",
+                        fontsize=6.5, color=INK_2)
+    ax.set_ylim(0, top * 1.3)
+    ax.set_ylabel("rejection rate (%-labels), nominal 5%")
+    ax.set_title("Size of each test when the true edge is zero", loc="left", pad=10)
+    ax.legend(labelcolor=INK_2, fontsize=7.5, ncol=3, loc="upper left")
+    ax.grid(axis="y")
+    _despine(ax)
+    if has_ratio:
+        ax2 = axes[1]
+        ax2.axhline(1.0, color=INK_MUTED, lw=1.0, zorder=1)
+        for k, (test, _, colour) in enumerate(tests):
+            ax2.scatter(x + (k - 1) * w, _vals("se_ratio", test), s=34, color=colour,
+                        zorder=3, edgecolor=SURFACE, linewidth=1.0)
+        ax2.set_yscale("log")
+        ticks = [0.125, 0.25, 0.5, 1.0, 2.0]
+        ax2.set_yticks(ticks, [f"{t:g}" for t in ticks])
+        ax2.minorticks_off()
+        ax2.set_ylabel("reported SE / true SD")
+        ax2.set_title("Above 1 the test overstates its uncertainty (conservative); "
+                      "below 1 it understates it", loc="left", fontsize=9, pad=6)
+        ax2.grid(axis="y")
+        _despine(ax2)
+    axes[-1].set_xticks(x, designs, rotation=20, ha="right", fontsize=8)
+    fig.tight_layout()
+    _save(fig, "fig7_calibration", cal)
+
+
 def main() -> int:
     master = _read("statistics_master.csv")
     if master is None:
@@ -387,6 +468,7 @@ def main() -> int:
     figure_sensitivity(_read("sensitivity_grid.csv"))
     figure_walkforward(_read("walkforward_summary.csv"))
     figure_breakeven(_read("breakeven_costs.csv"))
+    figure_calibration(_read("test_calibration.csv"))
     log.info("Figures written to %s", FIG_DIR)
     return 0
 

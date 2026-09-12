@@ -29,6 +29,22 @@ SRC = ROOT / "docs" / "manuscript.md"
 OUT_PDF = ROOT / "docs" / "manuscript.pdf"
 FIG_DIR = ROOT / "results" / "figures"
 
+FIG_CAPTIONS = {
+    "fig1_concept_forest": "Figure 1. Excess return over the composition-matched null with "
+    "95% calendar-time confidence intervals, all 44 concepts, h = 10.",
+    "fig2_sector_heatmap": "Figure 2. Excess return over the direction-matched null by GICS "
+    "sector, all concepts pooled (descriptive; no sector is powered for a 10 bp effect).",
+    "fig3_trade_timelines": "Figure 3. Events of three large-sample concepts on AAPL, "
+    "2018-2019, chosen by point estimate; none beats the null.",
+    "fig4_sensitivity_heatmap": "Figure 4. Mean excess return across the broad parameter grid.",
+    "fig5_walkforward": "Figure 5. Walk-forward: in-sample versus out-of-sample excess of the "
+    "selected concepts by fold, and the train-to-test rank correlation.",
+    "fig6_breakeven_costs": "Figure 6. Break-even round-trip cost on the excess over the "
+    "matched null, against the modelled 11-26 bp cost band.",
+    "fig7_calibration": "Figure 7. Calibration: rejection rate at a nominal 5% and "
+    "reported-SE / true-SD ratio of the three tests in six zero-edge designs.",
+}
+
 CHROME_CANDIDATES = [
     r"C:\Program Files\Google\Chrome\Application\chrome.exe",
     r"C:\Program Files (x86)\Google\Chrome\Application\chrome.exe",
@@ -154,7 +170,8 @@ def build() -> int:
     if figures:
         body += "\n\n# Appendix D. Figure plates\n\n"
         for f in figures:
-            caption = f.stem.replace("_", " ").replace("fig", "Figure ", 1)
+            caption = FIG_CAPTIONS.get(
+                f.stem, f.stem.replace("_", " ").replace("fig", "Figure ", 1))
             body += f"\n**{caption}**\n\n![{f.stem}]({f.name})\n\n"
 
     html_body = markdown.markdown(

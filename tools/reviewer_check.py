@@ -68,8 +68,9 @@ def run_checks() -> list[Finding]:
          "A canary test confirms the probe still detects a known-leaky column, so a "
          "pass is not vacuous."
          if not leaked else f"Leaked signals present: {leaked}"),
-        "The original pipeline did leak -- two FVG-fill columns contributing 187,719 "
-        "trades -- and the paper reports that as a finding rather than omitting it.",
+        "The original pipeline did leak -- two FVG-fill columns emitting 187,719 "
+        "look-ahead events (187,374 trades at h = 10) -- and the paper reports that "
+        "as a finding rather than omitting it.",
         "critical", ["tests/test_no_lookahead.py", "results/validation_report.md"]))
 
     # 2 -- multiple testing
@@ -125,15 +126,23 @@ def run_checks() -> list[Finding]:
         piv = cal.pivot(index="design", columns="test", values="rejection_rate")
         worst_cal = float(cal.loc[cal["test"] == "calendar", "rejection_rate"].max())
         worst_srs = float(cal.loc[cal["test"] == "srs", "rejection_rate"].max())
+        anti = {}
+        if "size_verdict" in cal.columns:
+            anti = {t: sorted(cal.loc[(cal["test"] == t)
+                                      & (cal["size_verdict"] == "anti-conservative"), "design"])
+                    for t in ("srs", "calendar", "rotation")}
         ev4b = (
-            "Uninformative entry dates drawn on real prices, nominal 5%: the first primary "
-            f"test (SRS variance) rejects up to {worst_srs:.0%} when signals fire on shared "
-            f"dates; the calendar-time test now used rejects at most {worst_cal:.1%}. "
+            "Designs with a true edge of zero, nominal 5%: the first primary test (SRS "
+            f"variance) rejects up to {worst_srs:.0%}; the calendar-time test now used "
+            f"rejects at most {worst_cal:.1%}. "
             + "; ".join(
                 f"{d}: srs {piv.loc[d, 'srs']:.3f} / calendar {piv.loc[d, 'calendar']:.3f}"
                 f" / rotation {piv.loc[d, 'rotation']:.3f}" for d in piv.index)
+            + ("." if not anti else
+               ". Anti-conservative in: " + "; ".join(
+                   f"{t} -- {', '.join(v) if v else 'none'}" for t, v in anti.items()) + ".")
         )
-        st4b = "ADDRESSED" if worst_cal <= 0.08 else "PARTIAL"
+        st4b = "ADDRESSED" if not anti.get("calendar") and worst_cal <= 0.08 else "PARTIAL"
     else:
         ev4b, st4b = "No calibration study found -- run tools/calibration_study.py.", "EXPOSED"
     F.append(Finding(
@@ -142,7 +151,10 @@ def run_checks() -> list[Finding]:
         st4b, ev4b,
         "Found by the authors' own audit, not a referee. Every headline count was "
         "recomputed with the calendar-time test; the SRS p-value is kept beside it in "
-        "results/statistics_master.csv so the difference is auditable.",
+        "results/statistics_master.csv so the difference is auditable. The calendar test "
+        "is conservative when entries are dispersed, which costs power but cannot "
+        "manufacture the paper's null result; the exact rotation test is reported "
+        "beside it for every hypothesis.",
         "critical", ["tools/calibration_study.py", "results/test_calibration.csv"]))
 
     # 5 -- one-sided
@@ -203,15 +215,21 @@ def run_checks() -> list[Finding]:
 
         sv = dict(zip(surv["metric"], surv["value"]))
         sc = _json.loads(sc_path.read_text(encoding="utf-8"))
+        outcome = (
+            f"{len(sc['survived_filter'])} of {sc['n_beats_full']} headline concepts "
+            f"survive, {len(sc['lost_under_filter'])} are lost"
+            if sc["n_beats_full"] else
+            f"no concept beats the null in either universe (full {sc['n_beats_full']}, "
+            f"membership-aware {sc['n_beats_membership_aware']})"
+        )
         ev8 = (
             f"Sized with published index-entry dates: of {sv.get('current_constituents')} "
             f"analysed tickers, {sv.get('in_index_at_sample_start')} were members at the "
             f"sample start and at least {sv.get('estimated_removed_names_missing')} "
             "since-removed constituents are absent. Look-ahead membership is removed exactly "
             "by a re-test that filters both signals and matched-null pools: "
-            f"{sc['trades_dropped_pct']}% of trades drop out; "
-            f"{len(sc['survived_filter'])} of {sc['n_beats_full']} headline concepts survive, "
-            f"{len(sc['lost_under_filter'])} are lost."
+            f"{sc['trades_dropped_pct']}% of trades drop out; {outcome}; the sign of the "
+            f"excess is preserved for {sc['sign_preserved_pct']}% of concepts."
         )
     else:
         ev8 = "Survivorship outputs not found -- run `python main.py survivorship`."
@@ -256,19 +274,54 @@ def run_checks() -> list[Finding]:
         "medium", ["docs/specs/"]))
 
     # 11 -- resampling validity
-    has_rot = mc is not None and "rotation_p_value" in getattr(mc, "columns", [])
+    fam = _read("rotation_null_all.csv")
+    has_rot = fam is not None and len(fam) > 0
+    rot_note = ""
+    if has_rot:
+        rot_note = (
+            f" The exact rotation test covers all {len(fam)} hypotheses; "
+            f"{int(fam['beats_rotation_null'].sum())} beat it after BH-FDR and "
+            f"{int(fam['loses_to_rotation_null'].sum())} lose to it."
+        )
     F.append(Finding(
         "Resampling schemes that draw dates independently per ticker ignore that trades "
         "cluster on the same dates.",
         "ADDRESSED" if has_rot else "PARTIAL",
-        "The primary Monte Carlo is a calendar rotation: the whole entry calendar shifts "
-        "by one random offset for every ticker, preserving which trades share a date. "
-        "The independent-draw and per-ticker block schemes are kept for comparison and "
-        "labelled anti-conservative. Confidence intervals used for inference are HAC, not "
-        "iid bootstrap.",
+        "The rotation null shifts the whole entry calendar by one offset for every "
+        "ticker, preserving which trades share a date, and is evaluated exactly over "
+        "every admissible offset by FFT, so its p-values can clear a family-wide FDR "
+        "threshold. The independent-draw and per-ticker block schemes are kept for "
+        "comparison and labelled anti-conservative. Confidence intervals used for "
+        "inference are HAC, not iid bootstrap." + rot_note,
         "The iid bootstrap interval is still reported because the brief requires it; "
         "`ci_method` records when it ran on a subsample.",
-        "medium", ["analytics/montecarlo.py::monte_carlo_rotation_null"]))
+        "medium", ["analytics/montecarlo.py::rotation_null_exact", "results/rotation_null_all.csv"]))
+
+    # 11b -- power
+    if prim is not None and "matched_null_se" in prim.columns:
+        se = prim["matched_null_se"] * 1e4
+        ex = prim["excess_return_vs_matched_random"] * 1e4
+        upper = ex + 1.645 * se
+        mde = 2.486 * se      # z_0.95 + z_0.80, one-sided test at 5%, 80% power
+        ev_pow = (
+            f"Minimum detectable excess at 80% power: median {mde.median():.0f} bp, best "
+            f"{mde.min():.0f} bp (h = {PRIMARY_HOLDING_PERIOD}). The one-sided 95% upper "
+            f"bound on the excess is below the 11 bp minimum round-trip cost for "
+            f"{int((upper < 11).sum())} of {len(prim)} concepts and below 26 bp for "
+            f"{int((upper < 26).sum())}."
+        )
+        st_pow = "PARTIAL"
+    else:
+        ev_pow, st_pow = "No standard errors found.", "EXPOSED"
+    F.append(Finding(
+        "A null result from an underpowered test is not evidence of absence.",
+        st_pow, ev_pow,
+        "The paper reports, per concept, the largest edge the data can exclude and "
+        "separates concepts where a cost-covering edge is ruled out from those where "
+        "the data are simply uninformative. Small edges -- the 10-20 bp range where a "
+        "practitioner would care -- cannot be ruled out for most concepts, and the "
+        "Limitations section says so.",
+        "high", ["results/statistics_master.csv", "docs/manuscript.md"]))
 
     # 12 -- sector power
     pw = _read("sector_power.csv")
@@ -367,16 +420,19 @@ def build_report(path: Path | None = None) -> Path:
         L.append(f"* {f.objection}")
     L += [
         "", "### The strongest defensible position", "",
-        "This paper's headline result is **negative** -- most concepts do not beat a "
-        "composition-matched random entry -- and a negative result is robust to most of "
-        "the objections that would sink a positive one. Multiplicity, survivorship bias "
-        "and transaction costs all push *against* finding an edge, so none of them can "
+        "This paper's headline result is **negative** -- no concept beats a "
+        "composition-matched random entry after FDR control -- and a negative result is "
+        "robust to most of the objections that would sink a positive one. Multiplicity "
+        "and transaction costs push *against* finding an edge, and an anti-conservative "
+        "test would have produced rejections, not fewer of them, so none of these can "
         "manufacture the null reported here. The paper should make that argument "
         "explicitly rather than leaving a referee to notice it.", "",
-        "The corresponding risk is the opposite one: a referee may ask whether the study "
-        "had the *power* to detect a real edge of plausible size. That question should be "
-        "met with the sample sizes and confidence-interval widths already in "
-        "`results/statistics_master.csv`, not deflected.", "",
+        "The corresponding risk is the opposite one, and it is real here: the primary "
+        "test is conservative when entries are dispersed, and its minimum detectable "
+        "effect is larger than a plausible edge for most concepts. The power finding "
+        "above states what the data can and cannot exclude; the paper should lead with "
+        "it rather than let 'no concept beats the null' be read as 'no concept has an "
+        "edge'.", "",
     ]
     path.write_text("\n".join(L), encoding="utf-8")
     print(f"Wrote {path}")

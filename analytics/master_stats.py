@@ -56,6 +56,27 @@ from utils.logging_config import get_logger
 log = get_logger("analytics.master_stats")
 
 
+def add_two_sided_family(master: pd.DataFrame) -> pd.DataFrame:
+    """Two-sided companion to the one-sided headline test, BH-FDR across all rows.
+
+    The headline test is one-sided (``alternative="greater"``), so it can never
+    report a concept as significantly *worse* than its null -- a "loses" count
+    built from it is zero by construction. Its statistic is normal, so ``1 - p``
+    is the lower-tail p-value and the two-sided p follows without recomputing
+    anything. Descriptive: the paper's hypothesis is directional.
+    """
+    p = master["p_value_vs_matched_random"]
+    master["p_value_vs_matched_random_two_sided"] = np.minimum(1.0, 2.0 * np.minimum(p, 1.0 - p))
+    fdr = apply_fdr_correction(master["p_value_vs_matched_random_two_sided"], alpha=FDR_ALPHA)
+    master["p_adj_vs_matched_random_two_sided"] = fdr["p_adjusted"]
+    master["loses_to_matched_random"] = (
+        fdr["reject_null"].fillna(False).astype(bool)
+        & (master["excess_return_vs_matched_random"].fillna(np.inf) < 0)
+        & (master["n_trades"] >= MIN_SAMPLE_SIZE)
+    )
+    return master
+
+
 def _load_baseline_trades() -> pd.DataFrame | None:
     path = RESULTS_DIR / "baseline_trades.parquet"
     if not path.exists():
@@ -138,6 +159,8 @@ def build_statistics_master(
             master[dst.replace("p_adj", "reject")] = fdr["reject_null"]
 
     master["low_sample_warning"] = master["n_trades"] < MIN_SAMPLE_SIZE
+    if "p_value_vs_matched_random" in master.columns:
+        add_two_sided_family(master)
 
     # The headline flag. An edge must (a) beat composition-matched random
     # entry after FDR control, and (b) rest on enough trades to be meaningful.

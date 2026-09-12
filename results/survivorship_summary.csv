@@ -1,0 +1,11 @@
+metric,value
+scope,analysed tickers
+current_constituents,498
+with_known_entry_date,498
+entry_date_unknown,0
+in_index_at_sample_start,265
+joined_during_sample,233
+estimated_removed_names_missing,235
+estimated_survivorship_gap_pct,47.0
+sample_start,2010-01-01
+note,"Lower bound on distinct names absent from the dataset. Counts index slots not held by a current constituent at the sample start; churn within a slot is not counted, so the true number of distinct names that passed through the index over 2010-2026 is larger."

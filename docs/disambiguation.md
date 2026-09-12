@@ -43,8 +43,9 @@ explicit window `N` (default 60 bars = the longest horizon tested), carried in
 a `*_label` column and excluded from `EVENT_REGISTRY`.
 
 **Rationale.** The alternative is a look-ahead signal. The prior version made
-exactly this mistake and contributed 187,719 leaked trades. Any reported fill
-rate must state its window, since the rate is meaningless without one.
+exactly this mistake and emitted 187,719 look-ahead events (187,374 trades at
+h = 10). Any reported fill rate must state its window, since the rate is
+meaningless without one.
 **Where:** `signals/ict_signals.py::detect_fvg`, `tests/test_no_lookahead.py`.
 
 ## A3 — Premium/Discount range is an all-time expanding extreme · medium
@@ -115,10 +116,16 @@ bars, stamped on the reclaim bar) and **retain the original columns unchanged**
 under their own names.
 
 **Rationale.** Substituting silently would hide the change. Keeping both makes
-the reformulation a measurable comparison: the original
-`ict_liquidity_buyside_swept` does not beat the null (excess −0.045%); the
-reformulated `ict_sweep_*` do. Because we chose X and Z, a 36-configuration
-targeted sweep tests exactly those parameters — both survive (36/36 and 33/36).
+the reformulation a measurable comparison. The original
+`ict_liquidity_buyside_swept` has an excess of −4.5 bp over the matched null.
+The reformulated `ict_sweep_*` carry the largest positive point estimates of
+any high-sample concept (+11.4 and +11.9 bp at h = 10) but do not beat the null
+(p = 0.23 and 0.29 under the calendar-time test). Because we chose X and Z, a
+36-configuration targeted sweep varies exactly those parameters: the sign stays
+positive in 36/36 and 33/36 configurations, and no configuration is
+significant even before multiple-testing correction. An earlier draft of this
+re-analysis reported both as surviving; that rested on the anti-conservative
+SRS-variance test (`CHANGES.md` §8.1).
 **Where:** `docs/specs/ict_liquidity_sweep.yaml`,
 `results/sensitivity_targeted_grid.csv`.
 
@@ -133,12 +140,14 @@ honoured.
 
 **Rationale.** Without a threshold the concept contributed 1,946,675 events —
 44.8% of the entire event table — and dominated every pooled aggregate.
-**But the threshold determines the result**: mean excess is +2.6 bp at 0.05
-ATR, +0.4 bp at our 0.10 default, and −1.6 bp at 0.25. The default sits at the
-sign change, so **`ict_nwog_gap_up` is withdrawn as evidence** in §5.4 of the
-manuscript. This is the clearest case in the study of a conclusion depending on
-a disambiguation choice, and it is resolved by declining to claim the result.
-**Where:** `docs/specs/ict_opening_gap.yaml`, manuscript §5.4.
+**The threshold sets the sign of the result**: mean excess is +2.6 bp at 0.05
+ATR, +0.4 bp at our 0.10 default, and −1.6 bp at 0.25. Under the superseded
+SRS-variance test `ict_nwog_gap_up` cleared FDR at the default, so a claimed
+edge would have hinged on this choice. Under the calibrated test it is not
+significant at any threshold (p = 0.39 at the default), so no conclusion now
+depends on it. It remains the clearest illustration in the study of how a
+disambiguation choice can decide the sign of a reported effect.
+**Where:** `docs/specs/ict_opening_gap.yaml`, manuscript §5.6.
 
 ## A9 — Week-open detection across holidays · low
 
@@ -230,14 +239,35 @@ only its latest entry date in the published table.
 never toward keeping look-ahead. It affects only that robustness check.
 **Where:** `utils/universe.py::membership_mask`.
 
+## A16 — Which candle is the order block · high
+
+**Ambiguity.** None in the source, which makes this a translation error rather
+than a reading. LuxAlgo's SMC `storeOrdeBlock` scans the bars between the swing
+pivot and the break: a **bullish** block is the bar with the lowest parsed low,
+a **bearish** block the bar with the highest parsed high, and a block is removed
+from the active list once mitigated. The ICT script's loop covers only the bars
+strictly between the swing and the break.
+
+**Chosen.** Exactly that.
+
+**Rationale.** The first translation took the opposite extreme (the highest
+high for a bullish block, the lowest low for a bearish one) and kept mitigated
+blocks active, so every `smc_*_ob_*` signal was computed from the wrong candle;
+`smc_internal_ob_bearish_mitigated` was among the concepts flagged under the
+superseded test. The ICT loop included the break bar, letting a block be its
+own breaking candle. Neither is a defensible alternative reading.
+**Where:** `signals/smc_signals.py`, `signals/ict_signals.py::detect_order_blocks`,
+`tests/test_ob_fidelity.py`.
+
 ---
 
 ## Which of these could change a conclusion
 
 | ID | Choice | Could it move a published number? |
 |---|---|---|
-| A8 | Gap materiality threshold | **Yes — and it does.** Result withdrawn. |
-| A7 | Sweep reformulation | Yes; tested by targeted sweep, both survive |
+| A8 | Gap materiality threshold | **Yes — it sets the sign of the gap excess.** Decisive under the superseded test; no significance result depends on it under the calibrated one. |
+| A7 | Sweep reformulation | Yes; targeted sweep: sign stable (36/36, 33/36), significant in no configuration |
+| A16 | Order-block candle | Yes; the prior translation was a bug, not a reading |
 | A5, A6 | Mitigation and equal-H/L directions | Yes; sign of the hypothesis for 6 signals |
 | A4, A10 | Swing tracking, BPR overlap | Yes, but the alternatives are bugs, not readings |
 | A2 | Fill as a label | Yes; the alternative is look-ahead |

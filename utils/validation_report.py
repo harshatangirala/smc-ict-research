@@ -57,13 +57,24 @@ def _read(path: Path) -> pd.DataFrame | None:
 def _headline_numbers(master: pd.DataFrame) -> dict:
     """The quantities the paper actually claims, at the primary horizon."""
     m = master[master["holding_period"] == PRIMARY_HOLDING_PERIOD]
-    tested = m[~m["low_sample_warning"].fillna(True)]
-    beats = m["beats_matched_random"].fillna(False)
-    loses = (
-        tested["reject_vs_matched_random"].fillna(False)
-        & (tested["excess_return_vs_matched_random"] < 0)
-    )
+    beats = m["beats_matched_random"].fillna(False).astype(bool)
+    # The headline test is one-sided and cannot find a loser; "worse than the
+    # null" comes from the two-sided family (analytics.master_stats).
+    loses = (m["loses_to_matched_random"].fillna(False).astype(bool)
+             if "loses_to_matched_random" in m.columns
+             else pd.Series(False, index=m.index))
+    n_srs = None
+    if "p_value_vs_matched_random_srs" in master.columns:
+        from analytics.statistics import apply_fdr_correction
+
+        fdr = apply_fdr_correction(master["p_value_vs_matched_random_srs"], alpha=FDR_ALPHA)
+        srs = (fdr["reject_null"].fillna(False).astype(bool)
+               & (master["excess_return_vs_matched_random"] > 0)
+               & (master["n_trades"] >= MIN_SAMPLE_SIZE)
+               & (master["holding_period"] == PRIMARY_HOLDING_PERIOD))
+        n_srs = int(srs.sum())
     return {
+        "n_beats_under_srs_test": n_srs,
         "n_concepts": int(len(m)),
         "n_beats_matched_random": int(beats.sum()),
         "n_loses_to_matched_random": int(loses.sum()),
@@ -122,11 +133,113 @@ def _regression_section(current: dict) -> list[str]:
         "like-for-like number. It answers a different, narrower question.",
         "* Two further changes reduce the trade population: the look-ahead "
         "`ict_fvg_*_filled` signals were removed from the event table "
-        "(187,719 leaked trades in the previous 50-ticker bundle), and "
+        "(187,719 look-ahead events in the previous full-universe table), and "
         "`ict_ndog_formed`, which fired on every bar, was replaced by a "
-        "materiality-gated gap event.", "",
+        "materiality-gated gap event.",
+        "* Within this re-analysis the count moved again, from 5 to "
+        f"{current['n_beats_matched_random']}, for two reasons documented in "
+        "`CHANGES.md` section 8: the first version of the matched-null test "
+        "used a simple-random-sampling variance that the calibration study "
+        "(section 5) shows is anti-conservative for signals that fire on "
+        "shared dates, and the SMC order-block detector selected the wrong "
+        "candle. Under the superseded variance the same data would give "
+        f"{current.get('n_beats_under_srs_test', 'n/a')} at h = {PRIMARY_HOLDING_PERIOD}.", "",
     ]
     return lines
+
+
+_TESTS = (("srs", "SRS variance (superseded)"), ("calendar", "Calendar-time (primary)"),
+          ("rotation", "Exact rotation (secondary)"))
+
+
+def _calibration_section(calib: pd.DataFrame) -> list[str]:
+    """Size of each test in every design of tools/calibration_study.py."""
+    has_ratio = "se_ratio" in calib.columns
+    reps = int(calib["reps"].max())
+    L = [
+        "### Calibration of the significance tests", "",
+        "Every design has a true edge of exactly zero. Each cell is the rejection "
+        f"rate at a nominal 5% over {reps:,} replications"
+        + (" and, in brackets, the ratio of the standard error the test uses to the "
+           "empirical standard deviation of its own estimate (above 1 = conservative)"
+           if has_ratio else "")
+        + " (`tools/calibration_study.py`, `results/test_calibration.csv`).", "",
+        "| Design | " + " | ".join(label for _, label in _TESTS) + " |",
+        "|---|" + "---:|" * len(_TESTS),
+    ]
+    for design, g in calib.groupby("design", sort=False):
+        cells = []
+        for test, _ in _TESTS:
+            r = g[g["test"] == test]
+            if r.empty:
+                cells.append("n/a")
+                continue
+            r = r.iloc[0]
+            cell = f"{r['rejection_rate']:.3f}"
+            if has_ratio and np.isfinite(r["se_ratio"]):
+                cell += f" ({r['se_ratio']:.2f})"
+            if r.get("size_verdict") == "anti-conservative":
+                cell = f"**{cell}**"
+            cells.append(cell)
+        L.append(f"| {design} | " + " | ".join(cells) + " |")
+    L.append("")
+    if "size_verdict" in calib.columns:
+        for test, label in _TESTS:
+            g = calib[calib["test"] == test]
+            anti = g.loc[g["size_verdict"] == "anti-conservative", "design"].tolist()
+            cons = g.loc[g["size_verdict"] == "conservative", "design"].tolist()
+            L.append(
+                f"* **{label}**: anti-conservative in "
+                f"{', '.join(anti) if anti else 'no design'}; conservative in "
+                f"{', '.join(cons) if cons else 'no design'}."
+            )
+        L.append("")
+    L += [
+        "Real-price designs hold the price paths fixed and randomise only the entry "
+        "dates; simulated designs redraw a GARCH factor panel each time, and in "
+        "`sim_vol_timed` entries concentrate in turbulent periods. Bold cells exceed "
+        "5% by more than 2.5 Monte Carlo standard errors. Every headline count uses "
+        "the calendar-time test; a size distortion toward rejection cannot explain a "
+        "result in which nothing is rejected.", "",
+    ]
+    return L
+
+
+def _rotation_section() -> list[str]:
+    """The exact rotation test across the whole hypothesis family."""
+    fam = _read(RESULTS_DIR / "rotation_null_all.csv")
+    if fam is None or fam.empty:
+        return []
+    h = fam[fam["holding_period"] == PRIMARY_HOLDING_PERIOD].sort_values("p_value")
+    beats = fam[fam["beats_rotation_null"].fillna(False).astype(bool)]
+    loses = fam[fam["loses_to_rotation_null"].fillna(False).astype(bool)]
+    L = [
+        "## 9b. Exact rotation test, every hypothesis", "",
+        f"All {len(fam)} (signal x horizon) hypotheses, each against every admissible "
+        f"rotation of its own entry calendar ({int(fam['n_offsets'].min()):,}-"
+        f"{int(fam['n_offsets'].max()):,} offsets), BH-FDR at alpha = {FDR_ALPHA} "
+        "across the family. Deterministic -- no seed.", "",
+        f"* Beat the rotation null after FDR: **{len(beats)}**"
+        + (f" ({', '.join(f'`{s}` h={int(k)}' for s, k in zip(beats['signal'], beats['holding_period']))})"
+           if len(beats) else "") + ".",
+        f"* Lose to it (two-sided family): **{len(loses)}**.", "",
+        f"Ten smallest one-sided p-values at h = {PRIMARY_HOLDING_PERIOD}:", "",
+        "| Signal | n trades | Observed | Rotation null | Excess | p | p (FDR) |",
+        "|---|---:|---:|---:|---:|---:|---:|",
+    ]
+    for _, r in h.head(10).iterrows():
+        L.append(
+            f"| `{r['signal']}` | {int(r['n_trades']):,} | "
+            f"{_fmt(r['observed_mean'], pct=True)} | {_fmt(r['null_mean'], pct=True)} | "
+            f"{_fmt(r['excess_vs_rotation'], pct=True)} | {_fmt(r['p_value'], dp=4)} | "
+            f"{_fmt(r['p_adj'], dp=4)} |"
+        )
+    L += ["", "The rotation test conditions on the realised price path. It is "
+          "right-sized for random entry timing on real prices but over-rejects when "
+          "entries crowd into volatile periods (see the calibration table), so a "
+          "concept that passes it and fails the primary test is not counted as "
+          "evidence of an edge.", ""]
+    return L
 
 
 def build_validation_report(path: Path | None = None) -> Path:
@@ -167,7 +280,8 @@ def build_validation_report(path: Path | None = None) -> Path:
         ("backtest", "trades.parquet"), ("baseline", "baseline_trades.parquet"),
         ("statistics", "statistics_master.csv"), ("analyze", "concept_rankings.csv"),
         ("walkforward", "walkforward_summary.csv"), ("costs", "net_of_cost_rankings.csv"),
-        ("montecarlo", "monte_carlo.csv"),
+        ("montecarlo", "monte_carlo.csv"), ("montecarlo", "rotation_null_all.csv"),
+        ("survivorship", "survivorship_membership_aware.csv"),
     ]:
         p = RESULTS_DIR / art
         if p.exists():
@@ -230,7 +344,7 @@ def build_validation_report(path: Path | None = None) -> Path:
         L += [
             f"* **{len(events):,} events** across **{events['ticker'].nunique()} "
             f"tickers** and **{events['signal'].nunique()} distinct signals**.",
-            f"* Directions present: {sorted(events['direction'].unique())} -- no "
+            f"* Directions present: {sorted(int(d) for d in events['direction'].unique())} -- no "
             "signal carries direction 0. Previously, signals whose names lacked "
             "'bullish'/'bearish' (`smc_equal_highs`, `smc_equal_lows`, the gap "
             "events) were assigned direction 0 and silently traded long.", "",
@@ -246,8 +360,8 @@ def build_validation_report(path: Path | None = None) -> Path:
             ndog = float((old_ev["signal"] == "ict_ndog_formed").mean())
             leak = float(old_ev["signal"].str.contains("filled").mean())
             L += [
-                "**Compared with the previously committed event table** (50-ticker "
-                f"bundle, {len(old_ev):,} events):", "",
+                "**Compared with the previously committed event table** "
+                f"({old_ev['ticker'].nunique()} tickers, {len(old_ev):,} events):", "",
                 f"* `ict_ndog_formed` was **{100 * ndog:.1f}%** of all events -- it "
                 "fired on every bar. It is now materiality-gated and disabled by "
                 "default per the source script, as `ICT.ndog_enabled` always "
@@ -282,10 +396,10 @@ def build_validation_report(path: Path | None = None) -> Path:
         "The leak this found: `ict_fvg_bullish_filled` and "
         "`ict_fvg_bearish_filled` were emitted as tradeable entry signals at the "
         "FVG formation bar while their value was computed from up to 60 "
-        "subsequent bars. In the previously committed 50-ticker results they "
-        "contributed 187,719 trades and sat at both extremes of the concept "
-        "ranking -- `ict_fvg_bearish_filled` had the single most negative "
-        "effect size in the study.", "",
+        "subsequent bars. In the previously committed results they were 187,719 "
+        "events (4.3% of the event table; 187,374 trades at h = 10) and sat at "
+        "both extremes of the concept ranking -- `ict_fvg_bearish_filled` had "
+        "the single most negative effect size in the study.", "",
     ]
 
     # -- 5. Headline statistics --------------------------------------------
@@ -298,9 +412,10 @@ def build_validation_report(path: Path | None = None) -> Path:
             f"with BH-FDR at alpha = {FDR_ALPHA} applied across all "
             f"{len(master)} (signal x horizon) hypotheses:", "",
             "| Outcome | Concepts |", "|---|---:|",
-            f"| Beat composition-matched random entry | **{current['n_beats_matched_random']}** |",
+            f"| Beat composition-matched random entry (calendar-time test, primary) | **{current['n_beats_matched_random']}** |",
             f"| Statistically indistinguishable from it | {current['n_indistinguishable']} |",
-            f"| Significantly **worse** than it | {current['n_loses_to_matched_random']} |",
+            f"| Significantly **worse** than it (two-sided family) | {current['n_loses_to_matched_random']} |",
+            f"| (memo) beat it under the superseded SRS-variance test | {current.get('n_beats_under_srs_test', 'n/a')} |",
             f"| (memo) differ from a zero-return null | {current['n_significant_vs_zero']} |",
             f"| Total tested | {current['n_concepts']} |", "",
             f"Mean excess return over the matched null across all concepts: "
@@ -366,31 +481,7 @@ def build_validation_report(path: Path | None = None) -> Path:
             ]
         calib = _read(RESULTS_DIR / "test_calibration.csv")
         if calib is not None and len(calib):
-            piv = calib.pivot(index="design", columns="test", values="rejection_rate")
-            L += [
-                "### Calibration of the primary test", "",
-                "Entry dates drawn at random on real prices, so the true edge is "
-                "zero; each cell is the rejection rate at a nominal 5% "
-                "(`tools/calibration_study.py`).", "",
-                "| Entry design | SRS variance (first version) | Calendar-time (primary) | Rotation MC |",
-                "|---|---:|---:|---:|",
-            ]
-            for d in ("independent", "semi", "clustered"):
-                if d in piv.index:
-                    L.append(
-                        f"| {d} | {piv.loc[d].get('srs', float('nan')):.3f} | "
-                        f"{piv.loc[d].get('calendar', float('nan')):.3f} | "
-                        f"{piv.loc[d].get('rotation', float('nan')):.3f} |"
-                    )
-            L += [
-                "",
-                "The first version of the headline test used the simple-random-"
-                "sampling variance. It is close to calibrated when every ticker "
-                "draws its own dates, and badly anti-conservative when signals "
-                "fire on shared dates -- which is what SMC/ICT signals do, because "
-                "market-wide moves trigger them on many tickers at once. Every "
-                "count in this report uses the calendar-time test.", "",
-            ]
+            L += _calibration_section(calib)
     else:
         L += ["`statistics_master.csv` not found -- run `python main.py statistics`.", ""]
 
@@ -486,13 +577,15 @@ def build_validation_report(path: Path | None = None) -> Path:
     if mc is not None and len(mc):
         has_rot = "rotation_p_value" in mc.columns
         L += [
-            f"{int(mc['n_runs'].iloc[0]):,} runs per signal. The **calendar-rotation** "
-            "null is primary: it shifts the whole entry calendar by one random offset "
-            "for every ticker, preserving which trades share a date. The other two "
-            "schemes draw dates independently per ticker, destroy that clustering, "
-            "and are anti-conservative for signals that fire together; they are "
-            "kept for comparison.", "",
-            "| Signal | Observed mean | Rotation p (primary) | Matched-null p | Block-bootstrap p |",
+            "The ten concepts with the largest and five with the smallest excess at "
+            f"h = {PRIMARY_HOLDING_PERIOD}. The **rotation** p-value is exact: it "
+            "shifts the whole entry calendar by every admissible offset, the same for "
+            "every ticker, preserving which trades share a date. The matched-null and "
+            f"block-bootstrap schemes ({int(mc['n_runs'].iloc[0]):,} runs each) draw "
+            "dates independently per ticker, destroy that clustering, and are "
+            "anti-conservative for signals that fire together; they are kept for "
+            "comparison.", "",
+            "| Signal | Observed mean | Rotation p (exact) | Matched-null p | Block-bootstrap p |",
             "|---|---:|---:|---:|---:|",
         ]
         for _, r in mc.iterrows():
@@ -504,6 +597,7 @@ def build_validation_report(path: Path | None = None) -> Path:
         L.append("")
     else:
         L += ["Monte Carlo results not found.", ""]
+    L += _rotation_section()
 
     # -- 10. Sectors --------------------------------------------------------
     if sectors is not None and len(sectors):

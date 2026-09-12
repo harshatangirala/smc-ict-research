@@ -1,0 +1,13 @@
+{
+  "holding_period": 10,
+  "trades_full": 2198125,
+  "trades_membership_aware": 1763667,
+  "trades_dropped_pct": 19.8,
+  "n_beats_full": 0,
+  "n_beats_membership_aware": 0,
+  "survived_filter": [],
+  "lost_under_filter": [],
+  "gained_under_filter": [],
+  "sign_preserved_pct": 97.7,
+  "median_excess_shift_bps": 0.88
+}

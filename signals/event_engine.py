@@ -28,7 +28,7 @@ log = get_logger("event_engine")
 # hand-maintained NON_EVENT_COLUMNS deny-list. That is fail-open: a new bool
 # column is traded by default. It is exactly how ict_fvg_*_filled -- computed
 # from up to 60 FUTURE bars -- became a tradeable entry signal contributing
-# 187,719 leaked trades to the published results.
+# 187,719 look-ahead events (4.3% of the event table) to the published results.
 #
 # The rule is now fail-closed. A boolean column is tradeable only if it is
 # registered here with an explicit direction. Anything else must be declared

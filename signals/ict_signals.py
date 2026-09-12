@@ -24,7 +24,7 @@ This separation is the fix for a confirmed look-ahead leak: the previous
 ``ict_fvg_bullish_filled`` / ``ict_fvg_bearish_filled`` columns were plain
 booleans, so ``melt_events`` -- which selected every bool column -- emitted
 them as tradeable entries at the *formation* bar while their value was
-computed from up to 60 *subsequent* bars. 187,719 leaked trades reached the
+computed from up to 60 *subsequent* bars. 187,719 look-ahead events reached the
 published results, and both columns land at the extremes of the concept
 ranking as a direct artifact. See tests/test_no_lookahead.py.
 """

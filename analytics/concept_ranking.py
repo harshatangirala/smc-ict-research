@@ -97,13 +97,18 @@ def summarise_edge_counts(
         return {}
     n = len(r)
     beats = int(r["beats_matched_random"].fillna(False).sum())
-    tested = r[~r["low_sample_warning"].fillna(True)]
-    loses = int(
-        (
-            tested["reject_vs_matched_random"].fillna(False)
-            & (tested["excess_return_vs_matched_random"] < 0)
-        ).sum()
-    )
+    # The headline test is one-sided, so it cannot find a loser; the two-sided
+    # family from analytics.master_stats does.
+    if "loses_to_matched_random" in r.columns:
+        loses = int(r["loses_to_matched_random"].fillna(False).astype(bool).sum())
+    else:
+        tested = r[~r["low_sample_warning"].fillna(True)]
+        loses = int(
+            (
+                tested["reject_vs_matched_random"].fillna(False)
+                & (tested["excess_return_vs_matched_random"] < 0)
+            ).sum()
+        )
     return {
         "holding_period": holding_period,
         "n_concepts": n,

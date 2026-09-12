@@ -18,8 +18,11 @@ count came from a **two-sided** significance test: 27 of those 28 concepts had a
 signals (`ict_fvg_bullish_filled`, `ict_fvg_bearish_filled`) computed from up to
 60 bars of future data, and count `ict_ndog_formed`, which fired on every bar.
 
-The corrected result is **5 of 44** concepts beating a composition-matched null,
-of which **2** survive a sweep of their own parameters.
+The corrected result is that **none of 44** concepts beats a composition-matched
+random-entry null at any of eight horizons once inference accounts for overlapping
+returns and signals that fire on the same dates. An intermediate draft of the
+re-analysis reported 5 of 44; that count came from a test later shown to be
+anti-conservative (`CHANGES.md` §8.1).
 
 ## Use instead
 

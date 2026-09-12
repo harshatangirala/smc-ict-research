@@ -1,6 +1,6 @@
 {
   "derivation": "blake2b(f'{master_seed}:{label}', digest_size=8) % 2**32",
-  "git_hash": "51700dd",
+  "git_hash": "a9db8a8",
   "master_seed": 42,
   "note": "Stable across processes and platforms. Does NOT use Python's salted hash(); see utils/rng.py for the rationale.",
   "profile": "final"

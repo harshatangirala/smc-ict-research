@@ -1,13 +1,13 @@
 # Reviewer Report
 
-*Generated 2026-09-08 08:59 UTC*
+*Generated 2026-09-12 08:29 UTC*
 
 An adversarial pre-read: the objections a referee or an informed reader is most likely to raise, checked programmatically against the artefacts this run produced. `EXPOSED` items are genuine weaknesses that are **not** fixed; they are listed so the paper can state them rather than have a reader discover them.
 
 | Status | Count |
 |---|---:|
 | ADDRESSED | 9 |
-| PARTIAL | 4 |
+| PARTIAL | 6 |
 | EXPOSED | 1 |
 
 ---
@@ -18,13 +18,25 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 **Evidence.** No forward-looking column reaches the event table. Causality is proved by truncation invariance over every registered detector, plus an index-position audit asserting that exits and MAE/MFE read only bars strictly after entry. A canary test confirms the probe still detects a known-leaky column, so a pass is not vacuous.
 
-**Response.** The original pipeline did leak -- two FVG-fill columns contributing 187,719 trades -- and the paper reports that as a finding rather than omitting it.
+**Response.** The original pipeline did leak -- two FVG-fill columns emitting 187,719 look-ahead events (187,374 trades at h = 10) -- and the paper reports that as a finding rather than omitting it.
 
 *See:* `tests/test_no_lookahead.py`, `results/validation_report.md`
 
 ---
 
-## 2. A two-sided test cannot support a directional claim about outperformance.
+## 2. Are the p-values calibrated? A test that assumes independent entry dates overstates significance for signals that fire on the same dates.
+
+**PARTIAL** · severity: critical
+
+**Evidence.** Designs with a true edge of zero, nominal 5%: the first primary test (SRS variance) rejects up to 41%; the calendar-time test now used rejects at most 6.8%. clustered: srs 0.406 / calendar 0.068 / rotation 0.069; independent: srs 0.057 / calendar 0.000 / rotation 0.058; semi: srs 0.281 / calendar 0.035 / rotation 0.073; sim_clustered: srs 0.343 / calendar 0.030 / rotation 0.044; sim_independent: srs 0.051 / calendar 0.000 / rotation 0.050; sim_vol_timed: srs 0.383 / calendar 0.050 / rotation 0.188. Anti-conservative in: srs -- clustered, semi, sim_clustered, sim_vol_timed; calendar -- clustered; rotation -- clustered, semi, sim_vol_timed.
+
+**Response.** Found by the authors' own audit, not a referee. Every headline count was recomputed with the calendar-time test; the SRS p-value is kept beside it in results/statistics_master.csv so the difference is auditable. The calendar test is conservative when entries are dispersed, which costs power but cannot manufacture the paper's null result; the exact rotation test is reported beside it for every hypothesis.
+
+*See:* `tools/calibration_study.py`, `results/test_calibration.csv`
+
+---
+
+## 3. A two-sided test cannot support a directional claim about outperformance.
 
 **PASS** · severity: critical
 
@@ -36,7 +48,7 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 ---
 
-## 3. Testing dozens of concepts across eight horizons guarantees false positives.
+## 4. Testing dozens of concepts across eight horizons guarantees false positives.
 
 **PASS** · severity: high
 
@@ -48,7 +60,7 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 ---
 
-## 4. Overlapping forward returns and cross-sectional correlation invalidate the t-tests.
+## 5. Overlapping forward returns and cross-sectional correlation invalidate the t-tests.
 
 **PASS** · severity: high
 
@@ -60,23 +72,23 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 ---
 
-## 5. A zero-return null is meaningless over a bull market; the benchmark must be a real alternative strategy.
+## 6. A zero-return null is meaningless over a bull market; the benchmark must be a real alternative strategy.
 
 **PASS** · severity: high
 
-**Evidence.** The primary test is a design-based matched randomization: hold the ticker mix and the per-ticker trade count fixed, then ask what mean randomly chosen entry dates would produce. Its analytic moments are validated against a 2,000-run simulation (null means agree to five decimals; SE ratios 0.99-1.04).
+**Evidence.** The benchmark is composition-matched: each trade is measured against its own ticker's unconditional mean forward return, so ticker mix and per-ticker trade counts are held fixed. Inference is a calendar-time Newey-West test on that per-trade excess.
 
 **Response.** The zero-return test is retained but labelled weak. Six conventional benchmarks run through the identical engine.
 
-*See:* `analytics/statistics.py::matched_randomization_test`
+*See:* `analytics/statistics.py::matched_excess_calendar_test`
 
 ---
 
-## 6. Everything is in-sample; there is no out-of-sample evidence.
+## 7. Everything is in-sample; there is no out-of-sample evidence.
 
 **PASS** · severity: high
 
-**Evidence.** Rolling walk-forward: train 3 years, test 1, step 1. Concepts are ranked on the training window only, and null pools are rebuilt inside each window so the training null never sees test prices. 13 folds; mean out-of-sample excess of selected concepts -0.1629pp; mean hit rate 53.8%.
+**Evidence.** Rolling walk-forward: train 3 years, test 1, step 1. Concepts are ranked on the training window only, and null pools are rebuilt inside each window so the training null never sees test prices. 13 folds; mean out-of-sample excess of selected concepts -0.3931pp; mean hit rate 36.9%.
 
 **Response.** Selection skill and concept skill are reported separately, together with the train-to-test rank correlation of the concept ordering.
 
@@ -84,7 +96,7 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 ---
 
-## 7. Gross returns are not tradeable; realistic costs would erase a few-basis-point edge.
+## 8. Gross returns are not tradeable; realistic costs would erase a few-basis-point edge.
 
 **PASS** · severity: high
 
@@ -96,19 +108,31 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 ---
 
-## 8. The universe is a current index snapshot applied retroactively -- survivorship bias.
+## 9. The universe is a current index snapshot applied retroactively -- survivorship bias.
 
 **PARTIAL** · severity: high
 
-**Evidence.** Acknowledged and quantified: the constituent list is a 2026 snapshot, five tickers are permanently unavailable, and roughly 80 begin after 2010. The bias inflates absolute return levels for signals and baselines alike.
+**Evidence.** Sized with published index-entry dates: of 498 analysed tickers, 265 were members at the sample start and at least 235 since-removed constituents are absent. Look-ahead membership is removed exactly by a re-test that filters both signals and matched-null pools: 19.8% of trades drop out; no concept beats the null in either universe (full 0, membership-aware 0); the sign of the excess is preserved for 97.7% of concepts.
 
-**Response.** NOT fully corrected -- a point-in-time constituent history is not available to this pipeline. The matched-random comparison largely cancels it, since the null is drawn from the same survivor-biased tickers, which is the main reason that comparison carries the headline rather than raw returns. A referee may still reasonably require a point-in-time universe. This is the study's single largest unaddressed threat to validity.
+**Response.** The removed firms cannot be recovered from free sources; Wikipedia no longer publishes its historical changes table. Survivor bias inflates signal and null alike, so it largely cancels in the excess -- unless removed firms, which are disproportionately distressed, responded to these patterns differently. A point-in-time universe remains the largest open threat to validity.
 
-*See:* `results/validation_report.md`
+*See:* `analytics/survivorship.py`, `results/survivorship_comparison.json`
 
 ---
 
-## 9. Findings may not generalise beyond US large caps on daily bars, 2010-2026.
+## 10. A null result from an underpowered test is not evidence of absence.
+
+**PARTIAL** · severity: high
+
+**Evidence.** Minimum detectable excess at 80% power: median 45 bp, best 27 bp (h = 10). The one-sided 95% upper bound on the excess is below the 11 bp minimum round-trip cost for 10 of 44 concepts and below 26 bp for 27.
+
+**Response.** The paper reports, per concept, the largest edge the data can exclude and separates concepts where a cost-covering edge is ruled out from those where the data are simply uninformative. Small edges -- the 10-20 bp range where a practitioner would care -- cannot be ruled out for most concepts, and the Limitations section says so.
+
+*See:* `results/statistics_master.csv`, `docs/manuscript.md`
+
+---
+
+## 11. Findings may not generalise beyond US large caps on daily bars, 2010-2026.
 
 **PARTIAL** · severity: high
 
@@ -120,7 +144,7 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 ---
 
-## 10. No economic mechanism is proposed for why these patterns would predict returns.
+## 12. No economic mechanism is proposed for why these patterns would predict returns.
 
 **OPEN** · severity: medium
 
@@ -130,7 +154,7 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 ---
 
-## 11. Results are reported at one parameter configuration inherited from the source scripts.
+## 13. Results are reported at one parameter configuration inherited from the source scripts.
 
 **PASS** · severity: medium
 
@@ -142,7 +166,7 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 ---
 
-## 12. SMC/ICT concepts are vaguely defined in the source material; the paper may be testing a strawman.
+## 14. SMC/ICT concepts are vaguely defined in the source material; the paper may be testing a strawman.
 
 **PARTIAL** · severity: medium
 
@@ -154,27 +178,27 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 ---
 
-## 13. Bootstrap confidence intervals assume iid draws, which these returns are not.
+## 15. Resampling schemes that draw dates independently per ticker ignore that trades cluster on the same dates.
 
 **PASS** · severity: medium
 
-**Evidence.** Three resampling schemes are reported: matched random re-entry, iid trade shuffling, and a circular block bootstrap (21-bar blocks) that preserves serial dependence. The bootstrap interval is reported beside a HAC interval, and `ci_method` records which bootstrap path was taken.
+**Evidence.** The rotation null shifts the whole entry calendar by one offset for every ticker, preserving which trades share a date, and is evaluated exactly over every admissible offset by FFT, so its p-values can clear a family-wide FDR threshold. The independent-draw and per-ticker block schemes are kept for comparison and labelled anti-conservative. Confidence intervals used for inference are HAC, not iid bootstrap. The exact rotation test covers all 352 hypotheses; 0 beat it after BH-FDR and 54 lose to it.
 
-**Response.** The HAC interval, not the bootstrap one, is used for inference; the bootstrap is reported because the specification requires it and for comparability with the prior version.
+**Response.** The iid bootstrap interval is still reported because the brief requires it; `ci_method` records when it ran on a subsample.
 
-*See:* `analytics/montecarlo.py`
+*See:* `analytics/montecarlo.py::rotation_null_exact`, `results/rotation_null_all.csv`
 
 ---
 
-## 14. Sector-level conclusions rest on too few names to have statistical power.
+## 16. Sector-level conclusions rest on too few names to have statistical power.
 
 **PARTIAL** · severity: medium
 
-**Evidence.** Per-sector ticker and trade counts are reported alongside every sector result, and roughly 10% of the universe is unmapped and shown as `Unknown` rather than dropped. 3 of 12 sectors rest on fewer than 25 tickers.
+**Evidence.** Minimum detectable effect per sector from its calendar-time standard error: 14.7-57.1 bp; 0 of 11 sectors are adequately powered (MDE < 10 bp). Sectors are published GICS, with no unclassified tickers.
 
-**Response.** Sector results are presented as descriptive, not as tested hypotheses with their own power analysis. A referee may reasonably ask for formal power calculations before any sector claim is made.
+**Response.** Sector differences are still presented as descriptive rather than pre-registered hypotheses, and GICS labels are current rather than point-in-time.
 
-*See:* `analytics/sectors.py`
+*See:* `analytics/sectors.py`, `results/sector_power.csv`
 
 ---
 
@@ -184,15 +208,17 @@ An adversarial pre-read: the objections a referee or an informed reader is most 
 
 * No economic mechanism is proposed for why these patterns would predict returns.
 
-4 are partially addressed and should be scoped explicitly rather than claimed as solved:
+6 are partially addressed and should be scoped explicitly rather than claimed as solved:
 
+* Are the p-values calibrated? A test that assumes independent entry dates overstates significance for signals that fire on the same dates.
 * The universe is a current index snapshot applied retroactively -- survivorship bias.
+* A null result from an underpowered test is not evidence of absence.
 * Findings may not generalise beyond US large caps on daily bars, 2010-2026.
 * SMC/ICT concepts are vaguely defined in the source material; the paper may be testing a strawman.
 * Sector-level conclusions rest on too few names to have statistical power.
 
 ### The strongest defensible position
 
-This paper's headline result is **negative** -- most concepts do not beat a composition-matched random entry -- and a negative result is robust to most of the objections that would sink a positive one. Multiplicity, survivorship bias and transaction costs all push *against* finding an edge, so none of them can manufacture the null reported here. The paper should make that argument explicitly rather than leaving a referee to notice it.
+This paper's headline result is **negative** -- no concept beats a composition-matched random entry after FDR control -- and a negative result is robust to most of the objections that would sink a positive one. Multiplicity and transaction costs push *against* finding an edge, and an anti-conservative test would have produced rejections, not fewer of them, so none of these can manufacture the null reported here. The paper should make that argument explicitly rather than leaving a referee to notice it.
 
-The corresponding risk is the opposite one: a referee may ask whether the study had the *power* to detect a real edge of plausible size. That question should be met with the sample sizes and confidence-interval widths already in `results/statistics_master.csv`, not deflected.
+The corresponding risk is the opposite one, and it is real here: the primary test is conservative when entries are dispersed, and its minimum detectable effect is larger than a plausible edge for most concepts. The power finding above states what the data can and cannot exclude; the paper should lead with it rather than let 'no concept beats the null' be read as 'no concept has an edge'.

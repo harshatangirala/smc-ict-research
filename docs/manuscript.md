@@ -3,34 +3,32 @@ title: "Do Smart Money Concepts Predict Returns? Evidence from 44 Formalised Det
 author: "Harsha Tangirala"
 date: "September 2026"
 abstract: |
-  Smart Money Concepts (SMC) and Inner Circle Trader (ICT) methods are among the
-  most widely taught discretionary trading frameworks, yet they have almost no
-  peer-reviewed empirical evaluation. We translate two widely used open-source
-  Pine Script implementations into 44 formally specified, machine-readable event
-  detectors and test them on daily OHLCV data for 496 S&P 500 constituents from
-  January 2010 to June 2026 — 2.23 million detected events and 17.7 million
-  simulated trades across eight holding horizons. Our central methodological
-  contribution is the benchmark: rather than testing mean returns against zero,
-  we construct a design-based *composition-matched randomization null* that
-  holds the ticker mix and per-ticker trade count fixed and asks what returns
-  randomly chosen entry dates would have produced. Against a zero-return null,
-  39 of 44 concepts appear significant. Against the matched null, with
-  Benjamini–Hochberg control across all 352 (concept × horizon) hypotheses, only
-  5 survive, and their excess returns are 5–33 basis points over ten trading
-  days; a targeted sweep over the parameters we chose reduces that to 2 whose
-  edge is robust to its own parameterisation. Because forward returns overlap in time and cluster cross-sectionally,
-  conventional iid standard errors understate uncertainty by a median factor of
-  5.8 (maximum 11.8) in this sample; we use calendar-time Newey–West standard
-  errors throughout. In a 13-fold walk-forward evaluation, concepts selected on
-  three years of training data earn a mean out-of-sample excess of −0.16
-  percentage points. Modelled round-trip costs of 11–26 basis points exceed the
-  matched-null excess of all but one concept. We conclude that these
-  implementations of SMC/ICT carry little to no exploitable predictive
-  information on daily US equity bars, and we document how three specific
-  methodological choices — a two-sided significance test, an unmatched
-  benchmark, and iid standard errors — can manufacture the opposite conclusion
-  from the same data.
-keywords: [technical analysis, smart money concepts, ICT, market efficiency, multiple testing, randomization inference, backtest overfitting]
+  Smart Money Concepts (SMC) and Inner Circle Trader (ICT) methods are widely
+  taught discretionary trading frameworks with almost no peer-reviewed
+  evaluation. We translate two widely used open-source Pine Script
+  implementations into 44 formally specified event detectors and test them on
+  daily data for 496 S&P 500 constituents from January 2010 to June 2026: 2.20
+  million events and 17.6 million simulated trades over eight holding horizons.
+  Each trade is measured against its own ticker's unconditional return — a
+  composition-matched null — and inference uses calendar-time Newey–West
+  standard errors. A calibration study with a known zero edge shows this to be
+  the only one of three candidate tests whose size stays near nominal (at most
+  6.8% at a nominal 5%) when signals cluster on the same dates or in volatile
+  markets. Against a zero-return null, 38 of 44 concepts appear significant.
+  Against the matched null, with Benjamini–Hochberg control across all 352
+  concept × horizon hypotheses, none beats random entry at any horizon and none
+  is significantly worse; an exact rotation test finds no winners either. The
+  largest well-measured point estimates, 11–12 basis points over ten days for
+  two liquidity-sweep detectors, have p ≥ 0.23. For ten concepts the data
+  exclude, at 95% confidence, an edge large enough to cover the lowest modelled
+  round-trip cost of 11 bp; the median concept's minimum detectable edge is 45
+  bp. Concepts selected on three years of data earn −39 bp out of sample. The
+  study is a corrected re-analysis: an earlier version reported 28 of 42
+  concepts beating random entry, 27 of which in fact lost to it, and this
+  re-analysis's own first draft reported five winners using a variance formula
+  that rejects 28–41% of uninformative clustered signals. We document how each
+  error manufactures a positive result from the same data.
+keywords: [technical analysis, smart money concepts, ICT, market efficiency, multiple testing, calendar-time inference, test calibration, backtest overfitting]
 ---
 
 # 1. Introduction
@@ -57,67 +55,62 @@ expression over OHLCV, a stated direction, parameters with defaults and allowed
 ranges, and an explicit argument that the detector reads no future bar. Where the
 source is ambiguous, we name the ambiguity and justify the reading we chose.
 
-**Second, a benchmark.** The natural null hypothesis — "mean forward return is
-zero" — is nearly uninformative over a 16-year bull market, because any
-long-biased signal clears it on market drift alone. We instead construct a
-*composition-matched randomization null*: hold the concept's ticker mix and
-per-ticker trade count fixed, and ask what mean return would arise if the entry
-*dates* were chosen at random. This is a design-based test in the sense of
-Fisher: the null distribution comes from the sampling design, not from an assumed
-return distribution, and it removes the ticker-composition confound that makes a
-pooled comparison uninterpretable.
+**Second, a benchmark and a calibrated test.** The natural null hypothesis —
+"mean forward return is zero" — is nearly uninformative over a 16-year bull
+market, because any long-biased signal clears it on market drift alone. We
+measure each trade against its own ticker's unconditional forward return, which
+holds the ticker mix and per-ticker trade count fixed: a *composition-matched*
+null. The harder problem is inference. SMC/ICT events cluster: a broad market
+move triggers the same detector on hundreds of tickers on the same day, and many
+detectors fire preferentially in turbulent markets. We compare three tests of the
+matched excess in a calibration study with a known zero edge and find that only a
+calendar-time Newey–West test keeps its size near nominal under both kinds of
+clustering.
 
 **Third, an audit.** This study is a corrected re-analysis of an earlier version
-of the same pipeline. That version reported that 28 of 42 concepts were
-"significant versus a random-entry baseline". We show that 27 of those 28 were
-significantly *worse* than random entry — the test was two-sided — and that two
-of the 42 concepts were computed from up to 60 bars of future data. We document
-each defect, its magnitude, and what the corrected analysis shows instead.
-Section 6 treats this as a finding rather than an erratum: the three errors
-involved are ordinary, and each independently converts a null result into an
+of the same pipeline, which reported that 28 of 42 concepts were "significant
+versus a random-entry baseline". Twenty-seven of those 28 were significantly
+*worse* than random entry — the test was two-sided — and two of the 42 concepts
+were computed from up to 60 bars of future data. The re-analysis's own first
+draft made two further errors, reporting five winning concepts on the strength of
+a variance formula that ignores calendar clustering and an order-block detector
+that selected the wrong candle. Section 6 treats all of this as a finding rather
+than an erratum: each error is ordinary, and each converts a null result into an
 apparently positive one.
 
-The headline result is negative. Only 5 of 44 concepts beat the matched null at
-the primary horizon; their excess returns are of the same order as trading costs;
-and out of sample, concepts selected on past data do not carry their edge
-forward.
+The headline result is negative. No concept beats the composition-matched null at
+any of eight horizons after multiple-testing control, and none is significantly
+worse. We are explicit about power: for ten concepts the data exclude an edge
+large enough to cover the lowest modelled trading cost, but for many others an
+edge of 10–30 basis points per trade can be neither confirmed nor ruled out.
 
 # 2. Related work
 
-The efficient-market tradition holds that publicly available technical rules
-should not generate risk-adjusted profits once data-snooping is accounted for.
-The methodological core of this paper follows that literature rather than the
-practitioner one.
+On technical analysis itself, Brock, Lakonishok and LeBaron (1992) find that
+simple moving-average and range-breakout rules had predictive content in the Dow
+Jones index, and Lo, Mamaysky and Wang (2000) find some statistical content in
+classical chart patterns after nonparametric smoothing. Park and Irwin (2007)
+survey the broader evidence and conclude that early positive results largely fail
+to survive transaction costs, data-snooping adjustments and out-of-sample
+testing. SMC/ICT concepts are, operationally, a family of breakout and reversal
+patterns defined on swing highs and lows, and our results fit that pattern.
 
-Our multiple-testing treatment follows Benjamini and Hochberg (1995) for
-false-discovery control, and the broader concern that backtest results degrade
-once the number of trials is counted is developed by White (2000), Sullivan,
-Timmermann and White (1999) for technical trading rules specifically, and by
-Harvey, Liu and Zhu (2016) and Bailey and López de Prado (2014) for the
-cross-section of reported strategies. The last of these is directly relevant: the
-number of configurations one can try on a fixed dataset is large enough that a
-Sharpe ratio reported without a trial count is uninterpretable.
+The multiple-testing treatment follows Benjamini and Hochberg (1995). The concern
+that backtest results degrade once the number of trials is counted is developed
+by White (2000) and by Sullivan, Timmermann and White (1999) for technical
+trading rules specifically, and by Harvey, Liu and Zhu (2016) and Bailey and
+López de Prado (2014) for the cross-section of reported strategies.
 
-The overlapping-returns problem — that *h*-day forward returns computed on
-consecutive bars share *h*−1 days of price path — is treated by Newey and West
-(1987) and, in the specific context of calendar-time portfolio tests, by Fama
-(1998). Our estimator is the calendar-time variant: collapse trades to the date
-level, then apply Newey–West at lag *h*. This handles both the serial overlap and
-the cross-sectional correlation induced by a common market factor, and Section
-4.4 shows the two together account for a median 5.8× understatement of standard
-errors in our sample.
-
-Randomization inference of the kind we use for the matched null goes back to
-Fisher (1935); its application here is closest in spirit to the bootstrap
-reality-check literature, but exploits an exact finite-population variance rather
-than simulation.
-
-On technical analysis itself, Lo, Mamaysky and Wang (2000) find some statistical
-content in classical chart patterns after nonparametric smoothing, while Park and
-Irwin (2007) survey the broader evidence and conclude that early positive results
-largely fail to survive transaction costs and out-of-sample testing. Our result
-is consistent with that pattern: the gross returns are real, the excess over a
-properly matched benchmark is small, and costs consume most of what remains.
+The inferential problem — overlapping *h*-day returns, and events that cluster in
+calendar time — is the one the long-horizon event-study literature confronts.
+Newey and West (1987) give the HAC estimator; Fama (1998) and Mitchell and
+Stafford (2000) argue for calendar-time methods because event returns are
+cross-sectionally dependent; Lyon, Barber and Tsai (1999) document how
+conventional tests misstate their size in that setting. Loughran and Ritter
+(2000) show that calendar-time methods can have low power, which is what our
+calibration study finds for dispersed events. Randomization inference goes back
+to Fisher (1935); our rotation test is a randomization test that preserves the
+cross-sectional structure of each concept's event calendar.
 
 # 3. Data and concept formalisation
 
@@ -130,67 +123,72 @@ EA, EQR, HONA, SATS) are unavailable at this snapshot, which we verified is
 permanent rather than transient. Of those, 496 have at least 300 bars and enter
 the study.
 
-Median coverage is 4,136 bars against 4,289 business days in the same span. The
-3.6% shortfall is exactly the US market holiday calendar; no ticker falls below
-95% coverage of its own span. Three bars in the entire sample violate the OHLC
-invariant (APH on 2023-06-05 and 2021-05-05, HUBB on 2021-05-05, all
+Median coverage is 4,136 bars against 4,289 business days in the same span; the
+shortfall is exactly the US market holiday calendar. Three bars violate the OHLC
+invariant materially (APH on 2021-05-05 and 2023-06-05, HUBB on 2021-05-05, all
 back-adjustment artefacts of 0.12–0.38% of close); we repair them by clamping
-high and low to enclose open and close, the minimal change that restores the
-invariant. A further 1,301 bars carry violations below 10⁻⁶ of close, which is
-float representation noise rather than bad data.
+high and low to enclose open and close. A further 1,301 bars carry violations
+below 10⁻⁶ of close, which is float representation noise.
 
-**Survivorship bias.** The constituent list is a 2026 snapshot applied
-retroactively, so only firms in the index today are tested. Roughly 80 tickers
-begin after 2010. This inflates absolute return levels. It does *not* explain our
-result, because the matched null is drawn from the same survivor-biased tickers —
-the bias inflates the signal and its benchmark equally. It remains the study's
-largest unaddressed threat to validity, and we return to it in Section 7.
+**Sectors** are the published GICS classification from a committed constituent
+snapshot: eleven sectors, every analysed ticker classified. A hand-curated map
+used earlier left 54 constituents unclassified and mis-classified six.
+
+**Survivorship.** The constituent list is a 2026 snapshot applied to 2010–2026.
+The snapshot's index-entry dates size the problem: of the 498 constituents with
+price data, 265 were index members at the sample start and 233 joined during it,
+so at least 235 of the 500 index slots at the start — 47% — were held by firms
+that have since been removed and are absent here. Section 5.7 removes
+the part of the bias that can be removed (trading a firm before it joined the
+index); the removed firms cannot be recovered from free sources.
 
 ## 3.2 From Pine Script to formal specifications
 
 The two source indicators are widely used open-source implementations of SMC and
-ICT concepts. We treat their code as the operational definition. Each detector is
-published as a specification (`docs/specs/*.yaml`) giving:
-
-- a boolean expression over OHLCV and derived indicators;
-- a direction, +1 or −1, fixed in advance;
-- parameters with defaults (the source `input.*` values) and allowed ranges;
-- an expected minimum occurrence count;
-- an explicit argument that the detector reads no bar after the event bar.
-
-Continuous-integration checks regenerate the specifications and fail on drift,
-and a test asserts that the direction in each specification matches the direction
-the code actually trades.
+ICT concepts, and we treat their code as the operational definition. Each detector
+is published as a specification (`docs/specs/*.yaml`) giving a boolean expression
+over OHLCV and derived indicators; a direction, +1 or −1, fixed in advance;
+parameters with defaults (the source `input.*` values) and allowed ranges; an
+expected minimum occurrence count; and an explicit argument that the detector
+reads no bar after the event bar. Continuous-integration checks regenerate the
+specifications and fail on drift, and a test asserts that each specification's
+direction matches the direction the code trades. Where the source admits more
+than one reading, the choice and its rationale are recorded in a disambiguation
+register (`docs/disambiguation.md`, 16 entries) with a table of which choices
+could move a published number.
 
 ## 3.3 Prospective definition and the treatment of confirmation
 
 Several SMC/ICT concepts are conventionally described with hindsight — a
 liquidity sweep is "confirmed" when price later reverses; a fair value gap is
 "filled" when price later returns to it. A detector written that way cannot be
-traded, because its value at the event bar depends on subsequent bars.
-
-We enforce a strict separation. Detection is prospective: an event fires on the
-bar at which all its conditions are observable. Confirmation windows become
-*evaluation labels*, carried in separate columns and excluded from the tradeable
-event set. Concretely:
+traded, because its value at the event bar depends on subsequent bars. We enforce
+a strict separation. Detection is prospective: an event fires on the bar at which
+all its conditions are observable. Confirmation windows become *evaluation
+labels*, carried in separate columns and excluded from the tradeable event set.
 
 - **Liquidity sweep.** Penetration of the most recent confirmed swing level by at
   least *X* × ATR, followed by a close back past that level within *Z* bars. The
-  event is stamped on the *reclaim* bar, not on the penetration bar, so every
-  input is observable at the moment of the trade. (*X* = 0.25, *Z* = 3 by
-  default; both are swept in Section 5.4.)
+  event is stamped on the *reclaim* bar, so every input is observable at the
+  moment of the trade (*X* = 0.25, *Z* = 3 by default; both are swept in Section
+  5.6). The source's own sweep fires when price merely enters a liquidity pool,
+  with no rejection leg; it is kept alongside under its original name.
+- **Opening gaps.** The source's new-day gap test is true on every bar; a gap
+  event requires |open − previous close| ≥ 0.10 × ATR(14), split by direction.
 - **Fair value gap fill.** "Filled within *N* bars" is a label, not a signal
   (*N* = 60, the longest horizon we test).
 - **Order block mitigation.** A bullish order block *failing* is scored as a
   bearish event, not a bullish one.
 
-Section 6.1 describes what happened when this discipline was absent.
-
 ## 3.4 Detected events
 
-The 44 detectors produce 2,226,881 events across 496 tickers. Every event carries
-a direction of +1 or −1; none is direction-less. Event frequency ranges from
-1,245 (`smc_swing_bos_bearish`) to 212,461 (`ict_displacement_bullish`).
+The 44 detectors produce 2,204,425 events across 496 tickers, every one with a
+direction of +1 or −1. Twenty-two concepts are long and twenty-two short. Event
+frequency ranges from 1,245 (`smc_swing_bos_bearish`) to 212,461
+(`ict_displacement_bullish`). Order blocks follow LuxAlgo's `storeOrdeBlock`
+exactly: for a bullish block, the bar with the lowest low between the swing pivot
+and the break, removed once mitigated (Section 6.5 describes the translation
+error this replaced).
 
 # 4. Methodology
 
@@ -199,410 +197,529 @@ a direction of +1 or −1; none is direction-less. Event frequency ranges from
 For an event on bar *p* and holding period *h* ∈ {1, 2, 3, 5, 10, 20, 40, 60}:
 entry is at `close[p]`, exit at `close[p+h]`, and maximum favourable and adverse
 excursion are computed over `high/low[p+1 … p+h]`. Returns are signed by the
-event's direction. This yields 17,731,944 trades.
+event's direction. This yields 17,552,994 trades, 2,198,125 of them at the
+primary horizon *h* = 10.
 
 No-look-ahead is enforced mechanically rather than by inspection, by two
-independent checks. First, an index-position audit re-derives the exact bar
-indices each trade reads and asserts that every exit and excursion bar is
-strictly greater than the entry bar. Second, a truncation-invariance test
-recomputes every detector on data cut at bar *i* and requires the value at bar
-*i* to be unchanged; a detector that reads a future bar flips. A deliberate
-canary — the known-leaky fill label — confirms the probe is sensitive, so a pass
-is not vacuous.
+independent checks. An index-position audit re-derives the exact bar indices each
+trade reads and asserts that every exit and excursion bar is strictly greater
+than the entry bar. A truncation-invariance test recomputes every detector on data
+cut at bar *i* and requires the value at bar *i* to be unchanged; a detector that
+reads a future bar flips. A deliberate canary — the known-leaky fill label —
+confirms the probe is sensitive, so a pass is not vacuous.
 
-## 4.2 The composition-matched randomization null
+## 4.2 The composition-matched null
 
-Let a concept *c* generate *n_t* trades on ticker *t*, with *N_t* the number of
-eligible bars for that ticker and horizon. Under the null that entry dates carry
-no information, the *n_t* entries are a uniform random subset of the *N_t* bars.
-Sampling without replacement gives, for the pooled mean,
+Let trade *i* on ticker *t(i)* have direction *d_i* ∈ {+1, −1} and signed forward
+return *r_i* = *d_i* (close[*p*+*h*]/close[*p*] − 1), and let *μ_t* be the mean
+of all *h*-day forward returns on ticker *t*. The trade's excess is
 
-$$\mathbb{E}[\bar{r}] = \frac{1}{N}\sum_t n_t \, d \, \mu_t, \qquad
-\operatorname{Var}[\bar{r}] = \frac{1}{N^2}\sum_t n_t \, \sigma_t^2 \, \frac{N_t - n_t}{N_t - 1},$$
+$$e_i = r_i - d_i\,\mu_{t(i)},$$
 
-where *μ_t* and *σ_t²* are the mean and variance of all *h*-day forward returns
-on ticker *t*, *d* ∈ {+1, −1} is the concept's direction, and *N* = Σ *n_t*.
+and a concept's excess *ē* is the mean over its *N* trades. Equivalently, *ē* is
+the concept's mean return minus the mean return of entering the same tickers the
+same number of times on randomly chosen dates, Σ_t n_t d μ_t / N. Mean returns
+differ enormously across names over 2010–2026, so a benchmark drawn from a
+different ticker mix measures composition as much as signal quality; this one
+does not.
 
-This is exact under the sampling design. It assumes nothing about how returns are
-distributed or correlated in time — only that the null entry dates are drawn
-uniformly. Critically, it holds the ticker mix fixed, which a pooled comparison
-against a separately generated benchmark does not: mean returns differ enormously
-across names over this period, so a benchmark drawn from a different mix measures
-composition as much as signal quality.
+## 4.3 Inference
 
-We validate the analytic moments against a 2,000-run simulation across horizons
-and directions: null means agree to five decimal places and standard-error ratios
-fall in 0.99–1.04.
+**Primary: calendar-time Newey–West.** Two dependence structures make an iid test
+invalid. *h*-day returns started on consecutive days share *h*−1 days of price
+path; and trades entered on the same date across hundreds of tickers share the
+market factor, so the effective number of observations is closer to the number of
+entry dates than to the number of trades. We collapse trades to a business-day
+calendar: with *n_d* trades on date *d* and date-mean excess *ē_d*, let
+*x_d* = *n_d*(*ē_d* − *ē*)/*N*, with *x_d* = 0 on dates without trades. The
+variance of *ē* is estimated as
 
-## 4.3 Significance testing
+$$\widehat{V} = \sum_d x_d^2 + 2\sum_{\ell=1}^{h}\Big(1-\tfrac{\ell}{h+1}\Big)\sum_d x_d\,x_{d-\ell},$$
 
-Three tests are reported per (concept, horizon):
+and the test is one-sided: *p* = 1 − Φ(*ē*/√*V̂*).
 
-1. **Versus zero.** Is the mean forward return different from zero? Reported, but
-   weak — over 2010–2026 a long-biased signal clears it on drift.
-2. **Versus the matched null.** The primary test, one-sided: is the concept
-   *better* than composition-matched random entry?
-3. **Versus a pooled random-entry baseline.** A one-sided Welch test, retained
-   for continuity with prior work; superseded by (2) because it does not control
-   ticker mix.
+**Secondary: exact rotation.** Shift the concept's whole entry calendar by an
+offset *o*, the same for every ticker and wrapping circularly, and re-read each
+trade's forward return at the shifted date. This preserves the ticker mix, the
+per-ticker counts, the spacing of entries and — crucially — which trades share a
+date. We evaluate every admissible offset (*o* = *h*+1, …, *T*−*h*−2; 4,014–4,132
+offsets per hypothesis) rather than a sample: the rotated mean is a ratio of two
+circular cross-correlations, which a fast Fourier transform gives for all offsets
+at once. The p-value is (1 + #{*o*: rotated mean ≥ observed}) / (1 + number of
+offsets). Enumeration matters: a sampled test with 1,000 rotations cannot produce
+a p-value below 1/1001, which is above the smallest Benjamini–Hochberg threshold
+of 0.05/352.
 
-All tests are one-sided with the direction stated. Benjamini–Hochberg control at
-α = 0.05 is applied once across the entire family of 352 (concept × horizon)
-hypotheses, not within slices. A concept is recorded as beating the null only if
-its excess is positive, it survives FDR, and it rests on at least 30 trades. A
-significant *negative* excess is reported in its own count, never folded into a
-"significant" total.
+**Superseded: the simple-random-sampling variance.** If each concept's null entry
+dates were a uniform random subset of each ticker's *N_t* bars, drawn
+independently across tickers, the exact variance of the matched null mean would be
 
-## 4.4 Standard errors under overlap and cross-sectional correlation
+$$\operatorname{Var}[\bar r] = \frac{1}{N^2}\sum_t n_t\,\sigma_t^2\,\frac{N_t-n_t}{N_t-1}.$$
 
-Two dependence structures make the iid t-test invalid here. *h*-day forward
-returns started on consecutive days overlap by *h*−1 days; and trades entered on
-the same date across hundreds of tickers share the market factor, so on a large
-up day nearly every long trade wins together. The effective number of independent
-observations is closer to the number of entry *dates* than to the number of
-trades.
+The first draft of this re-analysis used it, validated against a simulation that
+drew dates the same way. Both treat trades on the same date as independent, and
+Section 4.4 shows the consequence. Its p-value is kept in the results table for
+comparison only.
 
-We use the calendar-time treatment: collapse trades to date level, then apply
-Newey–West with Bartlett weights at lag *h*. With *n_d* trades on date *d* and
-date mean *r̄_d*, writing *x_d* = *n_d*(*r̄_d* − *μ*)/*N*, the HAC variance of the
-pooled mean is Σ *x_d*² + 2 Σ_lag *w_lag* Σ_d *x_d x_{d−lag}*.
+**Decision rule.** Tests are one-sided. Benjamini–Hochberg control at α = 0.05 is
+applied once across all 352 (concept × horizon) hypotheses. A concept *beats* the
+null only if its excess is positive, it survives FDR, and it rests on at least 30
+trades. Whether a concept is significantly *worse* than the null is a separate
+two-sided family with its own FDR correction.
 
-The correction is large. Across the 44 concepts the ratio of the calendar-time
-standard error to the iid one ranges from **1.5× to 11.8×, with a median of
-5.8×** (Table 1). On synthetic data with a pure common market factor and no true
-signal, the iid test returns *t* = −48.3 where the calendar-time estimator
-returns *t* = −3.0.
+## 4.4 Calibration of the tests
 
-**Table 1.** Standard-error inflation, selected concepts (h = 10).
+A test should be judged on the dependence structure of the signals it will be
+applied to, not on the one it assumes. We therefore measure the size of each test
+in six designs where the true edge is exactly zero (1,000 replications each,
+one-sided, nominal 5%; Monte Carlo standard error 0.7 percentage points).
 
-| Signal | n trades | iid SE | HAC SE | Ratio |
+The first three hold 60 real price paths fixed and randomise only the entry
+dates: each ticker picks its own 80 dates (*independent*), picks 80 from a shared
+pool of 400 (*semi-clustered*), or every ticker fires on the same 150 dates
+(*clustered*). The last three redraw a simulated 60-ticker panel on every
+replication — a GARCH(1,1) market factor plus GARCH(1,1) idiosyncratic noise with
+Student-*t*(5) shocks (Bollerslev 1986), compounded arithmetically so that every
+*h*-day forward return has conditional mean exactly zero whatever the past. On it,
+entries are *independent*, *clustered*, or *volatility-timed*: each ticker fires on
+random dates from its top decile of trailing 20-day volatility, so entries crowd
+into turbulent markets, as displacement and structure-break detectors do.
+
+**Table 1.** Rejection rate at a nominal 5%, h = 10. In brackets: the standard
+error the test reports divided by the true standard deviation of its estimate
+across replications (above 1 is conservative). Figure 7 plots both.
+
+| Design (true edge = 0) | SRS variance (superseded) | Calendar-time (primary) | Exact rotation (secondary) |
+|---|---:|---:|---:|
+| Real prices, independent | 5.7% (0.98) | 0.0% (1.80) | 5.8% (0.98) |
+| Real prices, semi-clustered | **28.1%** (0.50) | 3.5% (1.27) | 7.3% (1.03) |
+| Real prices, clustered | **40.6%** (0.24) | 6.8% (1.11) | 6.9% (1.02) |
+| Simulated, independent | 5.1% (1.01) | 0.0% (2.02) | 5.0% (1.02) |
+| Simulated, clustered | **34.3%** (0.22) | 3.0% (1.10) | 4.4% (0.99) |
+| Simulated, volatility-timed | **38.3%** (0.14) | 5.0% (0.87) | **18.8%** (0.45) |
+
+Three results follow.
+
+*The SRS variance is right only when entries are independent.* With clustered or
+volatility-timed entries it rejects 28–41% of uninformative signals. Real SMC/ICT
+signals are more clustered than any design in the table: across the 352
+hypotheses the calendar-time standard error of the matched excess is a median 7.0
+times the SRS one (range 1.4–16.2).
+
+*The calendar-time test is conservative when entries are dispersed and close to
+nominal otherwise.* With dispersed entries its Newey–West sum picks up the
+realised co-movement of overlapping returns on different tickers, which —
+because each trade is measured against its own ticker's in-sample mean —
+contributes nothing to the true sampling variance; the reported standard error is
+roughly double and the test never rejects. Under clustering its size is 3.0–6.8%,
+and under volatility timing 5.0%. It is the only one of the three that stays near
+nominal in every design in which entries cluster.
+
+*The rotation test is exact for random timing but conditions on the realised
+path.* When entries crowd into volatile periods, rotated calendars land mostly in
+calm ones, the null distribution is too narrow, and the test rejects 18.8% of
+uninformative signals.
+
+We therefore take the calendar-time test as primary and report the rotation test
+beside it, reading a rotation rejection that the primary test does not confirm as
+uninformative. The price of the choice is power against dispersed signals;
+Section 5.3 reports what it means for what the study can exclude.
+
+## 4.5 How much the standard errors move
+
+For the test against a zero mean, the calendar-time standard error is between 1.6
+and 12.3 times the iid one across the 44 concepts at h = 10, with a median of 6.2
+(Table 2). `ict_nwog_gap_down`'s 130,643 trades carry about as much information as
+890 independent observations — close to its 851 distinct week-open entry dates.
+
+**Table 2.** Standard-error inflation, test against zero, h = 10: the five largest.
+
+| Signal | n trades | iid SE | Calendar-time SE | Ratio |
 |---|---:|---:|---:|---:|
-| `ict_nwog_gap_down` | 130,643 | 0.000182 | 0.002140 | 11.8× |
-| `smc_fvg_bearish_formed` | 67,673 | 0.000298 | 0.003368 | 11.3× |
-| `ict_displacement_bearish` | 190,415 | 0.000150 | 0.001607 | 10.7× |
-| `ict_nwog_gap_up` | 147,321 | 0.000163 | 0.001739 | 10.7× |
-| `ict_displacement_bullish` | 212,461 | 0.000130 | 0.001262 | 9.7× |
+| `smc_internal_ob_bullish_mitigated` | 39,612 | 0.00040 | 0.00494 | 12.3× |
+| `ict_nwog_gap_down` | 130,643 | 0.00018 | 0.00220 | 12.1× |
+| `smc_fvg_bearish_formed` | 67,673 | 0.00030 | 0.00358 | 12.0× |
+| `ict_displacement_bearish` | 190,415 | 0.00015 | 0.00171 | 11.4× |
+| `ict_ob_bullish_mitigated` | 20,562 | 0.00061 | 0.00675 | 11.1× |
 
-This is the mechanism by which a large trade count converts into a spuriously
-tiny p-value. Many p-values in the uncorrected analysis were reported as exactly
-0.000; several are not significant once the panel structure is respected.
-
-## 4.5 Costs, out-of-sample evaluation, and robustness
+## 4.6 Costs, out-of-sample evaluation and robustness
 
 **Costs.** A round trip is charged 1 bp fixed plus 5 bp spread plus slippage
-drawn from Uniform(5, 20) bp, giving 11–26 bp. We report, per concept, the
-break-even cost against the gross mean return *and* against the excess over the
-matched null. Only the second is decision-relevant.
+drawn from Uniform(5, 20) bp — 11–26 bp in total — with each draw keyed to the
+trade's identity so a re-sorted table is charged identically. We report, per
+concept, the break-even cost against the gross mean return *and* against the
+excess over the matched null; only the second is decision-relevant.
 
-**Walk-forward.** Rolling windows of three training years, one test year, stepped
-one year, giving 13 folds. Concepts are ranked on the training window only, and
-the null pools are rebuilt inside each window so the training null never sees
-test prices.
+**Walk-forward.** Rolling windows of three training years and one test year,
+stepped annually: 13 folds. The five concepts with the highest training-window
+excess (minimum 30 trades) are selected. Null pools are rebuilt inside each
+window, and training trades whose holding period would cross into the test year
+are purged.
 
-**Monte Carlo.** Three resampling schemes: matched random re-entry, iid trade
-shuffling, and a circular block bootstrap with 21-bar blocks that preserves
-serial dependence.
+**Parameter sensitivity.** A broad grid and a random sweep over structure
+parameters on 40 tickers, and a targeted 36-configuration sweep on 30 tickers over
+the parameters we chose for the reformulated sweep and gap detectors.
 
-**Parameter sensitivity.** Grid and randomised sweeps re-run detection under
-varied parameters, reporting the sign-consistency of each concept's excess across
-configurations.
+**Survivorship.** A membership-aware re-test drops every trade dated before the
+ticker joined the index and restricts the matched-null pools the same way.
+
+**Power.** For each concept, the minimum detectable excess at 80% power (2.49
+times its calendar-time standard error) and the one-sided 95% upper confidence
+bound on its excess.
 
 # 5. Results
 
-## 5.1 The benchmark determines the conclusion
+## 5.1 The benchmark and the test determine the conclusion
 
-**Table 2.** Concept counts at h = 10, by benchmark (44 concepts, BH-FDR across
-352 hypotheses).
+**Table 3.** Concepts significant at h = 10 (of 44) and hypotheses significant
+across all horizons (of 352), by benchmark and test; BH-FDR at α = 0.05 across
+all 352.
 
-| Benchmark | Significant |
+| Benchmark and test | h = 10 | All horizons |
+|---|---:|---:|
+| Zero-return null, calendar-time | 38 / 44 | 268 / 352 |
+| Matched null, SRS variance (superseded) | 4 / 44 | 28 / 352 |
+| Matched null, exact rotation (secondary) | 0 / 44 | 0 / 352 |
+| **Matched null, calendar-time (primary)** | **0 / 44** | **0 / 352** |
+| Significantly *worse* than the matched null, calendar-time, two-sided | 0 / 44 | 0 / 352 |
+
+On identical data, the count runs from 38 significant concepts to none depending
+on the benchmark, and from 4 to none depending on the variance formula used with
+the right benchmark. The mean excess over the matched null across all 44 concepts
+at h = 10 is −11.0 bp, and 37 of the 44 point estimates are negative (Figure 1).
+Nothing clears the primary test at any horizon: the smallest unadjusted one-sided
+p-value among all 352 hypotheses is 0.062, and at h = 10 it is 0.229. Nothing
+loses to the null either; the smallest adjusted two-sided p-value is 0.061.
+
+The rotation test finds no winners. It does flag 54 hypotheses (5 at h = 10) as
+significantly worse than rotated timing, concentrated in the displacement and
+break-of-structure detectors, which fire on large-range bars. That is the
+volatility-timed case in which Table 1 shows the rotation test rejecting 19% of
+uninformative signals, so we do not read it as evidence.
+
+## 5.2 The largest point estimates
+
+**Table 4.** Every concept with a positive excess at h = 10. Returns in basis
+points over ten trading days; SE is the calendar-time standard error of the
+excess; p-values one-sided and unadjusted.
+
+| Signal | Dir | n trades | Entry dates | Mean | Matched null | Excess | SE | p (primary) | p (rotation) | p (SRS) |
+|---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
+| `smc_swing_choch_bearish` | −1 | 2,653 | 1,074 | −36.8 | −69.4 | +32.5 | 115.3 | 0.39 | 0.16 | 0.003 |
+| `smc_swing_ob_bearish_formed` | −1 | 3,898 | 1,404 | −49.3 | −68.7 | +19.4 | 91.6 | 0.42 | 0.24 | 0.027 |
+| `ict_sweep_sellside_bullish` | +1 | 49,304 | 3,919 | +82.2 | +70.2 | +11.9 | 21.3 | 0.29 | 0.18 | <0.0001 |
+| `ict_sweep_buyside_bearish` | −1 | 65,448 | 4,002 | −59.2 | −70.6 | +11.4 | 15.3 | 0.23 | 0.10 | <0.0001 |
+| `ict_liquidity_buyside_pool_formed` | +1 | 58,941 | 3,921 | +74.3 | +68.5 | +5.8 | 15.1 | 0.35 | 0.20 | 0.008 |
+| `ict_nwog_gap_up` | +1 | 147,321 | 852 | +76.7 | +71.9 | +4.8 | 17.9 | 0.39 | 0.26 | 0.001 |
+| `smc_swing_choch_bullish` | +1 | 2,699 | 1,484 | +73.4 | +69.5 | +3.9 | 16.9 | 0.41 | 0.42 | 0.37 |
+
+Seven concepts have positive point estimates, and none is close to significant.
+The two liquidity-sweep detectors are the best measured of them — tens of
+thousands of trades on about 4,000 entry dates each — at +11–12 bp, with
+one-sided p-values of 0.23 and 0.29. The two largest estimates belong to
+swing-structure concepts with fewer than 4,000 trades concentrated on 1,000–1,400
+dates, whose standard errors of 92–115 bp make them uninformative. The SRS column
+shows how the superseded variance turned four of these into apparent
+discoveries: for `ict_nwog_gap_up`, 147,321 trades on 852 week-open dates, it
+reports a standard error of 1.5 bp against the calendar-time 17.9 bp.
+
+## 5.3 What the data can exclude
+
+A null result is only as informative as the test's power. The median concept's
+calendar-time standard error at h = 10 is 18.2 bp, so its minimum detectable
+excess at 80% power is 45 bp; the best-measured concept's is 27 bp. Table 5 turns
+this around and asks which edges the data rule out.
+
+**Table 5.** One-sided 95% upper confidence bound on each concept's excess at
+h = 10, against the modelled 11–26 bp round-trip cost band.
+
+| Upper bound on the excess | Concepts | What the data exclude |
+|---|---:|---|
+| below 0 bp | 3 | any positive edge (5% level, before adjustment) |
+| 0 to 11 bp | 7 | an edge that covers even the lowest round-trip cost |
+| 11 to 26 bp | 17 | an edge that covers the highest round-trip cost |
+| 26 bp or more | 17 | nothing of economic interest |
+
+Ten concepts have a bound below 11 bp — among them both ICT break-of-structure
+detectors, both displacement detectors, and the bullish fair-value-gap,
+order-block and volume-imbalance detectors — so the data say, at 95% confidence,
+that they carry no edge that pays for trading them. For the 17 concepts in the
+last row, including both liquidity-sweep detectors (bounds of 37 and 47 bp), the
+data are consistent both with no edge and with an economically meaningful one.
+
+## 5.4 Out-of-sample performance
+
+**Table 6.** Walk-forward evaluation, 13 folds (train 3 years, test 1 year, step
+1 year; five concepts selected per fold on training excess). Figure 5.
+
+| Quantity | Value |
 |---|---:|
-| Zero-return null | **39 / 44** |
-| Composition-matched random entry | **5 / 44** |
-| — of which significantly worse | 0 / 44 |
-| — statistically indistinguishable | 39 / 44 |
+| Mean in-sample excess of selected concepts | +61.3 bp |
+| Mean out-of-sample excess of selected concepts | **−39.3 bp** |
+| Mean out-of-sample excess of all concepts | −35.0 bp |
+| Folds with a positive out-of-sample excess (selected) | 5 / 13 |
+| Share of selected concepts positive out of sample | 36.9% |
+| Mean train-to-test rank correlation of the concept ordering | 0.34 |
 
-The two rows differ by a factor of nearly eight on identical data. This is the
-paper's first substantive finding: against a zero-return null almost everything
-looks significant, and the number reported depends almost entirely on the
-benchmark chosen. The mean excess over the matched null across all 44 concepts is
-−0.10 percentage points.
+Selection does not carry forward: the concepts ranked best on three years of data
+earn −39 bp in the following year, slightly worse than the average concept. The
+failure is concentrated. The eight folds testing 2013–2020 average +6.1 bp; the
+three testing 2021–2023 average −160.6 bp. Their training windows contain the 2020
+crash, and in them the selection rule picked small-sample swing-structure
+concepts (`smc_swing_choch_bearish`, `smc_swing_ob_bearish_formed`,
+`smc_swing_ob_bullish_mitigated`) whose training excess averaged +193.1 bp against
++21.8 bp in the other folds — the same concepts whose standard errors of around
+100 bp say that such excesses are noise.
 
-## 5.2 The five concepts that clear the bar
+## 5.5 Costs
 
-**Table 3.** Concepts beating the composition-matched null at h = 10.
+Measured against the gross mean return, 22 of 44 concepts clear the top of the
+cost band (26 bp) — exactly the 22 long concepts, whose gross return is mostly the
+market drift that random entry captures equally. Measured against the excess over
+the matched null, 4 concepts clear 11 bp and 1 clears 26 bp
+(`smc_swing_choch_bearish`, whose excess carries a 115 bp standard error), and none
+of the four has a significant excess (Figure 6).
 
-| Signal | Dir | n trades | Mean | Matched null | Excess | p (FDR) | Cohen's d [95% CI] |
-|---|---:|---:|---:|---:|---:|---:|---|
-| `smc_swing_choch_bearish` | −1 | 2,653 | −0.37% | −0.69% | **+0.33%** | 0.033 | −0.038 [−0.077, −0.001] |
-| `ict_sweep_sellside_bullish` | +1 | 49,304 | 0.82% | 0.70% | **+0.12%** | 0.0001 | 0.125 [0.110, 0.139] |
-| `ict_sweep_buyside_bearish` | −1 | 65,448 | −0.59% | −0.71% | **+0.11%** | <0.0001 | −0.101 [−0.115, −0.088] |
-| `smc_internal_ob_bearish_mitigated` | +1 | 42,268 | 0.79% | 0.71% | **+0.08%** | 0.038 | 0.133 [0.119, 0.148] |
-| `ict_nwog_gap_up` | +1 | 147,321 | 0.77% | 0.72% | **+0.05%** | 0.011 | 0.121 [0.107, 0.135] |
+## 5.6 Parameter sensitivity
 
-Three observations.
+Results at the default parameters are not privileged. The broad grid over the
+order-block swing lookback and the market-structure pivot length moves 18 of the
+44 concepts (Figure 4); the other 26 do not read those parameters, so their
+stability there means *untested*, not *robust*.
 
-*The magnitudes are small.* Excess returns of 5–33 basis points over ten trading
-days, on effect sizes around |d| ≈ 0.1, are at the edge of economic relevance
-before costs.
+Because that grid does not touch the parameters of the detectors we reformulated,
+a targeted sweep varies exactly those: the sweep penetration threshold
+*X* ∈ {0.10, 0.25, 0.50, 1.00} ATR, the confirmation window *Z* ∈ {1, 3, 6} bars,
+and the gap materiality threshold ∈ {0.05, 0.10, 0.25} ATR.
 
-*The largest excess is the least reliable.* `smc_swing_choch_bearish` has the
-biggest excess (+0.33%) and the smallest sample (2,653 trades). Its excess
-changes sign across horizons — +0.32% at h = 10 but −3.26% at h = 60 — which is
-the signature of noise rather than of a horizon-specific effect. The four
-higher-*n* concepts, by contrast, show excess returns that *grow* monotonically
-with horizon, reaching 27–61 bp at h = 40–60.
+**Table 7.** Targeted sweep over the reformulated detectors' own parameters (36
+configurations, 30 tickers, h = 10).
 
-*Three of the five are concepts we had to reformulate.* The two sweep detectors
-and the gap detector clear the bar in their corrected forms. In their original
-forms they did not exist as testable events: the "sweep" fired when price merely
-entered a liquidity pool, with no rejection leg, making it a near-duplicate of
-pool formation; and the gap detector fired on every bar. The corresponding
-original column `ict_liquidity_buyside_swept` (excess −0.045%) does not clear the
-bar. Section 5.4 tests whether this reflects a real effect the loose definitions
-obscured or a fortunate specification choice, by sweeping the parameters we
-chose. The two sweep detectors survive that test; the gap detector does not, and
-we withdraw it.
+| Signal | Configurations positive | Significant (p < 0.05, unadjusted) | Mean excess | Range |
+|---|---:|---:|---:|---:|
+| `ict_sweep_sellside_bullish` | 33 / 36 | 0 / 36 | +18.5 bp | 29.4 bp |
+| `ict_sweep_buyside_bearish` | 36 / 36 | 0 / 36 | +8.4 bp | 28.7 bp |
+| `ict_nwog_gap_up` | 24 / 36 | 0 / 36 | +0.5 bp | 4.2 bp |
+| `ict_nwog_gap_down` | 0 / 36 | 0 / 36 | −4.7 bp | 2.6 bp |
 
-## 5.3 Out-of-sample performance
+The sign of the sweep detectors' excess is stable across the parameter space we
+chose, so their point estimates in Table 4 are not an artefact of our defaults.
+But a stable sign is not significance: no configuration is significant even
+before adjustment (smallest p = 0.11). The gap detector shows the opposite hazard.
+On the sweep universe its excess is +2.6 bp at a 0.05 ATR materiality threshold,
++0.4 bp at our 0.10 default and −1.6 bp at 0.25 ATR: the threshold decides the
+sign. Under the superseded variance `ict_nwog_gap_up` cleared FDR at the default,
+so a reported edge would have rested on this choice.
 
-**Table 4.** Walk-forward evaluation, 13 folds (train 3y / test 1y / step 1y).
+## 5.7 Survivorship
 
-| | Selected concepts | All concepts |
+**Table 8.** Membership-aware re-test, h = 10: trades dated before a ticker's
+index entry are dropped, and the matched-null pools are restricted the same way.
+
+| | Full universe | Membership-aware |
 |---|---:|---:|
-| Mean in-sample excess | +0.65% | — |
-| Mean out-of-sample excess | **−0.16%** | −0.28% |
-| Mean hit rate (folds with positive OOS excess) | 53.8% | — |
-| Mean train→test rank correlation | 0.387 | — |
+| Trades | 2,198,125 | 1,763,667 |
+| Concepts beating the matched null | 0 | 0 |
+| Concepts whose excess keeps its sign | — | 97.7% |
+| Median shift in excess | — | 0.88 bp |
 
-Concepts chosen on three years of history earn a mean out-of-sample excess of
-−0.16 percentage points. The train-to-test rank correlation of 0.387 says the
-ordering of concepts carries some signal — better-performing concepts do tend to
-rank higher next year — but the level does not survive: in-sample excess of
-+0.65% becomes −0.16% out of sample, a shrinkage of more than 100%.
+Dropping the 19.8% of trades that precede a ticker's index entry changes almost
+nothing. The part of survivorship bias this cannot address is the absent removed
+members: survivor bias inflates the signal and the null alike, so it largely
+cancels in the excess — unless removed firms, which are disproportionately
+distressed, responded to these patterns differently.
 
-The failure is concentrated. Folds 1–7 (test years 2013–2019) average +0.17%; the
-four folds testing 2020–2023 average −1.03%, with train-to-test rank correlations
-turning negative. The in-sample excess in those folds' training windows is also
-anomalously high (+1.6% to +2.4% versus +0.3% elsewhere), consistent with the
-2020–2021 volatility regime inflating in-sample fit and then reversing.
+## 5.8 Sectors and regimes
 
-## 5.4 Costs, sectors, regimes and parameter sensitivity
+Pooling all concepts, each trade against its own direction-matched null, Energy
+is the only one of 11 GICS sectors with a positive excess (+5.4 bp, 21 tickers);
+the others range from −8.6 to −22.7 bp (Figure 2). Two, Utilities and Consumer
+Staples, are significantly negative after BH correction across sectors (adjusted
+p = 0.029 for both). No sector is powered to detect a 10 bp effect — minimum
+detectable effects run from 14.7 to 57.1 bp — and a pooled mixed-direction excess
+is hard to interpret, so we treat sector results as descriptive. Across nine
+trend × volatility regimes the excess is positive in three — bear/low volatility
+(+26.0 bp, n = 7,645), sideways/low volatility (+12.8 bp, n = 13,549) and
+bear/normal volatility (+1.5 bp) — and most negative in bear/high volatility
+(−53.3 bp, n = 142,878). The two largest positive buckets are the two smallest.
 
-**Costs.** The distinction between gross and excess break-even is decisive.
-
-**Table 5.** Break-even round-trip cost, two measures (h = 10).
-
-| Measure | Concepts clearing 11 bp | Concepts clearing 26 bp |
-|---|---:|---:|
-| Against gross mean return | 22 / 44 | 22 / 44 |
-| **Against excess over matched null** | **4 / 44** | **1 / 44** |
-
-A concept with a gross mean of 82 bp looks comfortably tradeable. But random
-entry on the same tickers earns 70 bp of that; the part attributable to the
-signal is 12 bp, which sits inside the modelled 11–26 bp cost band. On the
-decision-relevant measure only `ict_sweep_sellside_bullish` clears the upper
-bound, and only four concepts clear the lower one. This is the study's central
-economic finding: **the returns are real, but they are not attributable to the
-signals, and the part that is does not reliably cover the cost of trading.**
-
-**Sectors.** Compared against a direction-matched null, only Energy shows a
-positive excess (+0.011 pp); the remaining eleven sectors range from −0.077 to
-−0.213 pp. We note that the comparison used in the prior version — a mixed
-long/short signal population against a long-only benchmark — measures net
-directional exposure rather than signal quality, and produced a uniform −0.5 to
-−1.2 pp across every sector, an artefact of that mismatch rather than a finding.
-
-**Regimes.** Two of nine trend × volatility buckets show a positive excess:
-bear/low-volatility (+0.24 pp, n = 7,739) and sideways/low-volatility (+0.10 pp,
-n = 13,552). The worst is bear/high-volatility (−0.51 pp, n = 144,311). The
-positive buckets are the two smallest, and we do not treat them as evidence.
-
-**Parameter sensitivity.** Results at the default parameters are not
-privileged. Two sweeps are reported. A broad grid over the order-block swing
-lookback and the market-structure pivot length moves 18 of the 44 concepts; the
-other 26 do not read those parameters at all, so their zero variance there means
-*untested*, not *robust* — `responds_to_sweep` in
-`results/sensitivity_stability.csv` marks the distinction.
-
-Because that grid does not touch the parameters governing the three concepts we
-reformulated, a second, targeted sweep varies exactly those: the sweep
-penetration threshold *X* ∈ {0.10, 0.25, 0.50, 1.00} ATR, the confirmation
-window *Z* ∈ {1, 3, 6} bars, and the gap materiality threshold ∈ {0.05, 0.10,
-0.25} ATR — 36 configurations. This is the direct test of whether our
-specification choices drive the positive result.
-
-**Table 6.** Targeted sweep over the reformulated concepts' own parameters
-(36 configurations).
-
-| Signal | Mean excess | Range (bp) | Configs with positive excess |
-|---|---:|---:|---:|
-| `ict_sweep_sellside_bullish` | +18.5 bp | 29.4 | **33 / 36** |
-| `ict_sweep_buyside_bearish` | +8.4 bp | 28.7 | **36 / 36** |
-| `ict_nwog_gap_up` | +0.5 bp | 4.2 | 24 / 36 |
-| `ict_nwog_gap_down` | −4.7 bp | 2.6 | 0 / 36 |
-
-The two sweep detectors survive. `ict_sweep_buyside_bearish` is positive in
-every configuration tested, and `ict_sweep_sellside_bullish` in all but the
-three using an extreme *X* = 1.00 ATR penetration threshold, which admits too
-few events to estimate. Notably the default *X* = 0.25 is not the most
-favourable setting: at *X* = 0.10 the sell-side excess is 24 bp against 20 bp at
-the default, so the chosen value is conservative rather than cherry-picked.
-
-**The gap detector does not survive**, and its failure mode is instructive: its
-sign is determined by the materiality threshold we chose. Mean excess is +2.6 bp
-at 0.05 ATR, **+0.4 bp at our default of 0.10**, and −1.6 bp at 0.25 ATR. The
-default sits almost exactly at the sign change. We therefore withdraw
-`ict_nwog_gap_up` as evidence of an edge: it clears the significance bar at one
-parameter value and would not at a neighbouring one, which is the definition of
-a result that has not been established. That leaves **two** concepts — both
-liquidity sweeps — with an edge that is robust to its own parameterisation.
-
-# 6. What three ordinary errors did to the same data
+# 6. What ordinary errors did to the same data
 
 An earlier version of this pipeline concluded that 28 of 42 concepts were
-"significant versus a random-entry baseline". Every defect below is ordinary, and
-each independently converts a null result into an apparently positive one. We
-report them because the failure modes are more transferable than our estimates.
+"significant versus a random-entry baseline". The first draft of this
+re-analysis concluded that 5 of 44 beat the matched null and that 2 of those were
+robust. Both conclusions are wrong, for reasons that are ordinary, mechanical and,
+we suspect, common.
 
 ## 6.1 Look-ahead through an outcome label
 
 `ict_fvg_bullish_filled` and `ict_fvg_bearish_filled` recorded whether a fair
 value gap was later filled, and stamped the answer **on the formation bar**. The
 event-melting step selected every boolean column as a tradeable signal, so both
-became entry signals whose value depended on up to 60 subsequent bars. They
-contributed 187,719 trades (4.3% of all events) and occupied both extremes of the
-concept ranking; `ict_fvg_bearish_filled` had the single most negative effect size
-in the study.
+became entry signals whose value depended on up to 60 subsequent bars: 187,719
+events, 4.3% of the 4,348,698-event table, which became 187,374 trades at h = 10.
+They occupied both extremes of the concept ranking; `ict_fvg_bearish_filled` had
+the single most negative effect size in the study.
 
-The mechanism worth noting is not the leak itself but its route: the selection
-rule was fail-open. Any new boolean column became tradeable by default, guarded
-only by a hand-maintained deny-list. The corrected pipeline requires explicit
-registration with a declared direction and raises on anything unregistered.
+The route matters more than the leak: the selection rule was fail-open. Any new
+boolean column became tradeable by default, guarded only by a hand-maintained
+deny-list. The corrected pipeline requires explicit registration with a declared
+direction and raises on anything unregistered.
 
 ## 6.2 A two-sided test behind a directional claim
 
 The significance flag came from a two-sided Welch test. A concept whose mean
 return was significantly *worse* than random entry set the flag exactly as one
 that was better. Of the 28 concepts flagged, **27 had a negative effect size**:
-they lost to random entry, and were then listed in the report under the heading
-"Signals that beat the random-entry baseline", including entries with Sharpe
-−0.199 and mean return −0.39%.
+they lost to random entry, and were then listed under the heading "Signals that
+beat the random-entry baseline", including entries with a Sharpe ratio of −0.199
+and a mean return of −0.39%.
 
 ## 6.3 An irreproducible benchmark
 
 The random-entry baseline seeded its generator from `hash()` applied to a string.
-Python salts string hashing per process, so every run drew a different baseline.
-Running the original function in three separate interpreters produces three
-disjoint entry sets. Since that baseline is the comparator behind every
-significance flag, the published counts could not be reproduced by rerunning the
-pipeline — a failure that no test caught because no test compared two runs.
+Python salts string hashing per process, so every run drew a different baseline;
+running the original function in three interpreters produces three disjoint
+entry sets. Since that baseline was the comparator behind every significance
+flag, the published counts could not be reproduced.
 
 ## 6.4 Two further distortions
 
 `ict_ndog_formed` was true whenever the open and prior close were both non-null —
-i.e. on essentially every bar — contributing 1,946,675 events, 44.8% of the
-entire event population, and dominating every pooled aggregate. Separately,
-`ict_bpr_bullish` and `ict_bpr_bearish` were computed from a condition that
-reduces to `upper < lower`, unsatisfiable by construction; both were false
-everywhere, and the melting step drops all-false columns silently, so two
-concepts vanished from the study with no error. The "42 concepts tested" headline
-was 42 of 44 declared detectors.
+on essentially every bar — contributing 1,946,675 events, 44.8% of the event
+table, and dominating every pooled aggregate. Separately, `ict_bpr_bullish` and
+`ict_bpr_bearish` were computed from a condition that reduces to
+`upper < lower`, unsatisfiable by construction; both were false everywhere, and
+the melting step drops all-false columns silently, so "42 concepts tested" was 42
+of 44 declared detectors.
 
-## 6.5 The joint effect
+## 6.5 Two errors in this re-analysis's own first draft
+
+**A variance that assumed independent entries.** The first draft tested the
+matched excess with the SRS variance of Section 4.3. It is exact for independent
+entry dates, and it passed the check we gave it — a 2,000-run simulation that
+agreed to five decimal places — but that simulation drew dates independently per
+ticker, so it shared the formula's blind spot. Table 1 shows the consequence:
+28–41% false rejections under clustering. On the corrected data the SRS variance
+still reports 4 winning concepts at h = 10 and 28 winning hypotheses across
+horizons; the calendar-time test reports none. The same variance underlay the
+first draft's sector power analysis, which found every sector adequately powered
+(minimum detectable effects of 1.8–4.5 bp, against 14.7–57.1 bp from the
+calendar-time standard error). A test validated by a simulation that makes the
+test's own assumptions has not been validated.
+
+**An order block taken from the wrong candle.** LuxAlgo's `storeOrdeBlock` takes,
+for a bullish block, the bar with the lowest low between the swing pivot and the
+break, and removes a block once it is mitigated. The first translation took the
+opposite extreme and kept mitigated blocks active, so a block's mitigation could
+be reported again and again. `smc_internal_ob_bearish_mitigated`, one of the first
+draft's five winners, loses 4,147 of its trades under the corrected detector, and
+its excess moves from +8 bp to −1 bp.
+
+## 6.6 The joint effect
 
 These are not exotic mistakes. A fail-open column selector, a default-argument
-two-sided test, a salted hash, an unguarded boolean, and a silently-dropped
-column are each a single line. Together they moved the study's conclusion from "5
-of 44 concepts show a small edge that costs mostly consume" to "28 of 42 concepts
-beat random entry". We suggest that the mechanical checks in Section 4.1 —
-truncation invariance, an index-position audit, a fail-closed registry, and a
-pinned seed derivation — are cheap enough to be worth adopting as routine in
-backtest code.
+two-sided test, a salted hash, an unguarded boolean, a silently dropped column, a
+variance formula validated against its own assumptions and an inverted `argmin`
+are each a line or two of code. On the same data they move the conclusion from
+"no concept beats random entry" to "28 of 42 beat random entry" or, with only the
+last two, to "5 of 44 beat it". The mechanical checks of Section 4.1 — truncation
+invariance, an index-position audit, a fail-closed registry and a pinned seed
+derivation — and a calibration study against the dependence structure of the
+actual signals are cheap enough to be worth adopting as routine.
 
 # 7. Discussion
 
-**What the evidence supports.** On daily bars, for large-cap US equities, over
-2010–2026, these implementations of SMC/ICT do not carry economically meaningful
-predictive information. Thirty-nine of 44 concepts are statistically
-indistinguishable from entering the same names the same number of times on random
-dates. The five that are distinguishable have excess returns of 5–33 bp per
-ten-day trade, do not carry that edge out of sample, and — with one exception —
-do not clear a realistic cost band.
+**What the evidence supports.** On daily bars, for large-cap US equities over
+2010–2026, none of these 44 implementations of SMC/ICT concepts produces returns
+distinguishable from entering the same stocks the same number of times on random
+dates. For ten of them the data exclude an edge large enough to pay the lowest
+modelled trading cost. The concepts that look best on past data do worse than
+average out of sample.
 
-**What it does not support.** It does not show that SMC/ICT is worthless as
-taught. Three limits matter. These are two specific implementations, not the
-methodology as a discretionary practice: a human applying these concepts uses
-context, confluence and discretion that a mechanical detector does not capture.
-The daily-bar restriction is severe, since SMC/ICT is most often taught on
-intraday FX and futures, where the microstructure the framework appeals to — stop
-runs, liquidity pools — is far more plausible. And a null result is a statement
-about power as much as about truth: our confidence intervals on Cohen's *d* are
-roughly ±0.015 at the largest sample sizes, so we can exclude effects larger than
-about *d* = 0.15, but not small ones.
+**What it does not support.** It does not show that SMC/ICT concepts carry no
+information. Three limits matter. These are two specific implementations, not the
+methodology as a discretionary practice, in which a trader applies context,
+confluence and judgement that no detector captures. The daily-bar restriction is
+severe: the framework is most often taught on intraday FX and futures, where the
+microstructure it appeals to — stop runs, resting liquidity — is more plausible.
+And power is limited. The primary test, chosen because it keeps its size when
+signals cluster, is conservative when they do not, and for 17 concepts —
+including the two liquidity-sweep detectors with the largest well-measured point
+estimates — the data cannot distinguish no edge from an edge of 30–50 bp.
 
-**On the three reformulated concepts.** These clear the bar only in the
-corrected, prospective forms we wrote, which is the weakest part of our positive
-result, so we tested it directly. The two liquidity-sweep detectors are positive
-across essentially the whole parameter space we swept (36/36 and 33/36
-configurations), and the default *X* = 0.25 ATR is not the most favourable
-setting available — the result is not an artefact of our choice. The gap
-detector is: its sign turns over between 0.05 and 0.25 ATR with our default
-sitting at the crossing, so we withdraw it. A reader should treat the two
-surviving sweep results as the only positive findings in this paper, and even
-those as small: 8–19 basis points, inside or barely above the modelled cost
-band.
+**On the negative estimates.** Thirty-seven of 44 point estimates are negative,
+and the ten concepts whose bounds exclude a cost-covering edge are
+break-of-structure, displacement, gap and order-block-formation detectors —
+concepts that in effect bet on continuation after a sharp move. That pattern is
+consistent with the short-term reversal in individual stock returns documented by
+Jegadeesh (1990) and Lehmann (1990). We do not claim it: no negative excess
+survives the primary test's two-sided family, and the rotation test that flags
+several of these concepts is the one Table 1 shows to over-reject for
+volatility-timed signals.
 
-**Interpretation.** That gross returns are large (65–82 bp) while excess returns
-are small (4–12 bp) is the cleanest summary. These detectors do fire, and
-positions opened on them do make money over 2010–2026. Nearly all of that is
-compensation for being long a rising market, which random entry captures equally
-well. The framework's error is not that it identifies nothing; it is that it
-takes credit for market drift.
+**Interpretation.** Gross returns are large while excess returns are not. The
+long concepts' average gross return at h = 10 is 63 bp; entering the same stocks
+on random dates earns 71 bp. These detectors do fire, and positions opened on them
+made money over 2010–2026, but that is compensation for being long a rising
+market, which random entry captures equally well. The framework's error is not
+that it identifies nothing; it is that it takes credit for market drift.
+
+**Methodological lessons.** The benchmark decides whether 38 concepts are
+significant or none; the variance formula decides whether 4 are or none; and the
+test direction decided, in the prior version, whether 27 concepts that lost to
+random entry were reported as winners. None of these is a technicality here. Our
+own first draft adds one lesson: validate a test on the dependence structure of
+the data it will be applied to — clustering in calendar time and clustering in
+volatility — not on the structure the test assumes.
 
 # 8. Limitations
 
-1. **Survivorship bias.** The universe is a 2026 snapshot applied to 2010–2026.
-   This inflates return levels for signals and benchmarks alike and largely
-   cancels in the matched comparison, but a point-in-time constituent history
-   would be strictly better and is not available to this pipeline.
-2. **Daily bars only.** Kill zones and all intraday structure are out of scope.
-3. **Symmetric short mechanics.** Short signals are the negation of the forward
+1. **Power.** The median concept's minimum detectable excess is 45 bp (27 bp at
+   best), and the primary test is conservative for dispersed signals (Table 1).
+   Edges of 10–30 bp cannot be excluded for most concepts (Section 5.3).
+2. **Survivorship, partly corrected.** At least 235 since-removed index members
+   are absent. Look-ahead membership is removed exactly (Section 5.7); the absent
+   firms are not recovered.
+3. **Daily bars only.** Kill zones and all intraday structure are out of scope.
+4. **Two implementations**, not SMC/ICT as a discretionary practice.
+5. **Symmetric short mechanics.** Short signals are the negation of the forward
    return, with no borrow cost or availability constraint.
-4. **No economic mechanism.** This is an evaluation of indicator logic, not a
-   theory paper; we propose no risk-based or behavioural model for why these
-   patterns would or would not predict returns.
-5. **Path-dependent metrics are descriptive.** Sharpe, Calmar and maximum
+6. **Path-dependent metrics are descriptive.** Sharpe, Calmar and maximum
    drawdown are computed over an overlapping, cross-sectional trade sequence that
-   is not an attainable account equity curve. Inference uses the calendar-time
-   estimator instead.
-6. **Single market, single period.** No other asset class, market or timeframe is
+   is not an attainable equity curve; inference uses the calendar-time estimator.
+7. **Single market, single period.** No other asset class, market or timeframe is
    tested.
-7. **Sector results are descriptive.** Several sectors rest on fewer than 25
-   tickers; we report counts alongside every sector figure and do not treat
-   sector differences as tested hypotheses.
+8. **Sector and regime results are descriptive.** No sector is powered for a
+   10 bp effect, and sectors are current GICS labels applied retroactively.
+9. **The targeted sweep uses 30 tickers**, so its significance statements are
+   weaker than the full-universe results.
+10. **No economic mechanism** is proposed; this is an evaluation of indicator
+    logic, not a theory paper.
 
 # 9. Conclusion
 
-We formalise 44 SMC/ICT detectors, test them on 496 S&P 500 constituents over
-2010–2026, and find that 39 are statistically indistinguishable from
-composition-matched random entry. The five that are distinguishable carry excess
-returns of 5–33 basis points per ten-day trade, fail to carry that edge into a
-13-fold walk-forward evaluation, and — with one exception — do not clear a
-modelled 11–26 basis-point cost band once the excess rather than the gross return
-is measured against it. A targeted parameter sweep further reduces the five to
-**two** — both liquidity sweeps — whose edge survives variation in the
-parameters we ourselves chose.
+We formalise 44 SMC/ICT detectors from two widely used open-source
+implementations and test them on 496 S&P 500 constituents over 2010–2026. None
+beats composition-matched random entry at any of eight horizons after
+multiple-testing control, none is significantly worse, and the concepts that look
+best in one window do worse than average in the next. For ten concepts the data
+rule out an edge that would cover even the lowest modelled trading cost, and for
+seventeen more an edge that would cover the highest; for the remaining seventeen
+they are uninformative about an edge of a size that would matter.
 
-The methodological result may be the more useful one. On identical data, a
-zero-return null admits 39 of 44 concepts and a composition-matched null admits
-5; iid standard errors understate uncertainty by a median factor of 5.8; and a
+The methodological result may be the more useful one. On identical data a
+zero-return null admits 38 of 44 concepts and a composition-matched null admits
+none; a variance formula that ignores calendar clustering admits 4 while
+rejecting 28–41% of uninformative clustered signals in a calibration study; and a
 two-sided test presented as a directional claim reversed the sign of the finding
-for 27 of 28 concepts in the prior version of this analysis. Benchmark choice,
-dependence structure and test direction are not technicalities in this setting —
-each is capable of determining the sign of the reported conclusion.
+for 27 of 28 concepts in the prior version of this analysis. Benchmark,
+dependence structure, test direction and test calibration each decide the
+reported conclusion in this setting.
 
-Code, data-preparation instructions, machine-readable concept specifications, the
-full statistics table and a replication package are available in the repository.
+Code, data-preparation instructions, machine-readable concept specifications,
+the disambiguation register, the full statistics table and a replication package
+are available in the repository.
 
 # References
 
@@ -614,17 +731,39 @@ Benjamini, Y., and Hochberg, Y. (1995). Controlling the false discovery rate: a
 practical and powerful approach to multiple testing. *Journal of the Royal
 Statistical Society, Series B*, 57(1), 289–300.
 
+Bollerslev, T. (1986). Generalized autoregressive conditional heteroskedasticity.
+*Journal of Econometrics*, 31(3), 307–327.
+
+Brock, W., Lakonishok, J., and LeBaron, B. (1992). Simple technical trading rules
+and the stochastic properties of stock returns. *Journal of Finance*, 47(5),
+1731–1764.
+
 Fama, E. F. (1998). Market efficiency, long-term returns, and behavioral finance.
 *Journal of Financial Economics*, 49(3), 283–306.
 
 Fisher, R. A. (1935). *The Design of Experiments*. Oliver and Boyd.
 
-Harvey, C. R., Liu, Y., and Zhu, H. (2016). ...and the cross-section of expected
+Harvey, C. R., Liu, Y., and Zhu, H. (2016). …and the cross-section of expected
 returns. *Review of Financial Studies*, 29(1), 5–68.
+
+Jegadeesh, N. (1990). Evidence of predictable behavior of security returns.
+*Journal of Finance*, 45(3), 881–898.
+
+Lehmann, B. N. (1990). Fads, martingales, and market efficiency. *Quarterly
+Journal of Economics*, 105(1), 1–28.
 
 Lo, A. W., Mamaysky, H., and Wang, J. (2000). Foundations of technical analysis:
 computational algorithms, statistical inference, and empirical implementation.
 *Journal of Finance*, 55(4), 1705–1765.
+
+Loughran, T., and Ritter, J. R. (2000). Uniformly least powerful tests of market
+efficiency. *Journal of Financial Economics*, 55(3), 361–389.
+
+Lyon, J. D., Barber, B. M., and Tsai, C.-L. (1999). Improved methods for tests of
+long-run abnormal stock returns. *Journal of Finance*, 54(1), 165–201.
+
+Mitchell, M. L., and Stafford, E. (2000). Managerial decisions and long-term stock
+price performance. *Journal of Business*, 73(3), 287–329.
 
 Newey, W. K., and West, K. D. (1987). A simple, positive semi-definite,
 heteroskedasticity and autocorrelation consistent covariance matrix.
@@ -646,20 +785,21 @@ White, H. (2000). A reality check for data snooping. *Econometrica*, 68(5),
 
 | Figure | File | Content |
 |---|---|---|
-| 1 | `results/figures/fig1_concept_forest.png` | Concept effect sizes with 95% bootstrap confidence intervals, all 44 concepts at h = 10 |
-| 2 | `results/figures/fig2_sector_heatmap.png` | Excess return over the direction-matched null, by sector |
-| 3 | `results/figures/fig3_trade_timelines.png` | Annotated price series for a positive, a null and a negative concept |
-| 4 | `results/figures/fig4_sensitivity_heatmap.png` | Mean excess return across the parameter grid |
-| 5 | `results/figures/fig5_walkforward.png` | In-sample versus out-of-sample excess by fold, and train→test rank correlation |
-| 6 | `results/figures/fig6_breakeven_costs.png` | Break-even round-trip cost on the excess over the matched null, against the modelled cost band |
+| 1 | `results/figures/fig1_concept_forest.png` | Excess over the matched null with 95% calendar-time confidence intervals, all 44 concepts at h = 10 |
+| 2 | `results/figures/fig2_sector_heatmap.png` | Excess over the direction-matched null by GICS sector |
+| 3 | `results/figures/fig3_trade_timelines.png` | Events of three large-sample concepts on AAPL, 2018–2019, chosen by point estimate |
+| 4 | `results/figures/fig4_sensitivity_heatmap.png` | Mean excess across the broad parameter grid |
+| 5 | `results/figures/fig5_walkforward.png` | In-sample versus out-of-sample excess by fold, and train-to-test rank correlation |
+| 6 | `results/figures/fig6_breakeven_costs.png` | Break-even round-trip cost on the excess, against the modelled cost band |
+| 7 | `results/figures/fig7_calibration.png` | Size and standard-error honesty of the three tests in six zero-edge designs |
 
-Each figure is accompanied by a CSV of its underlying values, so every plotted
-number can be checked rather than measured off the image.
+Each figure has a CSV of its underlying values beside it, so every plotted number
+can be checked rather than measured off the image. The PDF reproduces all seven
+as plates in Appendix D.
 
-# Appendix B. Detector pseudocode
+# Appendix B. Pseudocode
 
-Full machine-readable specifications are in `docs/specs/*.yaml`. Three
-representative detectors follow.
+Full machine-readable specifications are in `docs/specs/*.yaml`.
 
 **B.1 Liquidity sweep** (`ict_sweep_buyside_bearish`)
 
@@ -687,31 +827,47 @@ gap region ← [high[i−2], low[i]]
 filled_i ← ∃ k ∈ (i, i+N] : low[k] < high[i−2]
 ```
 
-**B.3 Composition-matched randomization test**
+**B.3 Primary test: calendar-time Newey–West on the matched excess**
 
 ```
-for each ticker t in the concept's trades:
-    n_t ← trades on t;  N_t, μ_t, σ²_t ← pool of all h-day forward returns on t
-    fpc ← (N_t − n_t)/(N_t − 1)
-    accumulate:  mean_num += n_t·d·μ_t ;  var_num += n_t·σ²_t·fpc
-null_mean ← mean_num / N ;  null_se ← sqrt(var_num) / N
-z ← (observed_mean − null_mean) / null_se ;  p ← 1 − Φ(z)      # one-sided
+for each trade i:  e_i ← r_i − d_i·μ_t(i)     # μ_t: mean of ALL h-day returns on ticker t
+ē ← mean(e);  N ← number of trades
+for each business day d from the first to the last entry date:
+    x_d ← Σ_{trades i on d} (e_i − ē) / N      # 0 on dates without trades
+V ← Σ_d x_d² + 2 Σ_{ℓ=1..h} (1 − ℓ/(h+1)) Σ_d x_d·x_{d−ℓ}
+z ← ē / √V ;  p ← 1 − Φ(z)                     # one-sided
+```
+
+**B.4 Secondary test: exact rotation**
+
+```
+F[k, s] ← h-day forward return of ticker k at calendar position s (NaN if absent)
+W[k, s] ← Σ d_i over the concept's trades on ticker k at s ;  C[k, s] ← their count
+G ← F with NaN → 0 ;  A ← 1 where F is finite, else 0
+num(o) ← Σ_k IFFT( conj(FFT(W_k)) · FFT(G_k) )[o]    # = Σ_i d_i·G[k_i, (s_i+o) mod T]
+den(o) ← Σ_k IFFT( conj(FFT(C_k)) · FFT(A_k) )[o]
+S(o) ← num(o) / den(o)   for o = h+1 … T−h−2
+p ← (1 + #{o : S(o) ≥ S(0)}) / (1 + number of offsets)
 ```
 
 # Appendix C. Complete results
 
 | Table | File |
 |---|---|
-| All 352 (concept × horizon) hypotheses with every metric, p-value, FDR-adjusted p-value, effect size and confidence interval | `results/statistics_master.csv` |
+| All 352 (concept × horizon) hypotheses: every metric, p-value (primary, SRS, two-sided), FDR-adjusted p-value, effect size and confidence interval | `results/statistics_master.csv` |
+| Exact rotation test, all 352 hypotheses | `results/rotation_null_all.csv` |
+| Calibration study (Table 1) | `results/test_calibration.csv` |
+| Every number quoted in this paper, computed in one place | `results/manuscript_facts.json` |
 | Human-readable per-concept summary at every horizon | `results/master_summary.md` |
-| Pipeline validation, data quality, and regression against the prior version | `results/validation_report.md` |
+| Pipeline validation, data quality and regression against the prior version | `results/validation_report.md` |
 | Adversarial pre-read of likely referee objections | `results/reviewer_report.md` |
 | Walk-forward, per fold and per concept | `results/walkforward_{summary,detail}.csv` |
 | Break-even and net-of-cost tables | `results/breakeven_costs.csv`, `results/net_of_cost_rankings.csv` |
-| Monte Carlo | `results/monte_carlo.csv` |
-| Sector and regime breakdowns | `results/sector_analysis.csv`, `results/regime_analysis.csv` |
-| Parameter sweeps (broad) | `results/sensitivity_{grid,random,stability}.csv` |
-| Parameter sweep (targeted at the reformulated concepts) | `results/sensitivity_targeted_{grid,stability}.csv` |
+| Resampling-scheme comparison | `results/monte_carlo.csv` |
+| Sector, sector power and regime breakdowns | `results/sector_analysis.csv`, `results/sector_power.csv`, `results/regime_analysis.csv` |
+| Survivorship sizing and membership-aware re-test | `results/survivorship_summary.csv`, `results/survivorship_membership_aware.csv`, `results/survivorship_comparison.json` |
+| Parameter sweeps (broad, random, targeted) | `results/sensitivity_{grid,random,stability}.csv`, `results/sensitivity_targeted_{grid,stability}.csv` |
+| Every ambiguous reading of the source, with the choice made | `docs/disambiguation.md` |
 | Every code, data and parameter change from the prior version, with rationale | `CHANGES.md` |
 
 Reproduction: `./run_full_pipeline.sh` (see `docs/replication_guide.md`).

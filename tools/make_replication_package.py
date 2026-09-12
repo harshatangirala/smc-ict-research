@@ -30,23 +30,39 @@ CODE_FILES = [
     "Dockerfile", "docker-entrypoint.sh", "run_full_pipeline.sh",
     "run_fast_validation.sh", "README.md", "CHANGES.md", "LICENSE",
 ]
-DOC_GLOBS = ["docs/*.md", "docs/specs/*.yaml", ".github/workflows/*.yml"]
-DATA_FILES = ["data/raw/sp500_constituents.csv"]
+DOC_GLOBS = ["docs/*.md", "docs/specs/*.yaml", "docs/reference/*.pine",
+             ".github/workflows/*.yml"]
+DATA_FILES = [
+    "data/raw/sp500_constituents.csv",
+    # Sectors and index-entry dates; the pipeline never refetches it on its own.
+    "data/raw/sp500_wikipedia_snapshot.csv",
+    # The previous version's committed outputs: every claim about what it got
+    # wrong is recomputed from these by tools/manuscript_facts.py.
+    "data/bundle/concept_rankings.csv", "data/bundle/combination_rankings.csv",
+    "data/bundle/stock_rankings.csv", "data/bundle/sector_analysis.csv",
+    "data/bundle/regime_analysis.csv", "data/bundle/data_quality_report.csv",
+    "data/bundle/master_events.parquet",
+]
 
 # --- what goes in the SSRN submission bundle -------------------------------
 BUNDLE_DOCS = [
     "docs/manuscript.md", "docs/manuscript.pdf",
-    "docs/replication_guide.md", "CHANGES.md",
+    "docs/replication_guide.md", "docs/disambiguation.md", "CHANGES.md",
 ]
 BUNDLE_RESULT_GLOBS = [
     "statistics_master.csv", "master_summary.md", "validation_report.md",
-    "reviewer_report.md", "concept_rankings.csv",
+    "reviewer_report.md", "manuscript_facts.json", "test_calibration.csv",
+    "rotation_null_all.csv", "concept_rankings.csv",
     "concept_rankings_all_horizons.csv", "combination_rankings.csv",
-    "stock_rankings.csv", "sector_analysis.csv", "regime_analysis.csv",
+    "stock_rankings.csv", "sector_analysis.csv", "sector_power.csv",
+    "sector_map_disagreements.csv", "regime_analysis.csv",
     "walkforward_summary.csv", "walkforward_detail.csv",
     "breakeven_costs.csv", "net_of_cost_rankings.csv",
     "cost_sensitivity_grid.csv", "monte_carlo.csv",
-    "sensitivity_grid.csv", "sensitivity_stability.csv",
+    "sensitivity_grid.csv", "sensitivity_random.csv", "sensitivity_stability.csv",
+    "sensitivity_targeted_grid.csv", "sensitivity_targeted_stability.csv",
+    "survivorship_summary.csv", "survivorship_membership_aware.csv",
+    "survivorship_comparison.json",
     "data_quality_report.csv", "run_manifest.json", "seed.txt",
 ]
 

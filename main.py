@@ -224,7 +224,7 @@ def stage_montecarlo() -> None:
     from analytics.montecarlo import (
         monte_carlo_block_bootstrap,
         monte_carlo_matched_null,
-        monte_carlo_rotation_null,
+        rotation_null_family,
     )
     from backtest.engine import _load_price_cache
     from utils.config import MONTE_CARLO_RUNS, PRIMARY_HOLDING_PERIOD
@@ -244,6 +244,16 @@ def stage_montecarlo() -> None:
     else:
         signals = sorted(sub["signal"].unique())[:12]
 
+    # Exact rotation test for EVERY (signal, horizon) hypothesis, BH-FDR across
+    # the family -- the study's secondary test.
+    fam = rotation_null_family(trades, prices)
+    fam.to_csv(RESULTS_DIR / "rotation_null_all.csv", index=False)
+    log.info(
+        "Exact rotation null: %d hypotheses, %d beat it after BH-FDR, %d lose to it",
+        len(fam), int(fam["beats_rotation_null"].sum()), int(fam["loses_to_rotation_null"].sum()),
+    )
+    rot = fam[fam["holding_period"] == PRIMARY_HOLDING_PERIOD].set_index("signal")
+
     rows = []
     for sig in signals:
         grp = sub[sub["signal"] == sig]
@@ -260,14 +270,14 @@ def stage_montecarlo() -> None:
             prices, counts, PRIMARY_HOLDING_PERIOD, direction, observed,
             n_runs=MONTE_CARLO_RUNS, label=f"blk:{sig}",
         )
-        rot = monte_carlo_rotation_null(
-            grp, prices, PRIMARY_HOLDING_PERIOD,
-            n_runs=MONTE_CARLO_RUNS, label=f"rot:{sig}",
-        )
+        r = rot.loc[sig] if sig in rot.index else {}
         rows.append(
             {
                 "signal": sig, "n_trades": len(grp), "observed_mean": observed,
-                "rotation_null_mean": rot["null_mean"], "rotation_p_value": rot["p_value"],
+                "rotation_null_mean": r.get("null_mean", float("nan")),
+                "rotation_p_value": r.get("p_value", float("nan")),
+                "rotation_p_adj": r.get("p_adj", float("nan")),
+                "rotation_n_offsets": r.get("n_offsets", float("nan")),
                 "mc_null_mean": mc["null_mean"], "mc_p_value": mc["p_value"],
                 "block_null_mean": blk["null_mean"], "block_p_value": blk["p_value"],
                 "n_runs": MONTE_CARLO_RUNS,

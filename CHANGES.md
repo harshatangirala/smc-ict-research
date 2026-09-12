@@ -25,10 +25,11 @@ that could only be known 60 bars later.
 
 *Evidence.* A truncation-invariance probe — recompute each detector on data cut
 at bar *i*, compare with the full-series value at bar *i* — flips on exactly
-these two columns and no others. In the committed 50-ticker results they
-contributed **187,719 trades (4.3% of all events)** and occupied both extremes
-of the concept ranking: `ict_fvg_bearish_filled` had the most negative effect
-size in the entire study (d = −0.222) and was listed in
+these two columns and no others. In the committed full-universe event table
+(4,348,698 events over 499 tickers, `data/bundle/master_events.parquet`) they
+contributed **187,719 events (4.3%)**, which became 187,374 trades at h = 10,
+and occupied both extremes of the concept ranking: `ict_fvg_bearish_filled` had
+the most negative effect size in the entire study (d = −0.222) and was listed in
 `docs/final_research_report.md` under "Signals that beat the random-entry
 baseline".
 
@@ -166,13 +167,20 @@ A concept's trades and the pooled baseline's trades came from different mixes of
 tickers, and mean returns differ enormously across names over 2010–2026. Welch's
 test on the two pools therefore measured ticker mix as much as signal quality.
 
-*Fix.* A design-based **matched randomization test**: hold the ticker mix and
-the per-ticker trade count fixed, and ask what mean would arise from choosing
-those entry dates at random. Sampling `n_t` of `N_t` bars without replacement
-gives an exact variance under the sampling design (with finite-population
-correction), assuming nothing about the return distribution. The analytic
-moments are validated against a 2,000-run simulation: null means agree to five
-decimal places, SE ratios 0.99–1.04.
+*Fix.* A **composition-matched null**: hold the ticker mix and the per-ticker
+trade count fixed, and ask what mean would arise from choosing those entry
+dates at random. Each trade is measured against its own ticker's unconditional
+h-day mean, signed by direction.
+
+*Superseded in part — see §8.1.* The first version tested that excess with the
+simple-random-sampling variance of the null mean (`n_t` of `N_t` bars without
+replacement, finite-population correction). Its moments match a 2,000-run
+simulation exactly, but that simulation draws dates independently per ticker,
+so it validates the test only for signals that do not fire together. The
+calibration study found it rejecting 28–43% of uninformative clustered signals
+at a nominal 5%. The primary test is now a calendar-time Newey–West test on the
+same per-trade excess (`matched_excess_calendar_test`); the SRS p-value is kept
+as `p_value_vs_matched_random_srs` for comparison.
 
 ### 2.3 No transaction costs  **[read]**
 
@@ -219,6 +227,11 @@ resolves to whichever sector appears **last**, with no error.
 *Fix.* Assignments corrected; `_assert_no_duplicate_assignments()` runs at import
 and raises. Added `sector_coverage_report` — ~10% of the universe is unmapped and
 is reported as `Unknown` rather than dropped.
+
+*Superseded — see §8.4.* The curated map is no longer the source of sector
+labels. Published GICS sectors from a committed constituent snapshot replace it;
+against that snapshot the curated map left 54 constituents unclassified and
+mis-classified six (APP, AWK, BLDR, DD, TKO, UBER).
 
 ### 2.7 Invalid OHLC bars were counted but never repaired  **[measured]**
 
@@ -297,9 +310,9 @@ not delivered. All are now closed.
 | # | Gap | Resolution |
 |---|---|---|
 | 1 | **`analytics/sectors` docstring described `load_sector_map`, which did not exist.** A docstring that promises an API is worse than none. | Implemented `load_sector_map(source="static"\|"live")` and `fetch_live_sectors()`. Static remains the default and is what every published number uses; a live lookup would make results depend on when they were run. |
-| 2 | **Per-sector statistical power was never computed** (brief §8: "report sample size and power"). | `sector_power_analysis()` reports the minimum detectable effect per sector from its design-based standard error. All 12 sectors are adequately powered (MDE 1.8-4.5 bp against observed excesses of -21 to +1 bp), so the negative sector results are evidence of absence rather than absence of evidence. Written to `results/sector_power.csv`. |
+| 2 | **Per-sector statistical power was never computed** (brief §8: "report sample size and power"). | `sector_power_analysis()` reports the minimum detectable effect per sector, written to `results/sector_power.csv`. *Corrected in §8.1:* the first version computed it from the anti-conservative SRS standard error and concluded that all 12 sectors were adequately powered (MDE 1.8–4.5 bp). From the calendar-time standard error the MDE is 14.7–57.1 bp across the 11 GICS sectors, and **none** is powered to detect a 10 bp effect. Sector results are descriptive. |
 | 3 | **10 of 46 registered signals had no specification** -- ICT market structure, volume imbalance, and the liquidity pool/sweep pair were tested and reported but undocumented. | Three spec families added; coverage is now 46/46, enforced by `test_every_registered_signal_has_a_specification`. |
-| 4 | **No disambiguation artefact** (brief §1). | `docs/disambiguation.md`: 13 ambiguous readings, the choice made, the rationale, and a table of which could move a published number. Three (A5, A6, A7) are genuine judgement calls; A8 is the one that does move a result, and is why `ict_nwog_gap_up` is withdrawn. |
+| 4 | **No disambiguation artefact** (brief §1). | `docs/disambiguation.md`: now 16 entries, each with the choice made, the rationale, and a table of which could move a published number. Three (A5, A6, A7) are genuine judgement calls; A8 sets the sign of the gap excess, which decided `ict_nwog_gap_up`'s status under the superseded test and decides nothing under the calibrated one. |
 | 5 | **The `export` stage had never been run on the full universe.** | Run; `exports/` now holds the CSV/JSON/Excel deliverables. |
 | 6 | **`docs/findings_report.html` / `.pdf` still stated the pre-correction numbers**, and `docs/final_research_report.md` had a stale sector count (0/12 rather than 1/12, from reading a renamed column). | Findings report moved to `docs/superseded/` with a README naming exactly what it gets wrong; `utils/render_pdf.py` repointed and marked superseded. `utils/generate_report.py` now resolves the excess-return column dynamically, and the report is regenerated. |
 | 7 | **Acceptance criterion mismatch**: the brief says `main.py backtest` produces `statistics_master.csv`; it produces `trades.parquet`. | Kept separate by design -- statistics takes ~15 min and is re-run far more often than the 4-min backtest. The stage now logs the handoff, and the deviation is documented in `docs/replication_guide.md` §4. |
@@ -327,8 +340,19 @@ tests/test_detector_rules.py     synthetic-OHLC rule regressions
 tests/test_statistics.py         one-sided, HAC, matched-null, FDR
 tests/test_pipeline_integrity.py registry, seeding, costs, data, metrics
 docs/specs/*.yaml                machine-readable concept definitions
+docs/disambiguation.md           every ambiguous reading, the choice, the rationale
 docs/manuscript.md               the paper
 docs/replication_guide.md        2-page replication guide
+utils/universe.py                GICS sectors and index-entry dates from the snapshot
+analytics/survivorship.py        survivorship sizing + membership-aware re-test
+tools/refresh_universe.py        deliberate refresh of the constituent snapshot
+tools/calibration_study.py       size of each significance test under zero edge
+tools/manuscript_facts.py        every manuscript number, computed in one place
+tools/reviewer_check.py          results/reviewer_report.md
+tests/test_audit_regressions.py  calibration, rotation, purge, cost-identity guards
+tests/test_ob_fidelity.py        order-block candle selection vs the Pine source
+tests/test_universe.py           membership mask, survivorship arithmetic, snapshot
+data/raw/sp500_wikipedia_snapshot.csv  committed GICS + date-added snapshot
 .github/workflows/ci.yml         tests + trimmed pipeline + spec drift
 Dockerfile, docker-entrypoint.sh
 run_full_pipeline.sh, run_fast_validation.sh
@@ -351,3 +375,176 @@ requirements-ci.txt
   overlapping, cross-sectional trade sequence and are not achievable portfolio
   results. Rather than silently redefine them, the module docstring and every
   report state what they are; inference uses the calendar-time estimator.
+
+---
+
+## 8. Audit of this re-analysis's own first results
+
+An end-to-end audit of the results this branch first reported (commit
+`fdb570a` and earlier: "5 of 44 concepts beat the matched null, 2 robust")
+found defects that changed that headline too. Everything below is fixed from
+commit `a9db8a8` on, and every number in the manuscript comes from the
+corrected pipeline. They are listed here because the paper's argument — that
+ordinary choices can manufacture a positive result — applies to the first
+draft of this re-analysis as much as to the original study.
+
+### 8.1 The primary test was anti-conservative for clustered signals  **[proved]**
+
+**Files:** `analytics/statistics.py`, `analytics/master_stats.py`,
+`tools/calibration_study.py`, `tests/test_audit_regressions.py`
+
+The first draft tested the matched excess with the simple-random-sampling
+variance of the null mean (§2.2). That variance is exact when every ticker's
+entry dates are an independent random draw, and it passed the check it was
+given — a 2,000-run simulation that drew dates the same way. SMC/ICT signals do
+not fire independently: a market-wide move triggers the same detector on
+hundreds of tickers on the same day, and many detectors fire mostly in turbulent
+markets.
+
+*Evidence.* `tools/calibration_study.py` measures each test's size in six
+designs with a true edge of exactly zero (1,000 replications each, nominal 5%):
+
+| Design | SRS variance | Calendar-time | Exact rotation |
+|---|---:|---:|---:|
+| Real prices, independent | 5.7% | 0.0% | 5.8% |
+| Real prices, semi-clustered | **28.1%** | 3.5% | 7.3% |
+| Real prices, clustered | **40.6%** | 6.8% | 6.9% |
+| Simulated GARCH panel, independent | 5.1% | 0.0% | 5.0% |
+| Simulated GARCH panel, clustered | **34.3%** | 3.0% | 4.4% |
+| Simulated GARCH panel, volatility-timed | **38.3%** | 5.0% | **18.8%** |
+
+Real signals are more clustered than any of these designs: the calendar-time
+standard error of the matched excess is a median 7.0 times the SRS one across
+the 352 hypotheses (1.4–16.2).
+
+*Fix.* The primary test is now a calendar-time Newey–West test on each trade's
+excess over its ticker's matched mean (`matched_excess_calendar_test`), the only
+one of the three that stays near nominal whenever entries cluster. It is
+conservative when entries are dispersed, which costs power but cannot produce
+false positives; the manuscript reports the power consequence. The exact
+rotation test (§8.3) is reported beside it for every hypothesis; it
+over-rejects for volatility-timed signals, so a rotation rejection the primary
+test does not confirm is not counted.
+
+*Effect.* On the corrected data the SRS variance gives 4 winning concepts at
+h = 10 and 28 winning hypotheses across horizons; the calendar-time test gives
+none. The first draft's headline of "5 of 44" (4 of these plus
+`smc_internal_ob_bearish_mitigated`, §8.2) and its "2 robust" sweep detectors
+do not survive.
+
+### 8.2 The SMC order-block detector selected the wrong candle  **[proved]**
+
+**Files:** `signals/smc_signals.py`, `signals/ict_signals.py`, `tests/test_ob_fidelity.py`
+
+LuxAlgo's `storeOrdeBlock` takes, for a bullish order block, the bar with the
+**lowest** parsed low between the swing pivot and the break bar (bearish: the
+highest parsed high), and removes a block from the active list once price
+mitigates it. The translation took the opposite extreme and never removed
+mitigated blocks, so it could report the same block's mitigation again and
+again. Every `smc_*_ob_*` signal was affected, including
+`smc_internal_ob_bearish_mitigated`, one of the five concepts in the first
+draft's headline. The ICT order-block loop also searched a range that included
+the break bar, so a block could be its own breaking candle.
+
+*Fix.* Pine-faithful ranges and extremes; mitigated blocks are removed. The
+regression tests build series on which the two readings disagree. The event
+table moved from 2,226,881 to 2,204,425 events. Only the six order-block
+*mitigation* signals changed trade count (the four SMC ones fell by 490 to
+14,423 trades at h = 10, the two ICT ones rose by 12 and 31); every other
+signal is identical. Disambiguation entry A16.
+
+### 8.3 The rotation Monte Carlo could not clear a family-wide FDR threshold  **[proved]**
+
+**Files:** `analytics/montecarlo.py`, `main.py`, `tests/test_audit_regressions.py`
+
+With 1,000 sampled rotations the smallest attainable p-value is 1/1001, above
+the first Benjamini–Hochberg threshold of 0.05/352, so the rotation test could
+never reject on its own across the study's family. `rotation_null_exact` now
+enumerates every admissible offset (4,014–4,132 of them) with an FFT circular
+cross-correlation. The statistic is identical to the sampled version's (a test
+compares the two over every offset), the result needs no seed, and it runs for
+all 352 hypotheses in about a minute (`results/rotation_null_all.csv`).
+
+### 8.4 Sectors were hand-curated  **[measured]**
+
+**Files:** `utils/universe.py`, `analytics/sectors.py`, `data/raw/sp500_wikipedia_snapshot.csv`
+
+Sector labels now come from the published GICS classification in a committed
+constituent snapshot (503 rows, 11 sectors), refreshed only deliberately by
+`tools/refresh_universe.py`. Against it the curated map left 54 constituents
+unclassified and mis-classified six (APP, AWK, BLDR, DD, TKO, UBER;
+`results/sector_map_disagreements.csv`). Sector power, recomputed from the
+calendar-time standard error, gives minimum detectable effects of 14.7–57.1 bp:
+no sector is powered to detect a 10 bp effect, so sector results are
+descriptive (§5b item 2 corrected).
+
+### 8.5 Survivorship bias was acknowledged but not measured  **[measured]**
+
+**Files:** `utils/universe.py`, `analytics/survivorship.py`, `main.py`
+
+The snapshot's index-entry dates size the problem: of the 498 constituents with
+price data, 265 were members at the sample start and 233 joined during it, so
+at least 235 of the 500 index slots at the start (47.0%) were held by
+since-removed members that are absent. The
+look-ahead-membership component is removed exactly by a re-test that drops
+trades dated before a ticker's index entry **and** restricts the matched-null
+pools the same way: 19.8% of trades drop out, no concept beats the null in
+either universe, and the sign of the excess is preserved for 97.7% of concepts
+(median shift 0.88 bp). The removed members cannot be recovered from free
+sources.
+
+### 8.6 The parameter sweep was vacuous  **[proved]**
+
+**Files:** `signals/*.py`, `analytics/sensitivity.py`, `tests/test_pipeline_integrity.py`
+
+`def detect(df, length=ICT.ob_swing_len)` freezes the config value at import,
+so overriding the config had no effect and the sweep produced identical results
+at every grid point (`std_excess` was exactly 0.0 for all 44 signals).
+Parameters are now resolved at call time; `TestParametersAreLateBound` guards it.
+
+### 8.7 The calendar-time estimator used calendar days  **[read]**
+
+**File:** `analytics/statistics.py::calendar_time_mean_test`
+
+The date series was reindexed onto a calendar-day grid, padding weekends with
+zeros, so a Newey–West lag of *h* spanned only about 5*h*/7 trading days. It is
+now a business-day grid.
+
+### 8.8 Walk-forward training trades overlapped the test window  **[proved]**
+
+**File:** `analytics/walkforward.py::purge_train`
+
+About 1% of training trades had exits inside the following test year. Training
+trades entered within *h* business days of the training end are now purged.
+
+### 8.9 Transaction-cost draws were keyed to row position  **[proved]**
+
+**File:** `backtest/engine_tc.py`
+
+The stochastic slippage draw depended on the row order of the trade table, so
+the same trade could be charged a different cost after a re-sort. Draws are now
+keyed to the trade's identity (ticker, date, signal, horizon, occurrence).
+
+### 8.10 The regime null compared a bucket with itself  **[read]**
+
+**File:** `analytics/regimes.py`
+
+Rebuilt as a direction-matched, regime-conditional null computed from all bars.
+
+### 8.11 A "loses to the null" count from a one-sided test  **[read]**
+
+**Files:** `analytics/master_stats.py`, `utils/validation_report.py`, `utils/master_summary.py`, `analytics/concept_ranking.py`
+
+The headline test is one-sided, so a count of concepts that significantly
+*lose* to the null built from it is zero by construction. That count now comes
+from a separate two-sided family with its own BH-FDR correction
+(`loses_to_matched_random`). It is still zero: the smallest adjusted two-sided
+p-value across all 352 hypotheses is 0.061.
+
+### 8.12 Documentation claims that did not match the data  **[measured]**
+
+"187,719 leaked trades in the committed 50-ticker results" appeared in five
+places. 187,719 is the number of look-ahead **events** in the full
+499-ticker event table; they became 187,374 trades at h = 10. Corrected
+everywhere, including code comments. The claim that all sectors were
+adequately powered is corrected in §5b and §8.4.

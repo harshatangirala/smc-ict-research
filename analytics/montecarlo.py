@@ -18,6 +18,17 @@ Three independent resampling schemes, each answering a different objection:
     Circular block bootstrap over each ticker's return path, preserving serial
     dependence within blocks. Answers "would a strategy with this trade count
     look this good on a resampled price path?"
+
+``monte_carlo_rotation_null`` / ``rotation_null_exact``
+    Shift the signal's whole entry calendar by one offset, the same for every
+    ticker. The only scheme here that preserves which trades share a date, and
+    so the only one that is not fooled by signals that fire together. The
+    exact version enumerates every admissible offset by FFT and is what the
+    pipeline reports (``rotation_null_family``); the sampled version is kept
+    because its behaviour is easier to read and the tests compare the two.
+
+The three schemes above the rotation draw dates independently per ticker and
+are anti-conservative for clustered signals -- see tools/calibration_study.py.
 """
 
 from __future__ import annotations
@@ -271,3 +282,160 @@ def monte_carlo_rotation_null(
         "n_runs": int(n_runs),
         "n_trades": int(ok.sum()),
     }
+
+
+def rotation_matrix(
+    prices: dict[str, pd.DataFrame],
+    holding_period: int,
+    tickers: list[str] | None = None,
+) -> tuple[list[str], pd.DatetimeIndex, np.ndarray]:
+    """h-day forward returns on the union trading calendar, NaN where absent.
+
+    One matrix serves every signal at a horizon, so the exact rotation null can
+    run a whole family of hypotheses without rebuilding it.
+    """
+    tickers = sorted(prices) if tickers is None else sorted(tickers)
+    h = int(holding_period)
+    cal = pd.DatetimeIndex(sorted(set().union(*(prices[t].index for t in tickers))))
+    F = np.full((len(tickers), len(cal)), np.nan)
+    for k, t in enumerate(tickers):
+        c = prices[t]["close"].to_numpy(dtype=float)
+        if len(c) <= h:
+            continue
+        F[k, cal.get_indexer(prices[t].index[:-h])] = c[h:] / c[:-h] - 1.0
+    return tickers, cal, F
+
+
+def rotation_null_exact(
+    trades: pd.DataFrame,
+    holding_period: int,
+    prices: dict[str, pd.DataFrame] | None = None,
+    matrix: tuple | None = None,
+) -> dict:
+    """Rotation null over EVERY admissible offset, not a random sample of them.
+
+    Why not the sampled version
+    ---------------------------
+    With 1,000 sampled offsets the smallest attainable p-value is 1/1001. A
+    Benjamini-Hochberg threshold over the study's 352 hypotheses starts at
+    0.05/352 = 0.00014, so a sampled rotation test cannot clear FDR on its own
+    however strong the signal. Enumerating all offsets lowers the floor to
+    about 1/(T - 2h - 1) and removes the seed from the result.
+
+    How
+    ---
+    The rotated mean at offset ``o`` is ``num(o) / den(o)`` with
+
+        num(o) = sum_k sum_p W_k[p] G_k[(p + o) mod T]
+        den(o) = sum_k sum_p C_k[p] V_k[(p + o) mod T]
+
+    where ``W_k``/``C_k`` are ticker k's direction-weighted and plain trade
+    counts by date, ``G_k`` its forward returns with NaN set to 0, and ``V_k``
+    the availability mask. Both are circular cross-correlations, so the FFT
+    gives them for every ``o`` at once. The statistic is exactly the sampled
+    version's ``nanmean`` over rotated trades (checked in the tests); the
+    admissible offsets are the same ``h+1 .. T-h-2``.
+    """
+    h = int(holding_period)
+    if matrix is None:
+        if prices is None:
+            raise ValueError("pass either prices or a prebuilt matrix")
+        matrix = rotation_matrix(prices, h, sorted(set(trades["ticker"]) & set(prices)))
+    tickers, cal, F = matrix
+    T = len(cal)
+    empty = {"p_value": np.nan, "p_value_less": np.nan, "null_mean": np.nan,
+             "null_se": np.nan, "observed_mean": np.nan, "excess_vs_rotation": np.nan,
+             "n_offsets": 0, "n_trades": 0}
+    index = {t: i for i, t in enumerate(tickers)}
+    sub = trades[trades["ticker"].isin(index)]
+    if sub.empty or T <= 2 * h + 4:
+        return empty
+    kidx = sub["ticker"].map(index).to_numpy()
+    pos = cal.get_indexer(pd.to_datetime(sub["date"]))
+    ok = pos >= 0
+    if not ok.any():
+        return empty
+    kidx, pos = kidx[ok], pos[ok]
+    d = sub["direction"].to_numpy(dtype=float)[ok]
+    observed = float(np.nanmean(d * F[kidx, pos]))
+
+    rows, local = np.unique(kidx, return_inverse=True)
+    W = np.zeros((len(rows), T))
+    C = np.zeros((len(rows), T))
+    np.add.at(W, (local, pos), d)
+    np.add.at(C, (local, pos), 1.0)
+    Fr = F[rows]
+    V = np.isfinite(Fr)
+    G = np.where(V, Fr, 0.0)
+    num = np.fft.irfft(
+        (np.conj(np.fft.rfft(W, axis=1)) * np.fft.rfft(G, axis=1)).sum(axis=0), n=T)
+    den = np.rint(np.fft.irfft(
+        (np.conj(np.fft.rfft(C, axis=1)) * np.fft.rfft(V.astype(float), axis=1)).sum(axis=0), n=T))
+    offs = np.arange(h + 1, T - h - 1)
+    with np.errstate(invalid="ignore", divide="ignore"):
+        sims = num[offs] / den[offs]
+    sims = sims[np.isfinite(sims)]
+    if sims.size < 2 or not np.isfinite(observed):
+        return empty
+    # FFT round-off is ~1e-15; near-ties are counted against the signal.
+    tol = 1e-12 * max(1.0, abs(observed))
+    n = sims.size
+    null_mean = float(sims.mean())
+    return {
+        "p_value": float((1 + np.sum(sims >= observed - tol)) / (n + 1)),
+        "p_value_less": float((1 + np.sum(sims <= observed + tol)) / (n + 1)),
+        "null_mean": null_mean,
+        "null_se": float(sims.std(ddof=1)),
+        "observed_mean": observed,
+        "excess_vs_rotation": observed - null_mean,
+        "n_offsets": int(n),
+        "n_trades": int(ok.sum()),
+    }
+
+
+def rotation_null_family(
+    trades: pd.DataFrame,
+    prices: dict[str, pd.DataFrame],
+    horizons: list[int] | None = None,
+) -> pd.DataFrame:
+    """Exact rotation test for every (signal, horizon) hypothesis, BH-FDR across all.
+
+    The study's secondary test. tools/calibration_study.py finds it right-sized
+    for random entry timing on real prices, where the primary calendar-time
+    test is conservative; it conditions on the realised path, though, and
+    over-rejects when entries concentrate in volatile periods (the simulated
+    vol-timed design). Survivors here that fail the primary test are reported
+    as such, not as evidence of edge.
+    """
+    from analytics.statistics import apply_fdr_correction
+    from utils.config import FDR_ALPHA, MIN_SAMPLE_SIZE
+
+    if horizons is None:
+        horizons = sorted(int(h) for h in trades["holding_period"].unique())
+    rows = []
+    for h in horizons:
+        sub = trades[trades["holding_period"] == h]
+        if sub.empty:
+            continue
+        matrix = rotation_matrix(prices, h)
+        for sig, grp in sub.groupby("signal", sort=True):
+            r = rotation_null_exact(grp, h, matrix=matrix)
+            rows.append({"signal": sig, "holding_period": int(h),
+                         "direction": int(grp["direction"].iloc[0]), **r})
+        log.info("Exact rotation null done at h=%d (%d signals)", h, sub["signal"].nunique())
+    out = pd.DataFrame(rows)
+    if out.empty:
+        return out
+    enough = out["n_trades"] >= MIN_SAMPLE_SIZE
+    fdr = apply_fdr_correction(out["p_value"], alpha=FDR_ALPHA)
+    out["p_adj"] = fdr["p_adjusted"]
+    out["reject"] = fdr["reject_null"].fillna(False).astype(bool)
+    out["beats_rotation_null"] = out["reject"] & (out["excess_vs_rotation"] > 0) & enough
+    # Descriptive two-sided family: does anything reliably LOSE to its null?
+    out["p_value_two_sided"] = np.minimum(1.0, 2.0 * np.minimum(out["p_value"], out["p_value_less"]))
+    fdr2 = apply_fdr_correction(out["p_value_two_sided"], alpha=FDR_ALPHA)
+    out["p_adj_two_sided"] = fdr2["p_adjusted"]
+    out["loses_to_rotation_null"] = (
+        fdr2["reject_null"].fillna(False).astype(bool) & (out["excess_vs_rotation"] < 0) & enough
+    )
+    return out

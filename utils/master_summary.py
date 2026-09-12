@@ -156,18 +156,19 @@ def build_master_summary(path: Path | None = None) -> Path:
     # ------------------------------------------------------------------
     # Counts
     # ------------------------------------------------------------------
-    beats = prim["beats_matched_random"].fillna(False)
-    tested = prim[~prim["low_sample_warning"].fillna(True)]
-    loses = (
-        tested["reject_vs_matched_random"].fillna(False)
-        & (tested["excess_return_vs_matched_random"] < 0)
-    )
+    beats = prim["beats_matched_random"].fillna(False).astype(bool)
+    # The headline test is one-sided and cannot find a loser; "worse than the
+    # null" is the two-sided family computed in analytics.master_stats.
+    loses = (prim["loses_to_matched_random"].fillna(False).astype(bool)
+             if "loses_to_matched_random" in prim.columns
+             else pd.Series(False, index=prim.index))
     L += [
         "## 4. Summary counts", "",
         f"At h = {PRIMARY_HOLDING_PERIOD}, of {len(prim)} concepts:", "",
         f"* **{int(beats.sum())}** beat the composition-matched random-entry null "
         f"after BH-FDR at alpha = {FDR_ALPHA};",
-        f"* **{int(loses.sum())}** are significantly **worse** than it;",
+        f"* **{int(loses.sum())}** are significantly **worse** than it "
+        "(two-sided family, BH-FDR);",
         f"* **{len(prim) - int(beats.sum()) - int(loses.sum())}** are "
         "statistically indistinguishable from it;",
         f"* {int(prim['reject_vs_zero'].fillna(False).sum())} differ from a "

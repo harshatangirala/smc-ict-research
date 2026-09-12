@@ -1,6 +1,6 @@
 {
-  "timestamp_utc": "2026-09-08T08:59:21.892434+00:00",
-  "git_hash": "51700dd",
+  "timestamp_utc": "2026-09-11T15:06:50.411050+00:00",
+  "git_hash": "a9db8a8",
   "profile": "final",
   "bootstrap_iterations": 10000,
   "fdr_alpha": 0.05,

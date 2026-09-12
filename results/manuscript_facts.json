@@ -1,0 +1,1220 @@
+{
+  "holding_period": 10,
+  "n_hypotheses": 352,
+  "n_concepts": 44,
+  "n_beats": 0,
+  "n_loses": 0,
+  "n_indistinguishable": 44,
+  "n_sig_vs_zero": 38,
+  "n_sig_vs_zero_all": 268,
+  "n_long_concepts": 22,
+  "mean_gross_long_bp": 62.6,
+  "mean_null_long_bp": 71.1,
+  "entry_dates_h": {
+    "smc_swing_choch_bearish": 1074,
+    "smc_swing_ob_bearish_formed": 1404,
+    "ict_sweep_sellside_bullish": 3919,
+    "ict_sweep_buyside_bearish": 4002,
+    "ict_liquidity_buyside_pool_formed": 3921,
+    "ict_nwog_gap_up": 852,
+    "smc_swing_choch_bullish": 1484,
+    "smc_internal_ob_bearish_mitigated": 3889,
+    "ict_nwog_gap_down": 851,
+    "ict_ob_bearish_mitigated": 3504,
+    "ict_mss_bullish": 3747,
+    "ict_liquidity_buyside_swept": 3852,
+    "smc_swing_ob_bearish_mitigated": 1819,
+    "smc_swing_ob_bullish_formed": 2621,
+    "smc_equal_highs": 2903,
+    "smc_internal_choch_bearish": 3349,
+    "smc_fvg_bullish_formed": 3881,
+    "smc_internal_choch_bullish": 3573,
+    "ict_bpr_bearish": 3238,
+    "smc_swing_bos_bearish": 664,
+    "smc_internal_ob_bullish_mitigated": 3602,
+    "smc_equal_lows": 2623,
+    "ict_bpr_bullish": 3288,
+    "smc_swing_bos_bullish": 2154,
+    "ict_liquidity_sellside_pool_formed": 3812,
+    "ict_mss_bearish": 3540,
+    "ict_displacement_bullish": 4045,
+    "ict_fvg_bullish_formed": 3897,
+    "smc_internal_ob_bearish_formed": 3649,
+    "ict_ob_bearish_formed": 3167,
+    "ict_fvg_bearish_formed": 3867,
+    "ict_ob_bullish_formed": 3704,
+    "ict_displacement_bearish": 4069,
+    "ict_liquidity_sellside_swept": 3718,
+    "smc_internal_ob_bullish_formed": 3895,
+    "ict_volume_imbalance_bullish": 3872,
+    "ict_volume_imbalance_bearish": 3769,
+    "ict_ob_bullish_mitigated": 3027,
+    "ict_bos_bullish": 3887,
+    "smc_internal_bos_bullish": 3635,
+    "smc_internal_bos_bearish": 2936,
+    "smc_swing_ob_bullish_mitigated": 1105,
+    "smc_fvg_bearish_formed": 3774,
+    "ict_bos_bearish": 3598
+  },
+  "mean_excess_all_bp": -11.02,
+  "n_beats_under_srs_test": 4,
+  "beats_under_srs_test": [
+    "ict_nwog_gap_up",
+    "ict_sweep_buyside_bearish",
+    "ict_sweep_sellside_bullish",
+    "smc_swing_choch_bearish"
+  ],
+  "beats_by_horizon": {
+    "1": 0,
+    "2": 0,
+    "3": 0,
+    "5": 0,
+    "10": 0,
+    "20": 0,
+    "40": 0,
+    "60": 0
+  },
+  "winners": [],
+  "min_p_primary_h": 0.2291,
+  "min_p_primary_h_signal": "ict_sweep_buyside_bearish",
+  "min_p_primary_all": 0.0623,
+  "min_p_adj_primary_all": 0.9998,
+  "n_positive_excess_h": 7,
+  "n_loses_two_sided_all": 0,
+  "min_p_adj_two_sided_all": 0.0612,
+  "n_beats_under_srs_all_horizons": 28,
+  "srs_beats_by_horizon": {
+    "1": 2,
+    "2": 7,
+    "3": 2,
+    "5": 1,
+    "10": 4,
+    "20": 4,
+    "40": 4,
+    "60": 4
+  },
+  "power": {
+    "se_median_bp": 18.2,
+    "se_min_bp": 10.8,
+    "se_max_bp": 153.9,
+    "mde_median_bp": 45.3,
+    "mde_min_bp": 26.9,
+    "n_upper95_below_0": 3,
+    "n_upper95_below_11": 10,
+    "n_upper95_below_26": 27,
+    "upper95_below_11_signals": [
+      "ict_bos_bearish",
+      "ict_bos_bullish",
+      "ict_displacement_bearish",
+      "ict_displacement_bullish",
+      "ict_fvg_bullish_formed",
+      "ict_ob_bullish_formed",
+      "ict_volume_imbalance_bullish",
+      "smc_internal_bos_bullish",
+      "smc_internal_ob_bullish_formed",
+      "smc_swing_bos_bullish"
+    ]
+  },
+  "positive_point_estimates": [
+    {
+      "signal": "smc_swing_choch_bearish",
+      "direction": -1,
+      "n_trades": 2653,
+      "n_entry_dates": 1074,
+      "mean_bp": -36.8,
+      "null_bp": -69.4,
+      "excess_bp": 32.5,
+      "se_bp": 115.3,
+      "se_srs_bp": 12.0,
+      "p": 0.389,
+      "p_srs": 0.0032,
+      "p_adj": 0.9998,
+      "upper95_bp": 222.2
+    },
+    {
+      "signal": "smc_swing_ob_bearish_formed",
+      "direction": -1,
+      "n_trades": 3898,
+      "n_entry_dates": 1404,
+      "mean_bp": -49.3,
+      "null_bp": -68.7,
+      "excess_bp": 19.4,
+      "se_bp": 91.6,
+      "se_srs_bp": 10.1,
+      "p": 0.416,
+      "p_srs": 0.0272,
+      "p_adj": 0.9998,
+      "upper95_bp": 170.0
+    },
+    {
+      "signal": "ict_sweep_sellside_bullish",
+      "direction": 1,
+      "n_trades": 49304,
+      "n_entry_dates": 3919,
+      "mean_bp": 82.2,
+      "null_bp": 70.2,
+      "excess_bp": 11.9,
+      "se_bp": 21.3,
+      "se_srs_bp": 2.7,
+      "p": 0.288,
+      "p_srs": 0.0,
+      "p_adj": 0.9998,
+      "upper95_bp": 47.0
+    },
+    {
+      "signal": "ict_sweep_buyside_bearish",
+      "direction": -1,
+      "n_trades": 65448,
+      "n_entry_dates": 4002,
+      "mean_bp": -59.2,
+      "null_bp": -70.6,
+      "excess_bp": 11.4,
+      "se_bp": 15.3,
+      "se_srs_bp": 2.3,
+      "p": 0.229,
+      "p_srs": 0.0,
+      "p_adj": 0.9998,
+      "upper95_bp": 36.6
+    },
+    {
+      "signal": "ict_liquidity_buyside_pool_formed",
+      "direction": 1,
+      "n_trades": 58941,
+      "n_entry_dates": 3921,
+      "mean_bp": 74.3,
+      "null_bp": 68.5,
+      "excess_bp": 5.8,
+      "se_bp": 15.1,
+      "se_srs_bp": 2.4,
+      "p": 0.349,
+      "p_srs": 0.0077,
+      "p_adj": 0.9998,
+      "upper95_bp": 30.6
+    },
+    {
+      "signal": "ict_nwog_gap_up",
+      "direction": 1,
+      "n_trades": 147321,
+      "n_entry_dates": 852,
+      "mean_bp": 76.7,
+      "null_bp": 71.9,
+      "excess_bp": 4.8,
+      "se_bp": 17.9,
+      "se_srs_bp": 1.5,
+      "p": 0.394,
+      "p_srs": 0.0009,
+      "p_adj": 0.9998,
+      "upper95_bp": 34.2
+    },
+    {
+      "signal": "smc_swing_choch_bullish",
+      "direction": 1,
+      "n_trades": 2699,
+      "n_entry_dates": 1484,
+      "mean_bp": 73.4,
+      "null_bp": 69.5,
+      "excess_bp": 3.9,
+      "se_bp": 16.9,
+      "se_srs_bp": 11.9,
+      "p": 0.408,
+      "p_srs": 0.3705,
+      "p_adj": 0.9998,
+      "upper95_bp": 31.7
+    }
+  ],
+  "se_inflation_vs_zero": {
+    "min": 1.6,
+    "median": 6.16,
+    "max": 12.28
+  },
+  "se_inflation_top5": [
+    {
+      "signal": "smc_internal_ob_bullish_mitigated",
+      "n_trades": 39612,
+      "iid_se": 0.000402,
+      "hac_se": 0.00494,
+      "ratio": 12.28
+    },
+    {
+      "signal": "ict_nwog_gap_down",
+      "n_trades": 130643,
+      "iid_se": 0.000182,
+      "hac_se": 0.002198,
+      "ratio": 12.11
+    },
+    {
+      "signal": "smc_fvg_bearish_formed",
+      "n_trades": 67673,
+      "iid_se": 0.000298,
+      "hac_se": 0.003581,
+      "ratio": 12.0
+    },
+    {
+      "signal": "ict_displacement_bearish",
+      "n_trades": 190415,
+      "iid_se": 0.00015,
+      "hac_se": 0.001712,
+      "ratio": 11.45
+    },
+    {
+      "signal": "ict_ob_bullish_mitigated",
+      "n_trades": 20562,
+      "iid_se": 0.000608,
+      "hac_se": 0.006749,
+      "ratio": 11.1
+    }
+  ],
+  "matched_se_calendar_over_srs": {
+    "min": 1.35,
+    "median": 7.04,
+    "max": 16.17
+  },
+  "n_events": 2204425,
+  "n_tickers_with_events": 496,
+  "n_signals_firing": 44,
+  "n_trades_total": 17552994,
+  "n_trades_at_h": 2198125,
+  "n_downloaded": 498,
+  "n_short_history_after_2010": 80,
+  "ohlc_material_invalid_bars": [
+    "APH 2021-05-05",
+    "APH 2023-06-05",
+    "HUBB 2021-05-05"
+  ],
+  "ohlc_float_noise_bars": 1301,
+  "calibration": {
+    "independent:srs": 0.057,
+    "independent:calendar": 0.0,
+    "independent:rotation": 0.058,
+    "semi:srs": 0.281,
+    "semi:calendar": 0.035,
+    "semi:rotation": 0.073,
+    "clustered:srs": 0.406,
+    "clustered:calendar": 0.068,
+    "clustered:rotation": 0.069,
+    "sim_independent:srs": 0.051,
+    "sim_independent:calendar": 0.0,
+    "sim_independent:rotation": 0.05,
+    "sim_clustered:srs": 0.343,
+    "sim_clustered:calendar": 0.03,
+    "sim_clustered:rotation": 0.044,
+    "sim_vol_timed:srs": 0.383,
+    "sim_vol_timed:calendar": 0.05,
+    "sim_vol_timed:rotation": 0.188
+  },
+  "calibration_reps": {
+    "srs": 1000,
+    "calendar": 1000,
+    "rotation": 1000
+  },
+  "calibration_se_ratio": {
+    "independent:srs": 0.98,
+    "independent:calendar": 1.8,
+    "independent:rotation": 0.98,
+    "semi:srs": 0.5,
+    "semi:calendar": 1.27,
+    "semi:rotation": 1.03,
+    "clustered:srs": 0.24,
+    "clustered:calendar": 1.11,
+    "clustered:rotation": 1.02,
+    "sim_independent:srs": 1.01,
+    "sim_independent:calendar": 2.02,
+    "sim_independent:rotation": 1.02,
+    "sim_clustered:srs": 0.22,
+    "sim_clustered:calendar": 1.1,
+    "sim_clustered:rotation": 0.99,
+    "sim_vol_timed:srs": 0.14,
+    "sim_vol_timed:calendar": 0.87,
+    "sim_vol_timed:rotation": 0.45
+  },
+  "calibration_verdict": {
+    "independent:srs": "calibrated",
+    "independent:calendar": "conservative",
+    "independent:rotation": "calibrated",
+    "semi:srs": "anti-conservative",
+    "semi:calendar": "calibrated",
+    "semi:rotation": "anti-conservative",
+    "clustered:srs": "anti-conservative",
+    "clustered:calendar": "anti-conservative",
+    "clustered:rotation": "anti-conservative",
+    "sim_independent:srs": "calibrated",
+    "sim_independent:calendar": "conservative",
+    "sim_independent:rotation": "calibrated",
+    "sim_clustered:srs": "anti-conservative",
+    "sim_clustered:calendar": "conservative",
+    "sim_clustered:rotation": "calibrated",
+    "sim_vol_timed:srs": "anti-conservative",
+    "sim_vol_timed:calendar": "calibrated",
+    "sim_vol_timed:rotation": "anti-conservative"
+  },
+  "calibration_mean_estimate_bp": {
+    "independent:srs": -0.17,
+    "independent:calendar": -0.17,
+    "independent:rotation": -0.1,
+    "semi:srs": 3.74,
+    "semi:calendar": 3.74,
+    "semi:rotation": 3.83,
+    "clustered:srs": 3.86,
+    "clustered:calendar": 3.86,
+    "clustered:rotation": 3.94,
+    "sim_independent:srs": 0.06,
+    "sim_independent:calendar": 0.06,
+    "sim_independent:rotation": 0.06,
+    "sim_clustered:srs": -0.92,
+    "sim_clustered:calendar": -0.92,
+    "sim_clustered:rotation": -0.92,
+    "sim_vol_timed:srs": 2.09,
+    "sim_vol_timed:calendar": 2.09,
+    "sim_vol_timed:rotation": 2.1
+  },
+  "rot_n_hypotheses": 352,
+  "rot_n_beats": 0,
+  "rot_beats": [],
+  "rot_n_loses": 54,
+  "rot_offsets": {
+    "min": 4014,
+    "max": 4132
+  },
+  "rot_min_p_adj": 0.5158,
+  "rot_n_loses_h": 5,
+  "rot_h": {
+    "ict_sweep_buyside_bearish": {
+      "p": 0.1004,
+      "p_adj": 1.0,
+      "excess_bp": 10.6,
+      "null_se_bp": 13.3
+    },
+    "smc_swing_choch_bearish": {
+      "p": 0.1604,
+      "p_adj": 1.0,
+      "excess_bp": 34.0,
+      "null_se_bp": 42.5
+    },
+    "ict_sweep_sellside_bullish": {
+      "p": 0.1757,
+      "p_adj": 1.0,
+      "excess_bp": 12.9,
+      "null_se_bp": 22.6
+    },
+    "ict_liquidity_buyside_pool_formed": {
+      "p": 0.1964,
+      "p_adj": 1.0,
+      "excess_bp": 6.8,
+      "null_se_bp": 10.4
+    },
+    "smc_swing_ob_bearish_formed": {
+      "p": 0.2447,
+      "p_adj": 1.0,
+      "excess_bp": 20.9,
+      "null_se_bp": 39.7
+    },
+    "ict_nwog_gap_up": {
+      "p": 0.2649,
+      "p_adj": 1.0,
+      "excess_bp": 6.3,
+      "null_se_bp": 10.3
+    },
+    "smc_swing_choch_bullish": {
+      "p": 0.4197,
+      "p_adj": 1.0,
+      "excess_bp": 6.3,
+      "null_se_bp": 33.1
+    },
+    "smc_internal_ob_bearish_mitigated": {
+      "p": 0.4668,
+      "p_adj": 1.0,
+      "excess_bp": 1.3,
+      "null_se_bp": 12.2
+    },
+    "ict_ob_bearish_mitigated": {
+      "p": 0.5079,
+      "p_adj": 1.0,
+      "excess_bp": 0.0,
+      "null_se_bp": 16.3
+    },
+    "smc_swing_ob_bearish_mitigated": {
+      "p": 0.5295,
+      "p_adj": 1.0,
+      "excess_bp": -2.0,
+      "null_se_bp": 28.6
+    },
+    "smc_swing_bos_bearish": {
+      "p": 0.5307,
+      "p_adj": 1.0,
+      "excess_bp": -7.2,
+      "null_se_bp": 50.4
+    },
+    "smc_swing_ob_bullish_formed": {
+      "p": 0.5711,
+      "p_adj": 1.0,
+      "excess_bp": -3.0,
+      "null_se_bp": 20.1
+    },
+    "ict_mss_bullish": {
+      "p": 0.5937,
+      "p_adj": 1.0,
+      "excess_bp": -1.4,
+      "null_se_bp": 20.7
+    },
+    "ict_nwog_gap_down": {
+      "p": 0.5968,
+      "p_adj": 1.0,
+      "excess_bp": -3.0,
+      "null_se_bp": 11.2
+    },
+    "smc_fvg_bullish_formed": {
+      "p": 0.6462,
+      "p_adj": 1.0,
+      "excess_bp": -3.4,
+      "null_se_bp": 11.2
+    },
+    "ict_liquidity_buyside_swept": {
+      "p": 0.6525,
+      "p_adj": 1.0,
+      "excess_bp": -3.0,
+      "null_se_bp": 12.2
+    },
+    "smc_internal_ob_bullish_mitigated": {
+      "p": 0.6593,
+      "p_adj": 1.0,
+      "excess_bp": -8.3,
+      "null_se_bp": 21.5
+    },
+    "smc_internal_choch_bearish": {
+      "p": 0.6756,
+      "p_adj": 1.0,
+      "excess_bp": -5.7,
+      "null_se_bp": 17.6
+    },
+    "smc_swing_bos_bullish": {
+      "p": 0.6836,
+      "p_adj": 1.0,
+      "excess_bp": -8.5,
+      "null_se_bp": 21.8
+    },
+    "smc_internal_choch_bullish": {
+      "p": 0.7057,
+      "p_adj": 1.0,
+      "excess_bp": -4.7,
+      "null_se_bp": 20.0
+    },
+    "ict_bpr_bearish": {
+      "p": 0.7597,
+      "p_adj": 1.0,
+      "excess_bp": -7.1,
+      "null_se_bp": 12.1
+    },
+    "smc_swing_ob_bullish_mitigated": {
+      "p": 0.7599,
+      "p_adj": 1.0,
+      "excess_bp": -35.8,
+      "null_se_bp": 60.5
+    },
+    "smc_equal_highs": {
+      "p": 0.7798,
+      "p_adj": 1.0,
+      "excess_bp": -6.3,
+      "null_se_bp": 9.1
+    },
+    "smc_equal_lows": {
+      "p": 0.8083,
+      "p_adj": 1.0,
+      "excess_bp": -9.3,
+      "null_se_bp": 11.8
+    },
+    "ict_ob_bullish_mitigated": {
+      "p": 0.8177,
+      "p_adj": 1.0,
+      "excess_bp": -23.1,
+      "null_se_bp": 29.6
+    },
+    "ict_bpr_bullish": {
+      "p": 0.8199,
+      "p_adj": 1.0,
+      "excess_bp": -8.4,
+      "null_se_bp": 15.2
+    },
+    "ict_ob_bearish_formed": {
+      "p": 0.8204,
+      "p_adj": 1.0,
+      "excess_bp": -15.9,
+      "null_se_bp": 18.5
+    },
+    "ict_mss_bearish": {
+      "p": 0.8724,
+      "p_adj": 1.0,
+      "excess_bp": -13.6,
+      "null_se_bp": 17.0
+    },
+    "smc_internal_ob_bearish_formed": {
+      "p": 0.8962,
+      "p_adj": 1.0,
+      "excess_bp": -16.1,
+      "null_se_bp": 13.7
+    },
+    "ict_liquidity_sellside_pool_formed": {
+      "p": 0.9232,
+      "p_adj": 1.0,
+      "excess_bp": -13.5,
+      "null_se_bp": 12.4
+    },
+    "ict_liquidity_sellside_swept": {
+      "p": 0.9239,
+      "p_adj": 1.0,
+      "excess_bp": -19.2,
+      "null_se_bp": 15.9
+    },
+    "ict_ob_bullish_formed": {
+      "p": 0.9341,
+      "p_adj": 1.0,
+      "excess_bp": -14.2,
+      "null_se_bp": 9.8
+    },
+    "ict_fvg_bearish_formed": {
+      "p": 0.9582,
+      "p_adj": 1.0,
+      "excess_bp": -16.7,
+      "null_se_bp": 9.5
+    },
+    "smc_internal_bos_bearish": {
+      "p": 0.973,
+      "p_adj": 1.0,
+      "excess_bp": -32.7,
+      "null_se_bp": 26.4
+    },
+    "ict_fvg_bullish_formed": {
+      "p": 0.974,
+      "p_adj": 1.0,
+      "excess_bp": -14.0,
+      "null_se_bp": 7.2
+    },
+    "smc_internal_ob_bullish_formed": {
+      "p": 0.9886,
+      "p_adj": 1.0,
+      "excess_bp": -17.6,
+      "null_se_bp": 8.1
+    },
+    "ict_volume_imbalance_bearish": {
+      "p": 0.9956,
+      "p_adj": 1.0,
+      "excess_bp": -23.7,
+      "null_se_bp": 8.2
+    },
+    "ict_volume_imbalance_bullish": {
+      "p": 0.9956,
+      "p_adj": 1.0,
+      "excess_bp": -19.2,
+      "null_se_bp": 6.9
+    },
+    "smc_fvg_bearish_formed": {
+      "p": 0.9959,
+      "p_adj": 1.0,
+      "excess_bp": -39.2,
+      "null_se_bp": 13.7
+    },
+    "ict_bos_bullish": {
+      "p": 0.9968,
+      "p_adj": 1.0,
+      "excess_bp": -26.5,
+      "null_se_bp": 16.7
+    },
+    "ict_displacement_bullish": {
+      "p": 0.9976,
+      "p_adj": 1.0,
+      "excess_bp": -13.6,
+      "null_se_bp": 4.8
+    },
+    "smc_internal_bos_bullish": {
+      "p": 0.9985,
+      "p_adj": 1.0,
+      "excess_bp": -28.3,
+      "null_se_bp": 16.6
+    },
+    "ict_bos_bearish": {
+      "p": 0.9998,
+      "p_adj": 1.0,
+      "excess_bp": -48.8,
+      "null_se_bp": 23.8
+    },
+    "ict_displacement_bearish": {
+      "p": 1.0,
+      "p_adj": 1.0,
+      "excess_bp": -19.5,
+      "null_se_bp": 6.1
+    }
+  },
+  "wf_folds": 13,
+  "wf_mean_train_excess_selected_bp": 61.32,
+  "wf_mean_test_excess_selected_bp": -39.31,
+  "wf_mean_test_excess_all_bp": -35.01,
+  "wf_mean_hit_rate": 0.3692,
+  "wf_mean_rank_corr": 0.3419,
+  "wf_folds_positive_test_excess": 5,
+  "wf_test_bp_2013_2020": 6.1,
+  "wf_test_bp_2021_2023": -160.6,
+  "wf_train_bp_2021_2023": 193.1,
+  "wf_train_bp_other": 21.8,
+  "wf_selected_by_fold": {
+    "1": [
+      "ict_ob_bullish_mitigated",
+      "ict_sweep_buyside_bearish",
+      "ict_sweep_sellside_bullish",
+      "smc_internal_ob_bullish_mitigated",
+      "smc_swing_choch_bullish"
+    ],
+    "2": [
+      "ict_liquidity_buyside_pool_formed",
+      "ict_nwog_gap_up",
+      "ict_sweep_buyside_bearish",
+      "ict_sweep_sellside_bullish",
+      "smc_swing_bos_bearish"
+    ],
+    "3": [
+      "ict_liquidity_buyside_pool_formed",
+      "ict_mss_bullish",
+      "ict_sweep_buyside_bearish",
+      "ict_sweep_sellside_bullish",
+      "smc_swing_choch_bullish"
+    ],
+    "4": [
+      "ict_bpr_bullish",
+      "ict_liquidity_buyside_pool_formed",
+      "ict_sweep_sellside_bullish",
+      "smc_internal_ob_bearish_mitigated",
+      "smc_swing_choch_bullish"
+    ],
+    "5": [
+      "ict_sweep_sellside_bullish",
+      "smc_equal_highs",
+      "smc_fvg_bullish_formed",
+      "smc_swing_choch_bullish",
+      "smc_swing_ob_bearish_mitigated"
+    ],
+    "6": [
+      "ict_liquidity_buyside_pool_formed",
+      "ict_sweep_sellside_bullish",
+      "smc_fvg_bullish_formed",
+      "smc_swing_choch_bullish",
+      "smc_swing_ob_bearish_mitigated"
+    ],
+    "7": [
+      "ict_nwog_gap_up",
+      "ict_sweep_buyside_bearish",
+      "ict_sweep_sellside_bullish",
+      "smc_swing_choch_bullish",
+      "smc_swing_ob_bearish_mitigated"
+    ],
+    "8": [
+      "ict_liquidity_buyside_pool_formed",
+      "ict_liquidity_buyside_swept",
+      "ict_mss_bullish",
+      "ict_sweep_buyside_bearish",
+      "ict_sweep_sellside_bullish"
+    ],
+    "9": [
+      "smc_internal_bos_bearish",
+      "smc_internal_ob_bullish_mitigated",
+      "smc_swing_choch_bearish",
+      "smc_swing_ob_bearish_formed",
+      "smc_swing_ob_bullish_mitigated"
+    ],
+    "10": [
+      "ict_ob_bullish_mitigated",
+      "smc_swing_bos_bearish",
+      "smc_swing_choch_bearish",
+      "smc_swing_ob_bearish_formed",
+      "smc_swing_ob_bullish_mitigated"
+    ],
+    "11": [
+      "ict_nwog_gap_down",
+      "smc_internal_ob_bullish_mitigated",
+      "smc_swing_choch_bearish",
+      "smc_swing_ob_bearish_formed",
+      "smc_swing_ob_bullish_mitigated"
+    ],
+    "12": [
+      "ict_bpr_bearish",
+      "ict_nwog_gap_down",
+      "smc_equal_highs",
+      "smc_internal_choch_bullish",
+      "smc_internal_ob_bearish_mitigated"
+    ],
+    "13": [
+      "ict_bpr_bearish",
+      "ict_nwog_gap_down",
+      "ict_nwog_gap_up",
+      "smc_internal_choch_bearish",
+      "smc_internal_choch_bullish"
+    ]
+  },
+  "wf_by_fold": [
+    {
+      "fold": 1,
+      "test_start": "2013-01-05",
+      "train_bp": 21.49,
+      "test_bp": -19.21,
+      "hit": 0.6,
+      "rho": 0.543
+    },
+    {
+      "fold": 2,
+      "test_start": "2014-01-05",
+      "train_bp": 24.88,
+      "test_bp": 35.63,
+      "hit": 1.0,
+      "rho": 0.393
+    },
+    {
+      "fold": 3,
+      "test_start": "2015-01-05",
+      "train_bp": 19.44,
+      "test_bp": -25.85,
+      "hit": 0.0,
+      "rho": 0.737
+    },
+    {
+      "fold": 4,
+      "test_start": "2016-01-05",
+      "train_bp": 17.86,
+      "test_bp": 3.99,
+      "hit": 0.6,
+      "rho": 0.677
+    },
+    {
+      "fold": 5,
+      "test_start": "2017-01-05",
+      "train_bp": 32.13,
+      "test_bp": 3.27,
+      "hit": 0.6,
+      "rho": 0.72
+    },
+    {
+      "fold": 6,
+      "test_start": "2018-01-05",
+      "train_bp": 22.79,
+      "test_bp": 14.47,
+      "hit": 0.4,
+      "rho": 0.682
+    },
+    {
+      "fold": 7,
+      "test_start": "2019-01-05",
+      "train_bp": 20.03,
+      "test_bp": -9.96,
+      "hit": 0.4,
+      "rho": 0.353
+    },
+    {
+      "fold": 8,
+      "test_start": "2020-01-05",
+      "train_bp": 15.18,
+      "test_bp": 46.63,
+      "hit": 0.8,
+      "rho": -0.258
+    },
+    {
+      "fold": 9,
+      "test_start": "2021-01-05",
+      "train_bp": 177.74,
+      "test_bp": -199.6,
+      "hit": 0.0,
+      "rho": -0.217
+    },
+    {
+      "fold": 10,
+      "test_start": "2022-01-05",
+      "train_bp": 265.21,
+      "test_bp": -200.2,
+      "hit": 0.0,
+      "rho": -0.193
+    },
+    {
+      "fold": 11,
+      "test_start": "2023-01-05",
+      "train_bp": 136.26,
+      "test_bp": -82.15,
+      "hit": 0.0,
+      "rho": -0.104
+    },
+    {
+      "fold": 12,
+      "test_start": "2024-01-05",
+      "train_bp": 24.48,
+      "test_bp": -22.76,
+      "hit": 0.2,
+      "rho": 0.619
+    },
+    {
+      "fold": 13,
+      "test_start": "2025-01-05",
+      "train_bp": 19.66,
+      "test_bp": -55.32,
+      "hit": 0.2,
+      "rho": 0.491
+    }
+  ],
+  "be_gross_over_26": 22,
+  "be_gross_over_26_n_long": 22,
+  "be_gross_over_11": 22,
+  "be_excess_over_26": 1,
+  "be_excess_over_11": 4,
+  "be_excess_over_26_signals": [
+    "smc_swing_choch_bearish"
+  ],
+  "be_excess_over_11_signals": [
+    "ict_sweep_buyside_bearish",
+    "ict_sweep_sellside_bullish",
+    "smc_swing_choch_bearish",
+    "smc_swing_ob_bearish_formed"
+  ],
+  "n_positive_net_mean": 22,
+  "n_sectors": 11,
+  "n_sectors_unknown": 0,
+  "sector_excess_bp": {
+    "Energy": 5.35,
+    "Materials": -8.56,
+    "Industrials": -11.52,
+    "Financials": -11.79,
+    "Consumer Discretionary": -12.89,
+    "Information Technology": -13.77,
+    "Consumer Staples": -14.58,
+    "Health Care": -15.4,
+    "Real Estate": -15.45,
+    "Communication Services": -16.06,
+    "Utilities": -22.67
+  },
+  "n_sectors_positive": 1,
+  "sector_p_two_sided": {
+    "Energy": 0.792654,
+    "Materials": 0.353966,
+    "Industrials": 0.23071,
+    "Financials": 0.263632,
+    "Consumer Discretionary": 0.288068,
+    "Information Technology": 0.148693,
+    "Consumer Staples": 0.005343,
+    "Health Care": 0.027178,
+    "Real Estate": 0.084668,
+    "Communication Services": 0.088139,
+    "Utilities": 0.003727
+  },
+  "sector_p_adj": {
+    "Energy": 0.7927,
+    "Materials": 0.3894,
+    "Industrials": 0.3521,
+    "Financials": 0.3521,
+    "Consumer Discretionary": 0.3521,
+    "Information Technology": 0.2726,
+    "Consumer Staples": 0.0294,
+    "Health Care": 0.0997,
+    "Real Estate": 0.1939,
+    "Communication Services": 0.1939,
+    "Utilities": 0.0294
+  },
+  "sectors_significant_bh": [
+    "Consumer Staples",
+    "Utilities"
+  ],
+  "sector_n_tickers": {
+    "Energy": 21,
+    "Materials": 25,
+    "Industrials": 80,
+    "Financials": 76,
+    "Consumer Discretionary": 47,
+    "Information Technology": 72,
+    "Consumer Staples": 34,
+    "Health Care": 59,
+    "Real Estate": 29,
+    "Communication Services": 22,
+    "Utilities": 31
+  },
+  "sector_mde_bp": {
+    "min": 14.67,
+    "max": 57.07
+  },
+  "n_sectors_powered": 0,
+  "sector_mde_by_sector_bp": {
+    "Energy": 57.07,
+    "Materials": 25.86,
+    "Industrials": 26.92,
+    "Financials": 29.54,
+    "Consumer Discretionary": 33.98,
+    "Information Technology": 26.71,
+    "Consumer Staples": 14.67,
+    "Health Care": 19.53,
+    "Real Estate": 25.11,
+    "Communication Services": 26.39,
+    "Utilities": 21.9
+  },
+  "regimes": [
+    {
+      "trend": "bear",
+      "vol": "high_vol",
+      "n_trades": 142878,
+      "excess_bp": -53.33
+    },
+    {
+      "trend": "bear",
+      "vol": "low_vol",
+      "n_trades": 7645,
+      "excess_bp": 26.01
+    },
+    {
+      "trend": "bear",
+      "vol": "normal_vol",
+      "n_trades": 331586,
+      "excess_bp": 1.53
+    },
+    {
+      "trend": "bull",
+      "vol": "high_vol",
+      "n_trades": 94248,
+      "excess_bp": -19.79
+    },
+    {
+      "trend": "bull",
+      "vol": "low_vol",
+      "n_trades": 91087,
+      "excess_bp": -0.84
+    },
+    {
+      "trend": "bull",
+      "vol": "normal_vol",
+      "n_trades": 1040719,
+      "excess_bp": -10.42
+    },
+    {
+      "trend": "sideways",
+      "vol": "high_vol",
+      "n_trades": 73227,
+      "excess_bp": -44.8
+    },
+    {
+      "trend": "sideways",
+      "vol": "low_vol",
+      "n_trades": 13549,
+      "excess_bp": 12.78
+    },
+    {
+      "trend": "sideways",
+      "vol": "normal_vol",
+      "n_trades": 403186,
+      "excess_bp": -7.67
+    }
+  ],
+  "surv": {
+    "scope": "analysed tickers",
+    "current_constituents": "498",
+    "with_known_entry_date": "498",
+    "entry_date_unknown": "0",
+    "in_index_at_sample_start": "265",
+    "joined_during_sample": "233",
+    "estimated_removed_names_missing": "235",
+    "estimated_survivorship_gap_pct": "47.0",
+    "sample_start": "2010-01-01",
+    "note": "Lower bound on distinct names absent from the dataset. Counts index slots not held by a current constituent at the sample start; churn within a slot is not counted, so the true number of distinct names that passed through the index over 2010-2026 is larger."
+  },
+  "surv_cmp": {
+    "holding_period": 10,
+    "trades_full": 2198125,
+    "trades_membership_aware": 1763667,
+    "trades_dropped_pct": 19.8,
+    "n_beats_full": 0,
+    "n_beats_membership_aware": 0,
+    "survived_filter": [],
+    "lost_under_filter": [],
+    "gained_under_filter": [],
+    "sign_preserved_pct": 97.7,
+    "median_excess_shift_bps": 0.88
+  },
+  "surv_winners": [],
+  "curated_map_missing": 54,
+  "curated_map_mismatch": 6,
+  "curated_map_mismatch_tickers": [
+    "APP",
+    "AWK",
+    "BLDR",
+    "DD",
+    "TKO",
+    "UBER"
+  ],
+  "sweep": {
+    "ict_nwog_gap_down": {
+      "n": 36,
+      "positive": 0,
+      "p_below_05": 0,
+      "min_p": 0.54,
+      "mean_bp": -4.74,
+      "range_bp": 2.6
+    },
+    "ict_nwog_gap_up": {
+      "n": 36,
+      "positive": 24,
+      "p_below_05": 0,
+      "min_p": 0.444,
+      "mean_bp": 0.47,
+      "range_bp": 4.22
+    },
+    "ict_sweep_buyside_bearish": {
+      "n": 36,
+      "positive": 36,
+      "p_below_05": 0,
+      "min_p": 0.227,
+      "mean_bp": 8.39,
+      "range_bp": 28.69
+    },
+    "ict_sweep_sellside_bullish": {
+      "n": 36,
+      "positive": 33,
+      "p_below_05": 0,
+      "min_p": 0.112,
+      "mean_bp": 18.51,
+      "range_bp": 29.45
+    }
+  },
+  "gap_excess_by_threshold_bp": {
+    "0.05": 2.62,
+    "0.1": 0.38,
+    "0.25": -1.59
+  },
+  "broad_grid_signals_responding": 18,
+  "mc": [
+    {
+      "signal": "smc_swing_choch_bearish",
+      "observed_bp": -36.83,
+      "rotation_p": 0.1604,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 0.003,
+      "block_p": 0.1029
+    },
+    {
+      "signal": "smc_swing_ob_bearish_formed",
+      "observed_bp": -49.3,
+      "rotation_p": 0.2447,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 0.025,
+      "block_p": 0.2108
+    },
+    {
+      "signal": "ict_sweep_sellside_bullish",
+      "observed_bp": 82.16,
+      "rotation_p": 0.1757,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 0.001,
+      "block_p": 0.0719
+    },
+    {
+      "signal": "ict_sweep_buyside_bearish",
+      "observed_bp": -59.24,
+      "rotation_p": 0.1004,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 0.001,
+      "block_p": 0.0519
+    },
+    {
+      "signal": "ict_liquidity_buyside_pool_formed",
+      "observed_bp": 74.29,
+      "rotation_p": 0.1964,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 0.01,
+      "block_p": 0.1888
+    },
+    {
+      "signal": "ict_nwog_gap_up",
+      "observed_bp": 76.67,
+      "rotation_p": 0.2649,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 0.001,
+      "block_p": 0.1459
+    },
+    {
+      "signal": "smc_swing_choch_bullish",
+      "observed_bp": 73.39,
+      "rotation_p": 0.4197,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 0.3626,
+      "block_p": 0.4505
+    },
+    {
+      "signal": "smc_internal_ob_bearish_mitigated",
+      "observed_bp": 70.1,
+      "rotation_p": 0.4668,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 0.6234,
+      "block_p": 0.5415
+    },
+    {
+      "signal": "ict_nwog_gap_down",
+      "observed_bp": -73.14,
+      "rotation_p": 0.5968,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 0.9001,
+      "block_p": 0.6763
+    },
+    {
+      "signal": "ict_ob_bearish_mitigated",
+      "observed_bp": 68.4,
+      "rotation_p": 0.5079,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 0.7203,
+      "block_p": 0.6074
+    },
+    {
+      "signal": "ict_bos_bearish",
+      "observed_bp": -119.88,
+      "rotation_p": 0.9998,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 1.0,
+      "block_p": 1.0
+    },
+    {
+      "signal": "smc_fvg_bearish_formed",
+      "observed_bp": -108.98,
+      "rotation_p": 0.9959,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 1.0,
+      "block_p": 1.0
+    },
+    {
+      "signal": "smc_swing_ob_bullish_mitigated",
+      "observed_bp": -105.15,
+      "rotation_p": 0.7599,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 1.0,
+      "block_p": 0.9211
+    },
+    {
+      "signal": "smc_internal_bos_bearish",
+      "observed_bp": -103.47,
+      "rotation_p": 0.973,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 1.0,
+      "block_p": 0.988
+    },
+    {
+      "signal": "smc_internal_bos_bullish",
+      "observed_bp": 42.1,
+      "rotation_p": 0.9985,
+      "rotation_p_adj": 1.0,
+      "srs_mc_p": 1.0,
+      "block_p": 1.0
+    }
+  ],
+  "mc_runs": 1000,
+  "n_combos_tested": 60,
+  "n_combos_beating": 0,
+  "n_stocks_eligible": 496,
+  "n_stocks_significant": 0,
+  "old_n_concepts": 42,
+  "old_n_flagged_vs_baseline": 28,
+  "old_flagged_with_positive_effect": 1,
+  "old_flagged_with_negative_effect": 27,
+  "old_n_sig_vs_zero": 42,
+  "old_leaky_trades_at_h10": 187374,
+  "old_n_events": 4348698,
+  "old_n_tickers": 499,
+  "old_leaky_events": 187719,
+  "old_leaky_share_pct": 4.32,
+  "old_ndog_events": 1946675,
+  "old_ndog_share_pct": 44.76,
+  "old_trades_sample_exists": true
+}
