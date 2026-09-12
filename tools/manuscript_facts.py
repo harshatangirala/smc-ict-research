@@ -171,11 +171,16 @@ def headline(F: dict) -> None:
 
 
 def universe(F: dict) -> None:
+    from signals.event_engine import EVENT_REGISTRY
+
+    F["n_registered_signals"] = len(EVENT_REGISTRY)
     ev = _r("master_events.parquet")
     if ev is not None:
         F["n_events"] = int(len(ev))
         F["n_tickers_with_events"] = int(ev["ticker"].nunique())
         F["n_signals_firing"] = int(ev["signal"].nunique())
+        F["n_registered_never_fire"] = F["n_registered_signals"] - F["n_signals_firing"]
+        F["registered_never_fire"] = sorted(set(EVENT_REGISTRY) - set(ev["signal"].unique()))
     tp = RESULTS_DIR / "trades.parquet"
     if tp.exists():
         t = pd.read_parquet(tp, columns=["holding_period"])

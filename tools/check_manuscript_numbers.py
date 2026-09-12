@@ -18,6 +18,7 @@ Adding a numeric claim to the paper means adding it here.
 from __future__ import annotations
 
 import importlib.util
+import re
 import sys
 from pathlib import Path
 
@@ -64,6 +65,9 @@ def claims(F: dict) -> list[tuple]:
         # --- scope ---------------------------------------------------------
         ("concepts", 44, g("n_concepts"), 0, "44 formally specified"),
         ("hypotheses", 352, g("n_hypotheses"), 0, "all 352"),
+        ("registered signals", 46, g("n_registered_signals"), 0, "declares 46 signals"),
+        ("registered but never fire", 2, g("n_registered_never_fire"), 0,
+         "registered but never fire"),
         ("tickers downloaded", 498, g("n_downloaded"), 0, "498 return data"),
         ("tickers with events", 496, g("n_tickers_with_events"), 0, "across 496 tickers"),
         ("events", 2_204_425, g("n_events"), 0, "2,204,425 events"),
@@ -228,7 +232,18 @@ def main() -> int:
     except Exception as exc:  # noqa: BLE001
         print(f"Could not recompute the facts: {type(exc).__name__}: {exc}", file=sys.stderr)
         return 1
-    text = MANUSCRIPT.read_text(encoding="utf-8")
+    raw = MANUSCRIPT.read_text(encoding="utf-8")
+    # Markdown (and the YAML abstract block, indented two spaces per line)
+    # soft-wraps prose at ~80 columns; a single newline inside a paragraph
+    # renders as a space, not a line break, in the built PDF/HTML. A snippet
+    # check must read the text the way a reader (or the PDF) does, not the way
+    # it happens to be wrapped -- and indented -- in the source, or a
+    # rewording that merely shifts where a wrap falls produces a false
+    # failure with no change in what the paper actually says. De-indent every
+    # line first, then collapse intra-paragraph newlines to spaces; blank
+    # lines and lines starting a heading/list/table/quote stay as breaks.
+    text = re.sub(r"\n[ \t]+", "\n", raw)
+    text = re.sub(r"(?<!\n)\n(?![\n#>*\-|])", " ", text)
 
     failures = []
     for name, stated, actual, tol, snippet in claims(F):

@@ -106,7 +106,7 @@ def bootstrap_mean_and_d(
     seed: int = RANDOM_SEED,
     label: str = "bootstrap",
 ) -> dict:
-    """Bootstrap the mean and Cohen's d together, from one resample matrix.
+    """Bootstrap a CI for the mean and Cohen's d, from one resample matrix.
 
     Both statistics are closed-form functions of the resample's mean and
     standard deviation, so they are computed vectorised over the whole chunk.
@@ -114,13 +114,23 @@ def bootstrap_mean_and_d(
     is a Python-level loop over rows -- at 10,000 iterations x 368 buckets
     that alone would have dominated the run.
 
-    For samples larger than ``MAX_BOOTSTRAP_SAMPLE`` the bootstrap runs on one
-    reproducible subsample. The resulting interval is the CI for a mean of
+    For samples larger than ``MAX_BOOTSTRAP_SAMPLE`` the *resampling* runs on
+    one reproducible subsample, so the interval is the CI for a mean of
     ``MAX_BOOTSTRAP_SAMPLE`` observations and is therefore *wider* than the CI
-    for the full sample -- conservative, not anti-conservative. ``ci_method``
-    records which path was taken, and the HAC interval
-    (``hac_ci_lower``/``hac_ci_upper``) is the one used for inference, since an
-    iid bootstrap is not valid for overlapping returns in any case.
+    for the full sample -- conservative, not anti-conservative. The *point
+    estimates* (``mean``, ``cohens_d``) are always computed on the full array
+    regardless of ``n_iter``'s subsampling, so they agree exactly with
+    ``avg_return``/``effect_size_vs_baseline`` computed elsewhere and are never
+    themselves subject to resampling noise -- only the interval around them
+    is. (An earlier version returned the subsample's own mean as the point
+    estimate too; for large concepts that silently differed from the
+    documented population mean by up to ~1 bp, a real but purely cosmetic
+    inaccuracy in `statistics_master.csv` since no downstream inference used
+    it -- `excess_return_vs_matched_random` and every p-value already read the
+    full array directly.) ``ci_method`` records which path the *interval*
+    took, and the HAC interval (``hac_ci_lower``/``hac_ci_upper``), centred on
+    the same full-sample point estimate, is the one used for inference, since
+    an iid bootstrap is not valid for overlapping returns in any case.
     """
     r = np.asarray(returns, dtype=float)
     r = r[np.isfinite(r)]
@@ -132,12 +142,15 @@ def bootstrap_mean_and_d(
     if len(r) < 5:
         return out
 
+    full_mean = float(r.mean())
+    full_sd = r.std(ddof=1)
+    full_cohens_d = full_mean / full_sd if full_sd > 0 else np.nan
+
     rng = get_rng(label, master_seed=seed)
     full_n = len(r)
     subsampled = full_n > MAX_BOOTSTRAP_SAMPLE
-    if subsampled:
-        r = rng.choice(r, size=MAX_BOOTSTRAP_SAMPLE, replace=False)
-    n = len(r)
+    r_resample = rng.choice(r, size=MAX_BOOTSTRAP_SAMPLE, replace=False) if subsampled else r
+    n = len(r_resample)
 
     means = np.empty(n_iter, dtype=float)
     ds = np.empty(n_iter, dtype=float)
@@ -145,7 +158,7 @@ def bootstrap_mean_and_d(
     done = 0
     while done < n_iter:
         k = min(chunk, n_iter - done)
-        sample = r[rng.integers(0, n, size=(k, n))]
+        sample = r_resample[rng.integers(0, n, size=(k, n))]
         m = sample.mean(axis=1)
         sd = sample.std(axis=1, ddof=1)
         means[done : done + k] = m
@@ -154,16 +167,23 @@ def bootstrap_mean_and_d(
         done += k
 
     lo_q, hi_q = 100 * alpha / 2, 100 * (1 - alpha / 2)
-    sd_full = r.std(ddof=1)
+    # Percentile intervals are re-centred on the full-sample point estimate:
+    # a resample-based interval is naturally centred near the resample's own
+    # mean, which for a subsample can differ slightly from the population
+    # mean it is meant to bracket. Shifting by the (small) subsample bias
+    # keeps the interval a CI *for the reported point estimate*, not for a
+    # different, unreported one.
+    mean_shift = full_mean - float(means.mean()) if subsampled else 0.0
+    d_shift = full_cohens_d - float(np.nanmean(ds)) if subsampled and np.isfinite(full_cohens_d) else 0.0
     out.update(
         {
-            "mean": float(r.mean()),
-            "ci_lower": float(np.percentile(means, lo_q)),
-            "ci_upper": float(np.percentile(means, hi_q)),
-            "cohens_d": float(r.mean() / sd_full) if sd_full > 0 else np.nan,
-            "cohens_d_ci_lower": float(np.nanpercentile(ds, lo_q)),
-            "cohens_d_ci_upper": float(np.nanpercentile(ds, hi_q)),
-            "ci_method": f"percentile_bootstrap_subsample_{n}" if subsampled
+            "mean": full_mean,
+            "ci_lower": float(np.percentile(means, lo_q)) + mean_shift,
+            "ci_upper": float(np.percentile(means, hi_q)) + mean_shift,
+            "cohens_d": full_cohens_d,
+            "cohens_d_ci_lower": float(np.nanpercentile(ds, lo_q)) + d_shift,
+            "cohens_d_ci_upper": float(np.nanpercentile(ds, hi_q)) + d_shift,
+            "ci_method": f"percentile_bootstrap_subsample_{n}_recentred" if subsampled
                          else "percentile_bootstrap_full",
             "n_bootstrap_iter": int(n_iter),
         }

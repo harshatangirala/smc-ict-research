@@ -208,6 +208,23 @@ class TestBootstrapAndFDR:
         b = bootstrap_mean_and_d(rng.normal(0, 0.03, 60000), n_iter=200, label="t3")
         assert b["ci_method"].startswith("percentile_bootstrap_subsample_")
 
+    def test_subsampled_point_estimate_equals_the_full_sample_mean(self):
+        """Audit finding: the point estimate must never depend on which random
+        subsample the resampling loop happened to draw for CI purposes -- only
+        the interval WIDTH may. A prior version returned the subsample's own
+        mean as `mean` (and its own sd as the base of `cohens_d`), so a
+        60,000-trade concept's reported mean silently differed from
+        `r.mean()` by however much that one draw of 20,000 missed by."""
+        rng = np.random.default_rng(13)
+        r = rng.normal(0.004, 0.03, 60_000)
+        b = bootstrap_mean_and_d(r, n_iter=300, label="t4")
+        assert b["mean"] == pytest.approx(r.mean(), abs=1e-15)
+        assert b["cohens_d"] == pytest.approx(r.mean() / r.std(ddof=1), abs=1e-12)
+        # The recentred interval must still bracket the (now exact) point
+        # estimate -- shifting by the subsample's bias must not overshoot.
+        assert b["ci_lower"] < b["mean"] < b["ci_upper"]
+        assert b["cohens_d_ci_lower"] < b["cohens_d"] < b["cohens_d_ci_upper"]
+
     def test_fdr_is_monotone_and_conservative(self):
         p = pd.Series([0.001, 0.01, 0.02, 0.04, 0.2, 0.5, 0.9])
         out = apply_fdr_correction(p, alpha=0.05)

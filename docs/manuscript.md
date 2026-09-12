@@ -1,33 +1,34 @@
 ---
 title: "Do Smart Money Concepts Predict Returns? Evidence from 44 Formalised Detectors on S&P 500 Daily Bars, 2010–2026"
-author: "Harsha Tangirala"
+author: "Harsha Tangirala · Independent Researcher · harshatangirala2@gmail.com"
 date: "September 2026"
+jel: "G11, G12, G14, G17, C12, C15"
 abstract: |
   Smart Money Concepts (SMC) and Inner Circle Trader (ICT) methods are widely
-  taught discretionary trading frameworks with almost no peer-reviewed
-  evaluation. We translate two widely used open-source Pine Script
-  implementations into 44 formally specified event detectors and test them on
-  daily data for 496 S&P 500 constituents from January 2010 to June 2026: 2.20
-  million events and 17.6 million simulated trades over eight holding horizons.
-  Each trade is measured against its own ticker's unconditional return — a
-  composition-matched null — and inference uses calendar-time Newey–West
-  standard errors. A calibration study with a known zero edge shows this to be
-  the only one of three candidate tests whose size stays near nominal (at most
-  6.8% at a nominal 5%) when signals cluster on the same dates or in volatile
-  markets. Against a zero-return null, 38 of 44 concepts appear significant.
-  Against the matched null, with Benjamini–Hochberg control across all 352
-  concept × horizon hypotheses, none beats random entry at any horizon and none
-  is significantly worse; an exact rotation test finds no winners either. The
-  largest well-measured point estimates, 11–12 basis points over ten days for
-  two liquidity-sweep detectors, have p ≥ 0.23. For ten concepts the data
-  exclude, at 95% confidence, an edge large enough to cover the lowest modelled
-  round-trip cost of 11 bp; the median concept's minimum detectable edge is 45
-  bp. Concepts selected on three years of data earn −39 bp out of sample. The
-  study is a corrected re-analysis: an earlier version reported 28 of 42
-  concepts beating random entry, 27 of which in fact lost to it, and this
-  re-analysis's own first draft reported five winners using a variance formula
-  that rejects 28–41% of uninformative clustered signals. We document how each
-  error manufactures a positive result from the same data.
+  taught trading frameworks with almost no peer-reviewed evaluation. We
+  translate two widely used open-source Pine Script implementations into 44
+  formally specified event detectors and test them on daily data for 496 S&P
+  500 constituents, January 2010 to June 2026: 2.20 million events and 17.6
+  million simulated trades over eight holding horizons. Each trade is measured
+  against its own ticker's unconditional return — a composition-matched null —
+  with calendar-time Newey–West inference. A calibration study with a known
+  zero edge shows this is the only one of three candidate tests whose size
+  stays near nominal (at most 6.8% at a nominal 5%) when signals cluster in
+  time or in volatile markets. Against a zero-return null, 38 of 44 concepts
+  appear significant; against the matched null, with Benjamini–Hochberg
+  control across all 352 concept × horizon hypotheses, none beats random entry
+  at any horizon and none is significantly worse, and an exact rotation test
+  finds no winners either. The largest well-measured point estimates — 11–12
+  basis points over ten days, both liquidity-sweep detectors — have p ≥ 0.23.
+  For ten concepts the data exclude, at 95% confidence, an edge large enough to
+  cover the lowest modelled round-trip cost of 11 bp; the median concept's
+  minimum detectable edge is 45 bp. Concepts selected on three years of data
+  earn −39 bp out of sample. The study is a corrected re-analysis: an earlier
+  version reported 28 of 42 concepts beating random entry, 27 of which had in
+  fact lost to it, and this re-analysis's own first draft reported five
+  winners using a variance formula that rejects 28–41% of uninformative
+  clustered signals in a calibration exercise. We document how each error
+  manufactures a positive result from the same data.
 keywords: [technical analysis, smart money concepts, ICT, market efficiency, multiple testing, calendar-time inference, test calibration, backtest overfitting]
 ---
 
@@ -95,6 +96,22 @@ to survive transaction costs, data-snooping adjustments and out-of-sample
 testing. SMC/ICT concepts are, operationally, a family of breakout and reversal
 patterns defined on swing highs and lows, and our results fit that pattern.
 
+A null result admits two readings under different theoretical priors, and our
+design cannot distinguish them. The classical efficient-markets view (Fama
+1970) predicts it directly: any pattern in publicly available prices should be
+competed away as soon as it is discoverable, and SMC/ICT concepts, taught
+openly on video platforms and retail courses since roughly the mid-2010s, are
+about as public as a trading rule can be. The adaptive markets hypothesis (Lo
+2004) offers a related but distinct account, in which an edge is real for a
+time and then decays as capital and attention find it — McLean and Pontiff
+(2016) document this directly for 97 published return anomalies, whose average
+magnitude falls by roughly a fifth after journal publication and by roughly a
+third once a working paper first circulates. Separating "this pattern never
+predicted returns" from "it did, and was then arbitraged away" needs data from
+before a concept's popularisation; our 2010–2026 window begins after SMC/ICT
+were already circulating informally and cannot make that separation. We return
+to this in Section 7.
+
 The multiple-testing treatment follows Benjamini and Hochberg (1995). The concern
 that backtest results degrade once the number of trials is counted is developed
 by White (2000) and by Sullivan, Timmermann and White (1999) for technical
@@ -157,6 +174,17 @@ than one reading, the choice and its rationale are recorded in a disambiguation
 register (`docs/disambiguation.md`, 16 entries) with a table of which choices
 could move a published number.
 
+Because almost every parameter is the source scripts' own published default,
+fixed before any result in this study was computed, the null reported in
+Section 5 is largely insulated from the garden of forking paths (Gelman and
+Loken 2013) in which parameters are adjusted after seeing the data until a
+result appears: 40 of the 44 signals had exactly one configuration to run,
+ever. The remaining four — both liquidity-sweep directions and both new-week
+opening-gap directions — required us to choose a definition at all (Section
+3.3), which is a different and disclosed kind of researcher discretion; Section
+5.6 subjects exactly those four choices to their own sensitivity sweep rather
+than asking the reader to take them on faith.
+
 ## 3.3 Prospective definition and the treatment of confirmation
 
 Several SMC/ICT concepts are conventionally described with hindsight — a
@@ -182,13 +210,16 @@ labels*, carried in separate columns and excluded from the tradeable event set.
 
 ## 3.4 Detected events
 
-The 44 detectors produce 2,204,425 events across 496 tickers, every one with a
-direction of +1 or −1. Twenty-two concepts are long and twenty-two short. Event
-frequency ranges from 1,245 (`smc_swing_bos_bearish`) to 212,461
-(`ict_displacement_bullish`). Order blocks follow LuxAlgo's `storeOrdeBlock`
-exactly: for a bullish block, the bar with the lowest low between the swing pivot
-and the break, removed once mitigated (Section 6.5 describes the translation
-error this replaced).
+The event registry declares 46 signals, each with a direction fixed in advance;
+two — the New-Day Opening Gap, up and down — are registered but never fire,
+because the source's own `ndog_enabled = False` default is honoured (Section
+3.3; `docs/specs/ict_opening_gap.yaml`). The remaining **44 detectors** produce
+2,204,425 events across 496 tickers, every one with a direction of +1 or −1.
+Twenty-two concepts are long and twenty-two short. Event frequency ranges from
+1,245 (`smc_swing_bos_bearish`) to 212,461 (`ict_displacement_bullish`). Order
+blocks follow LuxAlgo's `storeOrdeBlock` exactly: for a bullish block, the bar
+with the lowest low between the swing pivot and the break, removed once
+mitigated (Section 6.5 describes the translation error this replaced).
 
 # 4. Methodology
 
@@ -266,6 +297,17 @@ applied once across all 352 (concept × horizon) hypotheses. A concept *beats* t
 null only if its excess is positive, it survives FDR, and it rests on at least 30
 trades. Whether a concept is significantly *worse* than the null is a separate
 two-sided family with its own FDR correction.
+
+Benjamini–Hochberg's false-discovery-rate bound is proved under independence or
+positive regression dependence across the family (Benjamini and Yekutieli
+2001); our 352 hypotheses are correlated by shared tickers, overlapping
+calendar windows, and, within a concept, across horizons. That assumption
+matters for a family that yields rejections, since dependence of the wrong
+sign can inflate the true false-discovery rate above the nominal level; it
+cannot matter for a family that yields none, because the bound is satisfied
+trivially when nothing is rejected. We flag it because a positive headline
+count from this family would need the more conservative Benjamini–Yekutieli
+correction to carry the same guarantee, and the zero we report does not.
 
 ## 4.4 Calibration of the tests
 
@@ -365,7 +407,10 @@ ticker joined the index and restricts the matched-null pools the same way.
 
 **Power.** For each concept, the minimum detectable excess at 80% power (2.49
 times its calendar-time standard error) and the one-sided 95% upper confidence
-bound on its excess.
+bound on its excess. The bound doubles as an equivalence test in the sense of
+Lakens (2017): a bound that falls below a stated cost threshold is a formal,
+5%-level rejection of any true edge at least that large, which is a different
+and stronger claim than merely failing to reject zero.
 
 # 5. Results
 
@@ -613,6 +658,22 @@ first draft's sector power analysis, which found every sector adequately powered
 calendar-time standard error). A test validated by a simulation that makes the
 test's own assumptions has not been validated.
 
+The four SRS "winners" illustrate two distinct failure modes, both familiar
+from the winner's-curse and Type M (magnitude) error literature (Gelman and
+Carlin 2014). One, `smc_swing_choch_bearish`, is the second-smallest of all 44
+concepts by trade count (2,653 against a median of 36,530): exactly the
+low-power regime in which a test's rare "significant" draws are, conditional
+on clearing the bar, disproportionately its noisiest ones — its calendar-time
+standard error of 115 bp is nearly ten times its SRS one. The other three
+(`ict_nwog_gap_up` and both liquidity-sweep directions) are large,
+well-measured concepts with tens or hundreds of thousands of trades; their SRS
+significance owes nothing to sampling luck and everything to the variance
+formula's blindness to same-day clustering, which understates their true
+standard error by a factor of 6.6-11.6. A selection rule built on an
+anti-conservative test manufactures apparent discoveries by both routes at
+once, and a reader who sees only the four survivors cannot tell which route
+produced any given one without the calibration exercise this paper ran.
+
 **An order block taken from the wrong candle.** LuxAlgo's `storeOrdeBlock` takes,
 for a bullish block, the bar with the lowest low between the swing pivot and the
 break, and removes a block once it is mitigated. The first translation took the
@@ -643,15 +704,21 @@ modelled trading cost. The concepts that look best on past data do worse than
 average out of sample.
 
 **What it does not support.** It does not show that SMC/ICT concepts carry no
-information. Three limits matter. These are two specific implementations, not the
+information. Four limits matter. These are two specific implementations, not the
 methodology as a discretionary practice, in which a trader applies context,
 confluence and judgement that no detector captures. The daily-bar restriction is
 severe: the framework is most often taught on intraday FX and futures, where the
 microstructure it appeals to — stop runs, resting liquidity — is more plausible.
-And power is limited. The primary test, chosen because it keeps its size when
-signals cluster, is conservative when they do not, and for 17 concepts —
-including the two liquidity-sweep detectors with the largest well-measured point
-estimates — the data cannot distinguish no edge from an edge of 30–50 bp.
+Timing is a third limit: Section 2 raised the adaptive-markets possibility that
+these patterns worked before they were widely taught and decayed as they
+became public (Lo 2004; McLean and Pontiff 2016); a single 2010–2026 sample
+that begins after SMC/ICT's informal popularisation cannot separate "never
+worked" from "worked, then was arbitraged away," and only a pre-popularisation
+sample — which we do not have — could. And power is limited. The primary
+test, chosen because it keeps its size when signals cluster, is conservative
+when they do not, and for 17 concepts — including the two liquidity-sweep
+detectors with the largest well-measured point estimates — the data cannot
+distinguish no edge from an edge of 30–50 bp.
 
 **On the negative estimates.** Thirty-seven of 44 point estimates are negative,
 and the ten concepts whose bounds exclude a cost-covering edge are
@@ -701,6 +768,11 @@ volatility — not on the structure the test assumes.
    weaker than the full-universe results.
 10. **No economic mechanism** is proposed; this is an evaluation of indicator
     logic, not a theory paper.
+11. **The sample cannot separate "never worked" from "worked, then decayed."**
+    2010–2026 begins after SMC/ICT's informal popularisation; an adaptive-markets
+    account (Lo 2004; McLean and Pontiff 2016) predicts the same null result we
+    find whether or not these patterns had content before that popularisation
+    (Section 7).
 
 # 9. Conclusion
 
@@ -722,9 +794,28 @@ for 27 of 28 concepts in the prior version of this analysis. Benchmark,
 dependence structure, test direction and test calibration each decide the
 reported conclusion in this setting.
 
-Code, data-preparation instructions, machine-readable concept specifications,
-the disambiguation register, the full statistics table and a replication package
-are available in the repository.
+# Declarations
+
+**Data availability.** All price data is public (Yahoo Finance) and freely
+re-downloadable; the two source Pine scripts are publicly posted community
+indicators. Code, machine-readable specifications, the full statistics table,
+every intermediate artefact and a replication package with a one-line
+reproduction command are in the accompanying repository (Appendix C).
+
+**Conflicts of interest.** The author has no financial position, compensation
+arrangement or other relationship with the publishers of either source
+indicator, and holds no position predicated on the results reported here.
+
+**Funding.** This research received no external funding.
+
+**Use of generative AI.** Portions of the code, statistical analysis and prose
+in this paper were produced with the assistance of a large language model
+(Claude, Anthropic) under the author's direction and review. Every statistical
+claim in the text is machine-checked against the underlying artefacts by
+`tools/check_manuscript_numbers.py`, included in the replication package, and
+every code path referenced in the paper is covered by an automated test in
+`tests/`; both are re-run before each submitted revision. The author takes full
+responsibility for the content, methodology and conclusions.
 
 # References
 
@@ -736,6 +827,9 @@ Benjamini, Y., and Hochberg, Y. (1995). Controlling the false discovery rate: a
 practical and powerful approach to multiple testing. *Journal of the Royal
 Statistical Society, Series B*, 57(1), 289–300.
 
+Benjamini, Y., and Yekutieli, D. (2001). The control of the false discovery rate
+in multiple testing under dependency. *Annals of Statistics*, 29(4), 1165–1188.
+
 Bollerslev, T. (1986). Generalized autoregressive conditional heteroskedasticity.
 *Journal of Econometrics*, 31(3), 307–327.
 
@@ -743,10 +837,20 @@ Brock, W., Lakonishok, J., and LeBaron, B. (1992). Simple technical trading rule
 and the stochastic properties of stock returns. *Journal of Finance*, 47(5),
 1731–1764.
 
+Fama, E. F. (1970). Efficient capital markets: a review of theory and empirical
+work. *Journal of Finance*, 25(2), 383–417.
+
 Fama, E. F. (1998). Market efficiency, long-term returns, and behavioral finance.
 *Journal of Financial Economics*, 49(3), 283–306.
 
 Fisher, R. A. (1935). *The Design of Experiments*. Oliver and Boyd.
+
+Gelman, A., and Loken, E. (2013). *The garden of forking paths*. Department of
+Statistics, Columbia University, working paper.
+
+Gelman, A., and Carlin, J. (2014). Beyond power calculations: assessing type S
+(sign) and type M (magnitude) errors. *Perspectives on Psychological Science*,
+9(6), 641–651.
 
 Harvey, C. R., Liu, Y., and Zhu, H. (2016). …and the cross-section of expected
 returns. *Review of Financial Studies*, 29(1), 5–68.
@@ -754,8 +858,15 @@ returns. *Review of Financial Studies*, 29(1), 5–68.
 Jegadeesh, N. (1990). Evidence of predictable behavior of security returns.
 *Journal of Finance*, 45(3), 881–898.
 
+Lakens, D. (2017). Equivalence tests: a practical primer for t tests,
+correlations, and meta-analyses. *Social Psychological and Personality
+Science*, 8(4), 355–362.
+
 Lehmann, B. N. (1990). Fads, martingales, and market efficiency. *Quarterly
 Journal of Economics*, 105(1), 1–28.
+
+Lo, A. W. (2004). The adaptive markets hypothesis: market efficiency from an
+evolutionary perspective. *Journal of Portfolio Management*, 30(5), 15–29.
 
 Lo, A. W., Mamaysky, H., and Wang, J. (2000). Foundations of technical analysis:
 computational algorithms, statistical inference, and empirical implementation.
@@ -766,6 +877,9 @@ efficiency. *Journal of Financial Economics*, 55(3), 361–389.
 
 Lyon, J. D., Barber, B. M., and Tsai, C.-L. (1999). Improved methods for tests of
 long-run abnormal stock returns. *Journal of Finance*, 54(1), 165–201.
+
+McLean, R. D., and Pontiff, J. (2016). Does academic research destroy stock
+return predictability? *Journal of Finance*, 71(1), 5–32.
 
 Mitchell, M. L., and Stafford, E. (2000). Managerial decisions and long-term stock
 price performance. *Journal of Business*, 73(3), 287–329.

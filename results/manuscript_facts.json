@@ -269,9 +269,15 @@
     "median": 7.04,
     "max": 16.17
   },
+  "n_registered_signals": 46,
   "n_events": 2204425,
   "n_tickers_with_events": 496,
   "n_signals_firing": 44,
+  "n_registered_never_fire": 2,
+  "registered_never_fire": [
+    "ict_ndog_gap_down",
+    "ict_ndog_gap_up"
+  ],
   "n_trades_total": 17552994,
   "n_trades_at_h": 2198125,
   "n_downloaded": 498,

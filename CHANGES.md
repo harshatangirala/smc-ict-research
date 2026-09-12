@@ -548,3 +548,43 @@ places. 187,719 is the number of look-ahead **events** in the full
 499-ticker event table; they became 187,374 trades at h = 10. Corrected
 everywhere, including code comments. The claim that all sectors were
 adequately powered is corrected in §5b and §8.4.
+
+### 8.13 The bootstrap point estimate silently changed definition above 20,000 trades  **[proved]**
+
+**Files:** `analytics/statistics.py::bootstrap_mean_and_d`, `tests/test_statistics.py`
+
+For performance, buckets larger than `MAX_BOOTSTRAP_SAMPLE` (20,000 trades)
+draw the resampling matrix from one reproducible subsample rather than the
+full array -- documented, and correct, as a way to bound the bootstrap CI's
+compute cost. But the function also returned that subsample's own mean and
+standard deviation as the **point estimates** (`mean_return`,
+`effect_size_cohens_d`), not only as the basis of the interval around them.
+For a bucket with, say, 200,000 trades, the reported mean was a random
+20,000-trade proxy for the population mean rather than the mean itself.
+
+*Evidence.* 33 of 44 concepts exceed the threshold at h = 10 (most do at every
+horizon). Comparing `statistics_master.csv`'s `mean_return` against the
+independently-computed `avg_return` column (full array, from
+`backtest/metrics.py`) -- which should be identical -- showed differences up
+to 10.6 bp, consistent with sampling noise from a 20,000-draw subsample.
+
+*Why it did not change a published number.* Every quantity the manuscript
+states -- `excess_return_vs_matched_random`, every p-value, `avg_return`,
+`matched_null_se` -- is computed from the full trade array directly in
+`evaluate_signal`, never from the bootstrap's subsample. The affected columns
+are the ones nothing downstream reads: `mean_return`, `ci_lower`/`ci_upper`,
+`effect_size_cohens_d`, `cohens_d_ci_lower`/`ci_upper`, `hac_ci_lower`/
+`ci_upper`. Still a real inaccuracy in a column the paper promises in
+Appendix C as part of "every metric ... effect size and confidence interval,"
+found only because an end-to-end audit compared two columns that should
+agree and do not.
+
+*Fix.* The point estimates are now always computed on the full array; only
+the resampling loop (and therefore the interval width) uses the subsample
+when one is drawn, and the interval is re-centred on the exact point estimate
+rather than the subsample's own (slightly different) one.
+`test_subsampled_point_estimate_equals_the_full_sample_mean` pins the
+invariant. The nine affected columns of `statistics_master.csv` were
+re-derived from the existing trade table with the fixed function (not a full
+pipeline re-run, since no other column was affected); `mean_return` now
+agrees with `avg_return` to floating-point precision for every row.

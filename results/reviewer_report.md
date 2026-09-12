@@ -1,6 +1,6 @@
 # Reviewer Report
 
-*Generated 2026-09-12 08:29 UTC*
+*Generated 2026-09-12 20:35 UTC*
 
 An adversarial pre-read: the objections a referee or an informed reader is most likely to raise, checked programmatically against the artefacts this run produced. `EXPOSED` items are genuine weaknesses that are **not** fixed; they are listed so the paper can state them rather than have a reader discover them.
 

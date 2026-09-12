@@ -185,6 +185,7 @@ def build() -> int:
         f"<p>{p.strip()}</p>" for p in re.split(r"\n\s*\n", abstract) if p.strip()
     )
     keywords = meta.get("keywords", "").strip("[]").replace(", ", " · ")
+    jel = meta.get("jel", "").strip()
 
     doc = f"""<!doctype html>
 <html><head><meta charset="utf-8"><title>{meta.get('title', 'Manuscript')}</title>
@@ -194,6 +195,7 @@ def build() -> int:
 <div class="dateline">{meta.get('date', '')}</div>
 <div class="abstract"><h4>Abstract</h4>{abstract_html}
 {f'<div class="keywords"><strong>Keywords:</strong> {keywords}</div>' if keywords else ''}
+{f'<div class="keywords"><strong>JEL Classification:</strong> {jel}</div>' if jel else ''}
 </div>
 {html_body}
 </body></html>"""

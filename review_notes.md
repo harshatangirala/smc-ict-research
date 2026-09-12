@@ -174,3 +174,70 @@ sensitivity sweep silently produced identical results at every grid point.
   servers have not been clicked through.
 - **`docs/final_research_report.md`** is regenerated from the artefacts but is
   superseded by `docs/manuscript.md`; consider deleting it.
+
+---
+
+## Second audit pass
+
+A follow-up, line-by-line read of `analytics/statistics.py`, `backtest/engine.py`,
+`backtest/engine_tc.py`, `analytics/walkforward.py`, `analytics/sensitivity.py`
+and `analytics/regimes.py` against the manuscript's own formulas (Section 4.2's
+excess definition, the calendar-time variance formula, the no-look-ahead
+contract) found one real bug and one real documentation gap; everything else
+checked out (details are in `CHANGES.md` §8.13 and the manuscript's own
+Section 3.4).
+
+**The bug (CHANGES.md §8.13).** `bootstrap_mean_and_d` returned a random
+20,000-trade subsample's own mean and Cohen's d as the *point estimate* for
+any bucket above that size (33 of 44 concepts at h = 10), not just as the
+basis of the bootstrap interval around them -- caught by comparing
+`mean_return` against the independently-computed `avg_return`, which should
+be identical and differed by up to 10.6 bp. It never touched a manuscript
+claim (every headline number reads the full array directly, never the
+bootstrap), but it was a real inaccuracy in a column the paper promises in
+Appendix C. Fixed, tested (`test_subsampled_point_estimate_equals_the_full_
+sample_mean`), and `statistics_master.csv` re-patched from the existing trade
+table rather than a full 2-hour pipeline re-run, since no other column in it
+depended on the buggy code path.
+
+**The documentation gap.** `EVENT_REGISTRY` has 46 signals; only 44 ever
+fire, because the New-Day Opening Gap pair is correctly disabled by the
+source's own default -- entirely intentional and already spelled out in
+`docs/specs/ict_opening_gap.yaml`, but the manuscript never said so, so a
+reader who checked the registry against "44 detectors" would have found an
+unexplained gap. Added one sentence to Section 3.4 and a checked claim.
+
+**Academic-perspective additions.** Per the request to read the result
+against more than one theoretical frame, the manuscript now also draws on:
+the adaptive-markets hypothesis and post-publication return decay (Lo 2004;
+McLean and Pontiff 2016) as an alternative to "never worked" for why a
+publicly-taught pattern might show no edge (Sections 2, 7, and Limitation
+11 -- explicitly flagged as something this design cannot itself distinguish);
+the garden-of-forking-paths literature (Gelman and Loken 2013) to state
+plainly that 40 of 44 signals ran at one, pre-specified configuration
+(Section 3.2); equivalence testing (Lakens 2017) as the formal grounding for
+reading a confidence bound as a rejection of a stated effect size (Section
+4.6); the winner's-curse / Type M error literature (Gelman and Carlin 2014),
+applied with the correct, verified figures, to the four SRS "winners" from
+§8.1 (Section 6.5); and a footnote on Benjamini-Yekutieli (2001) noting that
+BH-FDR's dependence assumption is moot for a family that rejects nothing
+(Section 4.3). A first draft of the winner's-curse paragraph claimed both
+`smc_swing_choch_bearish` *and* `smc_swing_ob_bearish_formed` were among the
+smallest-sample concepts in the study; checking against
+`statistics_master.csv` directly showed only the first one is (rank 2 of 44
+by trade count; the other three SRS "winners" are large, well-measured
+concepts whose false positive came from the variance formula's blindness to
+clustering, not from sampling noise) -- the paragraph as published states the
+verified version.
+
+Also added: JEL codes, a corresponding-author line, and a Declarations
+section (data availability, conflicts of interest, funding, and an explicit
+disclosure of AI assistance in producing the code and prose, with a pointer
+to the two automated checks -- `tools/check_manuscript_numbers.py` and the
+test suite -- that are re-run before every revision). The manuscript-claims
+checker (`tools/check_manuscript_numbers.py`) was itself hardened during this
+pass: it previously matched claim text against the raw markdown source, so a
+rewording that shifted where a line happened to soft-wrap could fail a claim
+that had not actually changed. It now de-indents and collapses intra-paragraph
+line breaks before matching, the way a markdown renderer or the built PDF
+actually presents the text.
