@@ -279,27 +279,44 @@ def detect_order_blocks(df: pd.DataFrame, length: int = ICT.ob_swing_len, use_bo
 
         if not top_crossed and not np.isnan(top_level) and close[i] > top_level:
             top_crossed = True
-            lo = max(top_bar, 0)
-            seg_min = min_arr[lo : i + 1]
-            seg_max = max_arr[lo : i + 1]
-            if len(seg_min) > 0:
+            # Pine: `for i = 1 to (n - top.x) - 1` walks bars strictly between
+            # the swing bar (top.x) and the current bar (n) -- both endpoints
+            # excluded -- searching for the lowest `min[i]`. When that range is
+            # empty (breakout on the very next bar after the swing), Pine's
+            # loop never executes and minima/maxima/loc keep their seeded
+            # values `max[1]`/`min[1]`/`time[1]`, i.e. the immediately
+            # preceding bar -- replicated here as the fallback branch.
+            lo, hi = top_bar + 1, i
+            if hi > lo:
+                seg_min = min_arr[lo:hi]
+                seg_max = max_arr[lo:hi]
                 j = int(np.argmin(seg_min))
-                bullish_obs.append({"top": seg_max[j], "btm": seg_min[j], "breaker": False})
-                if len(bullish_obs) > ICT.ob_max_retained:
-                    bullish_obs.pop(0)
-                bull_formed[i] = True
+                top_val, btm_val = seg_max[j], seg_min[j]
+            elif i > 0:
+                top_val, btm_val = max_arr[i - 1], min_arr[i - 1]
+            else:
+                top_val, btm_val = max_arr[i], min_arr[i]
+            bullish_obs.append({"top": top_val, "btm": btm_val, "breaker": False})
+            if len(bullish_obs) > ICT.ob_max_retained:
+                bullish_obs.pop(0)
+            bull_formed[i] = True
 
         if not btm_crossed and not np.isnan(btm_level) and close[i] < btm_level:
             btm_crossed = True
-            lo = max(btm_bar, 0)
-            seg_min = min_arr[lo : i + 1]
-            seg_max = max_arr[lo : i + 1]
-            if len(seg_max) > 0:
+            lo, hi = btm_bar + 1, i
+            if hi > lo:
+                seg_min = min_arr[lo:hi]
+                seg_max = max_arr[lo:hi]
                 j = int(np.argmax(seg_max))
-                bearish_obs.append({"top": seg_max[j], "btm": seg_min[j], "breaker": False})
-                if len(bearish_obs) > ICT.ob_max_retained:
-                    bearish_obs.pop(0)
-                bear_formed[i] = True
+                top_val, btm_val = seg_max[j], seg_min[j]
+            elif i > 0:
+                top_val, btm_val = max_arr[i - 1], min_arr[i - 1]
+            else:
+                top_val, btm_val = max_arr[i], min_arr[i]
+            bearish_obs.append({"top": top_val, "btm": btm_val, "breaker": False})
+            if len(bearish_obs) > ICT.ob_max_retained:
+                bearish_obs.pop(0)
+            bear_formed[i] = True
 
         # Mitigation checks
         for ob in bullish_obs:

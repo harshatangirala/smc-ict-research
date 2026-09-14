@@ -10,7 +10,7 @@ from itertools import combinations as itertools_combinations
 
 import pandas as pd
 
-from analytics.statistics import apply_fdr_correction, one_sample_significance, two_sample_significance
+from analytics.statistics import apply_fdr_correction, one_sample_significance_clustered, two_sample_significance_clustered
 from backtest.engine import _compute_trades_for_ticker, _load_price_cache
 from backtest.metrics import summarize_returns
 from utils.config import HOLDING_PERIODS, RESULTS_DIR
@@ -84,12 +84,17 @@ def rank_combinations(holding_period: int = 10) -> pd.DataFrame:
     rows = []
     for signal, grp in subset.groupby("signal"):
         metrics = summarize_returns(grp["fwd_return"], holding_period)
-        sig = one_sample_significance(grp["fwd_return"].to_numpy())
+        returns = grp["fwd_return"].to_numpy()
+        clusters = grp["ticker"].to_numpy()
+        sig = one_sample_significance_clustered(returns, clusters)
         row = {"combination": signal, **metrics, "p_value": sig["p_value"], "effect_size_cohens_d": sig["effect_size_cohens_d"]}
         if baseline_subset is not None and not baseline_subset.empty:
-            vs_baseline = two_sample_significance(grp["fwd_return"].to_numpy(), baseline_subset["fwd_return"].to_numpy())
+            vs_baseline = two_sample_significance_clustered(
+                returns, clusters, baseline_subset["fwd_return"].to_numpy(), baseline_subset["ticker"].to_numpy()
+            )
             row["p_value_vs_baseline"] = vs_baseline["p_value"]
             row["effect_size_vs_baseline"] = vs_baseline["effect_size_cohens_d"]
+            row["excess_return_vs_baseline"] = vs_baseline["excess_return_vs_baseline"]
         rows.append(row)
 
     ranking = pd.DataFrame(rows)
@@ -116,6 +121,18 @@ def rank_combinations(holding_period: int = 10) -> pd.DataFrame:
         ranking["significant_vs_baseline"] = pd.NA
 
     ranking["low_sample_warning"] = ranking["n_trades"] < MIN_COMBO_OCCURRENCES
+
+    # See analytics/concept_ranking.py -- `significant_vs_baseline` alone is
+    # two-sided ("differs from baseline"); `beats_baseline` additionally
+    # requires the excess return to be positive.
+    if "excess_return_vs_baseline" in ranking.columns:
+        ranking["beats_baseline"] = (
+            ranking["significant_vs_baseline"].fillna(False)
+            & (ranking["excess_return_vs_baseline"] > 0)
+        )
+    else:
+        ranking["beats_baseline"] = False
+
     ranking["statistically_significant"] = (
         ranking["significant_vs_baseline"].fillna(ranking["significant_vs_zero"]).fillna(False)
         & ~ranking["low_sample_warning"]

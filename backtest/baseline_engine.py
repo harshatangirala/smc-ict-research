@@ -48,7 +48,7 @@ def build_baseline_events(cache_dir: Path = DATA_CACHE_DIR, n_random_signals: in
             df = df[~df.index.duplicated(keep="first")]
             if len(df) < 300:
                 continue
-            wide = detect_all_baselines(df, n_random_signals=n_random_signals)
+            wide = detect_all_baselines(df, ticker=ticker, n_random_signals=n_random_signals)
             wide["close"] = df["close"]
             events = melt_baseline_events(ticker, wide)
             all_events.append(events)

@@ -4,6 +4,7 @@ Usage:
     python main.py ingest              # download + cache + validate OHLCV
     python main.py detect              # run event detection engine
     python main.py backtest            # run forward-return backtests
+    python main.py baseline            # run baseline/benchmark strategies through the same backtest engine
     python main.py analyze             # rankings, combinations, regimes, sectors
     python main.py export              # write CSV/Excel/JSON deliverables
     python main.py all                 # run every stage in order

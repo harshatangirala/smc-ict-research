@@ -82,7 +82,11 @@ def home_scoreboard() -> dict:
     sectors = da.get_sector_analysis()
     n_concepts = len(concepts)
     n_sig_zero = int(concepts["significant_vs_zero"].sum()) if "significant_vs_zero" in concepts else None
-    n_sig_baseline = int(concepts["statistically_significant"].sum()) if "statistically_significant" in concepts else None
+    # `beats_baseline` = significant AND the excess return is positive; the
+    # two-sided `significant_vs_baseline`/`statistically_significant` flags
+    # include concepts significantly WORSE than baseline and should not be
+    # read as "beats" (see audit finding).
+    n_sig_baseline = int(concepts["beats_baseline"].sum()) if "beats_baseline" in concepts else None
     n_sectors = len(sectors)
     n_sectors_positive = int((sectors["excess_return_vs_baseline"] > 0).sum()) if "excess_return_vs_baseline" in sectors else None
     return {
@@ -164,7 +168,8 @@ def combinations_view() -> tuple[go.Figure, pd.DataFrame]:
     if combos.empty:
         return empty_fig("No combinations met the minimum-occurrence threshold"), pd.DataFrame()
     top = combos.head(20)
-    fig = px.bar(top, x="combination", y="sharpe", color="statistically_significant",
+    color_col = "beats_baseline" if "beats_baseline" in top.columns else "statistically_significant"
+    fig = px.bar(top, x="combination", y="sharpe", color=color_col,
                  title="Top 20 concept combinations by Sharpe (10-day hold)")
     fig.update_xaxes(tickangle=45)
     return fig, combos

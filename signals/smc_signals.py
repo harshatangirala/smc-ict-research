@@ -102,10 +102,17 @@ def _structure_and_ob(
                 (choch_bull if is_choch else bos_bull)[i] = True
                 trend_bias = BULLISH
                 high_crossed = True
-                seg_hi = parsed_high[max(high_pivot_bar, 0) : i + 1]
-                seg_lo = parsed_low[max(high_pivot_bar, 0) : i + 1]
+                # Pine's storeOrdeBlock(bias=BULLISH) slices parsedLows over
+                # [p_ivot.barIndex, bar_index) -- inclusive of the pivot bar,
+                # exclusive of the current bar -- and picks the LOWEST-low
+                # candle in that window (array.min()), not the highest-high.
+                # Both the exclusion of the current bar and the argmin/argmax
+                # choice were wrong here (see audit findings: SMC order-block
+                # bullish/bearish swap + off-by-one window bound).
+                seg_hi = parsed_high[max(high_pivot_bar, 0) : i]
+                seg_lo = parsed_low[max(high_pivot_bar, 0) : i]
                 if len(seg_lo) > 0:
-                    j = int(np.argmax(seg_hi))
+                    j = int(np.argmin(seg_lo))
                     bullish_obs.append({"top": seg_hi[j], "btm": seg_lo[j]})
                     if len(bullish_obs) > ob_max_retained:
                         bullish_obs.pop(0)
@@ -121,10 +128,13 @@ def _structure_and_ob(
                 (choch_bear if is_choch else bos_bear)[i] = True
                 trend_bias = BEARISH
                 low_crossed = True
-                seg_hi = parsed_high[max(low_pivot_bar, 0) : i + 1]
-                seg_lo = parsed_low[max(low_pivot_bar, 0) : i + 1]
+                # Mirror of the bullish branch: Pine's storeOrdeBlock(bias=
+                # BEARISH) slices parsedHighs over [p_ivot.barIndex, bar_index)
+                # and picks the HIGHEST-high candle (array.max()).
+                seg_hi = parsed_high[max(low_pivot_bar, 0) : i]
+                seg_lo = parsed_low[max(low_pivot_bar, 0) : i]
                 if len(seg_hi) > 0:
-                    j = int(np.argmin(seg_lo))
+                    j = int(np.argmax(seg_hi))
                     bearish_obs.append({"top": seg_hi[j], "btm": seg_lo[j]})
                     if len(bearish_obs) > ob_max_retained:
                         bearish_obs.pop(0)

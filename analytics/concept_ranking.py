@@ -65,6 +65,21 @@ def rank_concepts(trades: pd.DataFrame | None = None, holding_period: int = 10) 
         ranking["significant_vs_baseline"] = pd.NA
 
     ranking["low_sample_warning"] = ranking["n_trades"] < MIN_SAMPLE_SIZE
+
+    # `significant_vs_baseline` is a TWO-SIDED test -- "differs from
+    # baseline" -- not "beats baseline". A concept can be significantly
+    # WORSE than a random entry and still set that flag. `beats_baseline`
+    # is the directional claim: significant AND excess_return_vs_baseline is
+    # positive. This is the flag that should back any "N concepts beat the
+    # baseline" headline (see audit finding: the previous single flag let
+    # that exact claim run backwards for 27 of 28 "significant" concepts).
+    if "excess_return_vs_baseline" in ranking.columns:
+        ranking["beats_baseline"] = (
+            ranking["significant_vs_baseline"].fillna(False)
+            & (ranking["excess_return_vs_baseline"] > 0)
+        )
+    else:
+        ranking["beats_baseline"] = False
     ranking["statistically_significant"] = (
         ranking["significant_vs_baseline"].fillna(ranking["significant_vs_zero"]).fillna(False)
         & ~ranking["low_sample_warning"]

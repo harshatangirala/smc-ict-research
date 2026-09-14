@@ -345,12 +345,8 @@
   <div class="masthead">
     <p class="kicker"><span>Quantitative research memo</span><span>S&amp;P 500 · 2010–2026</span><span>SMC / ICT signal study</span></p>
     <h1 class="title">Do Smart Money Concepts actually beat the market — or just the market itself?</h1>
-    <p class="dek">A full translation of two LuxAlgo Pine Script indicators (Smart Money Concepts, ICT Concepts) into Python, run as event detectors across 501 S&amp;P 500 stocks and backtested at 8 holding horizons. <strong>The headline result: the aggregate claim doesn't hold up</strong> — but a real, specific minority of signals do.</p>
-    <a class="live-link" href="https://oriented-sum-lenders-les.trycloudflare.com" target="_blank" rel="noopener">
-      <span class="live-dot"></span>
-      Open the interactive dashboard — oriented-sum-lenders-les.trycloudflare.com
-    </a>
-    <p class="live-note">Live Streamlit app: every ticker, concept, and combination in this study, queryable directly. Session-bound — if the link is dead, the source data and full write-up below still stand on their own.</p>
+    <p class="dek">A full translation of two LuxAlgo Pine Script indicators (Smart Money Concepts, ICT Concepts) into Python, run as event detectors across 501 S&amp;P 500 stocks and backtested at 8 holding horizons, with standard errors clustered by ticker. <strong>The headline result: none of it holds up</strong> — not the aggregate claim, and not one of the 42 individual concepts either, once tested fairly.</p>
+    <p class="live-note">An earlier version of this page linked a live Streamlit dashboard on a temporary Cloudflare tunnel; that link is no longer live (tunnels of that kind don't persist between sessions). Run <code>streamlit run streamlit_app.py</code> locally from the repository for the same interactive explorer, queryable against every ticker, concept, and combination in this study.</p>
   </div>
 
   <div class="scoreboard">
@@ -359,63 +355,59 @@
       <div class="score-label">concepts beat a <em>zero</em>-return null — the weak test, inflated by 16 years of market drift</div>
     </div>
     <div class="score">
-      <div class="score-value">28 / 42</div>
-      <div class="score-label">concepts beat a <em>random-entry baseline</em> at the same frequency — the test that actually matters</div>
+      <div class="score-value bad">0 / 42</div>
+      <div class="score-label">concepts beat a <em>random-entry baseline</em> at the same frequency, cluster-robust — the test that actually matters</div>
     </div>
     <div class="score">
-      <div class="score-value bad">2 / 12</div>
+      <div class="score-value bad">0 / 12</div>
       <div class="score-label">sectors show positive excess return over that baseline at all</div>
     </div>
   </div>
 
   <section class="q">
     <div class="q-head"><span class="q-num">01</span><h2>Do SMC/ICT concepts outperform random entries and standard technical strategies?</h2></div>
-    <p class="lede">Not uniformly, and the gap between the two tests above is the finding.</p>
+    <p class="lede">No — cleanly no, and the gap between the two tests above is the reason the aggregate result looked different at first.</p>
     <p>Every one of the 42 translated signal families — Break of Structure, Order Blocks, Fair Value Gaps, Change of Character, Liquidity Sweeps, and the rest, across both the ICT and SMC engines — produced a mean forward return significantly different from zero. On its own, that number is close to meaningless: 2010–2026 was a long bull market, and almost any signal biased toward long entries will show a positive average return purely from broad drift, independent of whether the signal contains real information.</p>
-    <p>So every ranking in this study was re-run against a second, harder bar: a random-entry strategy, backtested through <em>identical</em> mechanics, at the same trading frequency, on the same stocks, over the same window. Against that bar, only 28 of 42 concepts remain significant after correcting for testing 42 hypotheses at once (Benjamini–Hochberg FDR, &alpha;&nbsp;=&nbsp;0.05).</p>
-    <p>Slice it by sector or market regime (Q5) and the picture gets more sober still: only 2 of 12 sectors, and one narrow regime slice, show the signal population beating the baseline at all. <strong>The unconditional claim "SMC/ICT signals beat chance" is not supported by this dataset.</strong> Where an edge exists, it is specific — to a concept, a sector, a regime — not a property of the methodology as a whole.</p>
+    <p>So every ranking in this study is re-run against a second, harder bar: a random-entry strategy, backtested through <em>identical</em> mechanics, at the same trading frequency, on the same stocks, over the same window, with standard errors <strong>clustered by ticker</strong> rather than treated as independent per-trade draws (trades on the same stock share overlapping holding windows and are not independent observations — see Q8). Against that bar, <strong>35 of 42 concepts differ significantly from the baseline after correcting for testing 42 hypotheses at once</strong> (Benjamini–Hochberg FDR, &alpha;&nbsp;=&nbsp;0.05) — but every one of those 35 differs in the <em>negative</em> direction. Zero concepts beat the baseline.</p>
+    <p>Slice it by sector or market regime (Q5) and the picture doesn't soften: 0 of 12 sectors, and 0 of 9 regime cells, show the signal population beating the baseline with statistical significance — and unlike the earlier cut of this study, not even the point estimates are mostly positive: 11 of 12 sectors and 8 of 9 regime cells have a <em>negative</em> excess return outright. <strong>The unconditional claim "SMC/ICT signals beat chance" is not supported by this dataset, and neither is the narrower claim that a specific minority of concepts do.</strong> Where the data comes closest to a positive result (Q2), it stops well short of significance.</p>
   </section>
 
   <section class="q">
     <div class="q-head"><span class="q-num">02</span><h2>Which concepts provide the strongest statistical edge?</h2></div>
-    <p class="lede">Ten-day forward return, ranked by Sharpe, restricted to concepts that clear the FDR-corrected baseline test.</p>
+    <p class="lede">None clear the bar. Ten-day forward return, ranked by excess return over baseline — the closest anything gets.</p>
     <div class="table-wrap">
       <table>
         <thead><tr>
-          <th>Signal</th><th class="num">Trades</th><th class="num">Win&nbsp;rate</th><th class="num">Sharpe</th><th class="num">Avg&nbsp;return</th><th class="num">p (baseline, adj.)</th>
+          <th>Signal</th><th class="num">Trades</th><th class="num">Win&nbsp;rate</th><th class="num">Avg&nbsp;return</th><th class="num">Excess vs. baseline</th><th class="num">p (baseline, adj.)</th>
         </tr></thead>
         <tbody>
-          <tr><td class="signal">ict_ob_bullish_mitigated</td><td class="num">20,676</td><td class="num">58.0%</td><td class="num pos">0.539</td><td class="num pos">+0.94%</td><td class="num">0.0008</td></tr>
-          <tr><td class="signal">ict_ob_bullish_formed</td><td class="num">32,750</td><td class="num">56.4%</td><td class="num pos">0.487</td><td class="num pos">+0.55%</td><td class="num">0.0088</td></tr>
-          <tr><td class="signal">ict_fvg_bullish_formed</td><td class="num">112,764</td><td class="num">55.9%</td><td class="num pos">0.478</td><td class="num pos">+0.56%</td><td class="num">0.0075</td></tr>
-          <tr><td class="signal">ict_displacement_bullish</td><td class="num">213,796</td><td class="num">56.0%</td><td class="num pos">0.473</td><td class="num pos">+0.57%</td><td class="num">0.0066</td></tr>
-          <tr><td class="signal">smc_internal_ob_bullish_formed</td><td class="num">58,717</td><td class="num">55.8%</td><td class="num pos">0.452</td><td class="num pos">+0.51%</td><td class="num">0.0004</td></tr>
-          <tr><td class="signal">ict_volume_imbalance_bullish</td><td class="num">118,438</td><td class="num">55.4%</td><td class="num pos">0.421</td><td class="num pos">+0.49%</td><td class="num">&lt;0.0001</td></tr>
-          <tr><td class="signal">ict_bos_bullish</td><td class="num">81,274</td><td class="num">55.1%</td><td class="num pos">0.393</td><td class="num pos">+0.43%</td><td class="num">&lt;0.0001</td></tr>
-          <tr><td class="signal">smc_internal_bos_bullish</td><td class="num">32,142</td><td class="num">54.9%</td><td class="num pos">0.384</td><td class="num pos">+0.42%</td><td class="num">&lt;0.0001</td></tr>
+          <tr><td class="signal">smc_swing_ob_bullish_mitigated</td><td class="num">3,421</td><td class="num">60.1%</td><td class="num pos">+1.07%</td><td class="num pos">+0.23%</td><td class="num">0.294</td></tr>
+          <tr><td class="signal">ict_ob_bullish_mitigated</td><td class="num">20,705</td><td class="num">58.0%</td><td class="num pos">+0.93%</td><td class="num pos">+0.10%</td><td class="num">0.262</td></tr>
+          <tr><td class="signal">smc_internal_ob_bullish_mitigated</td><td class="num">39,894</td><td class="num">57.1%</td><td class="num pos">+0.79%</td><td class="num neg">&minus;0.04%</td><td class="num">0.521</td></tr>
+          <tr><td class="signal">ict_nwog_formed</td><td class="num">421,965</td><td class="num">57.0%</td><td class="num pos">+0.76%</td><td class="num neg">&minus;0.08%</td><td class="num">0.197</td></tr>
+          <tr><td class="signal">smc_equal_highs</td><td class="num">10,547</td><td class="num">57.3%</td><td class="num pos">+0.74%</td><td class="num neg">&minus;0.10%</td><td class="num">0.241</td></tr>
         </tbody>
       </table>
     </div>
-    <p>Order Blocks lead the field — both ICT's single-scale version and SMC's internal-structure version place highly, and specifically the <em>mitigation</em> event (price returning to tap the block) edges out plain formation. Displacement candles, Fair Value Gaps, and Break of Structure follow, all bullish-direction, all with genuinely small p-values even after correction.</p>
-    <p class="callout">Notably absent from this list: almost everything at the top of the naive, zero-only ranking — <span class="mono">smc_swing_choch_bullish</span>, <span class="mono">smc_equal_highs</span>, and <span class="mono">ict_nwog_formed</span> all had higher raw Sharpe ratios, and none of them clear the baseline. The two rankings disagree on the winners, not just the margins.</p>
+    <p>The two order-block <em>mitigation</em> variants — price returning to tap a block after it forms — come closest, with small positive excess over baseline. Neither reaches significance: <span class="mono">smc_swing_ob_bullish_mitigated</span> fires only 3,421 times across the whole 16-year universe, and <span class="mono">ict_ob_bullish_mitigated</span>'s p-value (0.26, already FDR-adjusted) is nowhere near the 0.05 bar. Everything else in the top 8 by excess return is already negative.</p>
+    <p class="callout">One concept does reach significance in this table's neighborhood, in the wrong direction: <span class="mono">ict_ndog_formed</span> fires 1,941,685 times — by far the largest sample of any signal in the study — and that sample size is enough to make its small negative excess return (&minus;0.13%) statistically significant (p&nbsp;=&nbsp;0.030) even though the effect itself is tiny. Large samples make small effects visible; they don't make them large.</p>
   </section>
 
   <section class="q">
     <div class="q-head"><span class="q-num">03</span><h2>Which concept combinations are most robust?</h2></div>
-    <p>305 same-direction concept pairs co-occur on the same stock and day at least 30 times; the 60 most frequent were tested. <strong>44 of 60</strong> beat the baseline after correction — a higher hit rate than single concepts, consistent with confluence adding information.</p>
+    <p>268 same-direction concept pairs co-occur on the same stock and day at least 30 times; the 60 most frequent were tested. <strong>0 of 60</strong> beat the baseline after correction, and confluence doesn't rescue the picture: <strong>56 of 60</strong> are significantly <em>worse</em> than baseline — a slightly higher failure rate than single concepts (35 of 42), not the "confluence adds information" story a naive reading of the raw win rates would suggest.</p>
     <div class="table-wrap">
       <table>
-        <thead><tr><th>Combination</th><th class="num">Trades</th><th class="num">Win&nbsp;rate</th><th class="num">Sharpe</th><th class="num">p (baseline, adj.)</th></tr></thead>
+        <thead><tr><th>Combination</th><th class="num">Trades</th><th class="num">Win&nbsp;rate</th><th class="num">Excess vs. baseline</th><th class="num">p (baseline, adj.)</th></tr></thead>
         <tbody>
-          <tr><td class="signal">ict_ob_bullish_formed + smc_internal_ob_bullish_formed</td><td class="num">23,490</td><td class="num">56.2%</td><td class="num pos">0.474</td><td class="num">0.0064</td></tr>
-          <tr><td class="signal">ict_ob_bullish_formed + smc_internal_bos_bullish</td><td class="num">12,623</td><td class="num">55.6%</td><td class="num pos">0.454</td><td class="num">0.0022</td></tr>
-          <tr><td class="signal">ict_displacement_bullish + smc_internal_ob_bullish_formed</td><td class="num">25,573</td><td class="num">55.6%</td><td class="num pos">0.440</td><td class="num">0.0008</td></tr>
-          <tr><td class="signal">ict_bos_bullish + ict_displacement_bullish</td><td class="num">34,179</td><td class="num">55.7%</td><td class="num pos">0.436</td><td class="num">0.0001</td></tr>
-          <tr><td class="signal">ict_bos_bullish + ict_liquidity_buyside_swept</td><td class="num">8,890</td><td class="num">55.8%</td><td class="num pos">0.416</td><td class="num">0.0017</td></tr>
+          <tr><td class="signal">ict_ob_bullish_mitigated + smc_internal_ob_bullish_mitigated</td><td class="num">12,384</td><td class="num">57.6%</td><td class="num neg">&minus;0.00%</td><td class="num">0.972</td></tr>
+          <tr><td class="signal">ict_ndog_formed + ict_nwog_formed</td><td class="num">421,965</td><td class="num">57.0%</td><td class="num neg">&minus;0.08%</td><td class="num">0.182</td></tr>
+          <tr><td class="signal">ict_liquidity_buyside_pool_formed + ict_liquidity_buyside_swept</td><td class="num">10,282</td><td class="num">57.9%</td><td class="num neg">&minus;0.08%</td><td class="num">0.322</td></tr>
+          <tr><td class="signal">ict_ndog_formed + smc_equal_highs</td><td class="num">10,547</td><td class="num">57.3%</td><td class="num neg">&minus;0.10%</td><td class="num">0.226</td></tr>
         </tbody>
       </table>
     </div>
-    <p>The pattern: pairing an <strong>ICT Order Block</strong> with either the SMC internal Order Block or SMC's internal structure break is the most consistent combination. Both engines independently flagging the same location on the same day appears to carry real information, even though each engine was built from a different pivot-detection method (see the methodology note, Q8).</p>
+    <p>These are the four combinations <em>closest</em> to beating the baseline, ranked by excess return — not the strongest performers, since none is positive. The best of the 60, an order-block-mitigation pairing across both engines, has an excess return of essentially zero (&minus;0.00004, rounds to &minus;0.00%) and a p-value of 0.97: statistically indistinguishable from doing nothing, not from beating it. One pairing worth noting for a different reason: <span class="mono">ict_ndog_formed + ict_nwog_formed</span>, at 421,965 trades, is identical to six decimal places to <span class="mono">ict_nwog_formed</span> tested alone — <span class="mono">nwog</span> (421,965 total occurrences) apparently never fires without <span class="mono">ndog</span> (1,941,685 total occurrences) also firing on the same bar, so this "combination" is a duplicate of a single concept, not genuine confluence, and inflates the 60-combination test count by at least one degenerate pair.</p>
   </section>
 
   <div class="split">
@@ -426,12 +418,12 @@
         <table>
           <thead><tr><th>Ticker</th><th class="num">Excess&nbsp;vs.&nbsp;own baseline</th></tr></thead>
           <tbody>
-            <tr><td class="signal">VRT</td><td class="num pos">+3.54%</td></tr>
-            <tr><td class="signal">LVS</td><td class="num pos">+1.86%</td></tr>
-            <tr><td class="signal">MRNA</td><td class="num pos">+1.85%</td></tr>
-            <tr><td class="signal">HAL</td><td class="num pos">+1.63%</td></tr>
-            <tr><td class="signal">DOW</td><td class="num pos">+1.45%</td></tr>
-            <tr><td class="signal">CMI</td><td class="num pos">+1.38%</td></tr>
+            <tr><td class="signal">GL</td><td class="num pos">+2.25%</td></tr>
+            <tr><td class="signal">DVN</td><td class="num pos">+2.25%</td></tr>
+            <tr><td class="signal">GE</td><td class="num pos">+2.12%</td></tr>
+            <tr><td class="signal">XYZ</td><td class="num pos">+1.91%</td></tr>
+            <tr><td class="signal">SMCI</td><td class="num pos">+1.80%</td></tr>
+            <tr><td class="signal">FISV</td><td class="num pos">+1.68%</td></tr>
           </tbody>
         </table>
       </div>
@@ -443,41 +435,41 @@
         <table>
           <thead><tr><th>Ticker</th><th class="num">Excess&nbsp;vs.&nbsp;own baseline</th></tr></thead>
           <tbody>
-            <tr><td class="signal">TSLA</td><td class="num neg">&minus;3.33%</td></tr>
-            <tr><td class="signal">LITE</td><td class="num neg">&minus;3.07%</td></tr>
-            <tr><td class="signal">COIN</td><td class="num neg">&minus;2.79%</td></tr>
-            <tr><td class="signal">CRWD</td><td class="num neg">&minus;2.77%</td></tr>
-            <tr><td class="signal">FANG</td><td class="num neg">&minus;2.60%</td></tr>
-            <tr><td class="signal">BLDR</td><td class="num neg">&minus;2.59%</td></tr>
+            <tr><td class="signal">NFLX</td><td class="num neg">&minus;4.50%</td></tr>
+            <tr><td class="signal">MGM</td><td class="num neg">&minus;3.92%</td></tr>
+            <tr><td class="signal">NOW</td><td class="num neg">&minus;3.85%</td></tr>
+            <tr><td class="signal">DDOG</td><td class="num neg">&minus;3.82%</td></tr>
+            <tr><td class="signal">ANET</td><td class="num neg">&minus;3.68%</td></tr>
+            <tr><td class="signal">PLTR</td><td class="num neg">&minus;3.61%</td></tr>
           </tbody>
         </table>
       </div>
     </section>
   </div>
-  <p style="font-size:13px; color:var(--ink-faint); max-width:68ch; margin-top:-8px;">Per-ticker baseline samples are small (~50 random entries per stock), so almost none of these individual rankings reach statistical significance on their own — read this as a ranking, not a list of proven single-stock edges. Full p-values are in the data export.</p>
+  <p style="font-size:13px; color:var(--ink-faint); max-width:68ch; margin-top:-8px;">Per-ticker baseline samples are small (~50 random entries per stock), so none of these individual rankings reach statistical significance on their own, in either direction — read this as a ranking, not a list of proven single-stock edges. Full p-values are in the data export.</p>
 
   <section class="q">
     <div class="q-head"><span class="q-num">05</span><h2>Which sectors and regimes are most responsive?</h2></div>
-    <p class="lede">Excess average return over the sector-matched random-entry baseline. Only Energy and Materials come out ahead.</p>
+    <p class="lede">Excess average return over the sector-matched random-entry baseline. Every sector is negative; none is statistically significant in the positive direction.</p>
     <div class="table-wrap">
       <table>
         <thead><tr><th>Sector</th><th class="num">Signal avg.</th><th class="num">Baseline avg.</th><th>Excess</th></tr></thead>
         <tbody>
-          <tr><td class="signal">Energy</td><td class="num">0.34%</td><td class="num">0.08%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill pos" style="width:17%"></span></span><span class="pos">+0.26%</span></td></tr>
-          <tr><td class="signal">Materials</td><td class="num">0.28%</td><td class="num">0.20%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill pos" style="width:5%"></span></span><span class="pos">+0.08%</span></td></tr>
-          <tr><td class="signal">Consumer Staples</td><td class="num">0.21%</td><td class="num">0.35%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:9%"></span></span><span class="neg">&minus;0.14%</span></td></tr>
-          <tr><td class="signal">Industrials</td><td class="num">0.37%</td><td class="num">0.55%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:11%"></span></span><span class="neg">&minus;0.18%</span></td></tr>
-          <tr><td class="signal">Financials</td><td class="num">0.31%</td><td class="num">0.63%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:20%"></span></span><span class="neg">&minus;0.32%</span></td></tr>
-          <tr><td class="signal">Utilities</td><td class="num">0.20%</td><td class="num">0.56%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:22%"></span></span><span class="neg">&minus;0.35%</span></td></tr>
-          <tr><td class="signal">Consumer Discretionary</td><td class="num">0.40%</td><td class="num">0.75%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:22%"></span></span><span class="neg">&minus;0.35%</span></td></tr>
-          <tr><td class="signal">Health Care</td><td class="num">0.29%</td><td class="num">0.68%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:25%"></span></span><span class="neg">&minus;0.39%</span></td></tr>
-          <tr><td class="signal">Communication Services</td><td class="num">0.28%</td><td class="num">0.75%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:30%"></span></span><span class="neg">&minus;0.48%</span></td></tr>
-          <tr><td class="signal">Real Estate</td><td class="num">0.20%</td><td class="num">0.70%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:32%"></span></span><span class="neg">&minus;0.50%</span></td></tr>
-          <tr><td class="signal">Information Technology</td><td class="num">0.53%</td><td class="num">1.31%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:50%"></span></span><span class="neg">&minus;0.79%</span></td></tr>
+          <tr><td class="signal">Consumer Staples</td><td class="num">0.21%</td><td class="num">0.42%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:10%"></span></span><span class="neg">&minus;0.20%</span></td></tr>
+          <tr><td class="signal">Utilities</td><td class="num">0.21%</td><td class="num">0.50%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:15%"></span></span><span class="neg">&minus;0.29%</span></td></tr>
+          <tr><td class="signal">Financials</td><td class="num">0.31%</td><td class="num">0.64%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:17%"></span></span><span class="neg">&minus;0.33%</span></td></tr>
+          <tr><td class="signal">Materials</td><td class="num">0.28%</td><td class="num">0.64%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:18%"></span></span><span class="neg">&minus;0.37%</span></td></tr>
+          <tr><td class="signal">Real Estate</td><td class="num">0.21%</td><td class="num">0.63%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:21%"></span></span><span class="neg">&minus;0.43%</span></td></tr>
+          <tr><td class="signal">Industrials</td><td class="num">0.37%</td><td class="num">0.81%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:23%"></span></span><span class="neg">&minus;0.45%</span></td></tr>
+          <tr><td class="signal">Energy</td><td class="num">0.33%</td><td class="num">0.83%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:25%"></span></span><span class="neg">&minus;0.50%</span></td></tr>
+          <tr><td class="signal">Consumer Discretionary</td><td class="num">0.40%</td><td class="num">1.00%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:30%"></span></span><span class="neg">&minus;0.60%</span></td></tr>
+          <tr><td class="signal">Communication Services</td><td class="num">0.28%</td><td class="num">0.91%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:32%"></span></span><span class="neg">&minus;0.64%</span></td></tr>
+          <tr><td class="signal">Health Care</td><td class="num">0.30%</td><td class="num">1.05%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:38%"></span></span><span class="neg">&minus;0.75%</span></td></tr>
+          <tr><td class="signal">Information Technology</td><td class="num">0.53%</td><td class="num">1.52%</td><td class="num barcell"><span class="bartrack"><span class="barcenter"></span><span class="barfill neg" style="width:50%"></span></span><span class="neg">&minus;0.99%</span></td></tr>
         </tbody>
       </table>
     </div>
-    <p>The Information Technology row is the one worth sitting with: it's the largest sector in this universe (60 tickers), the signal population's <em>raw</em> average return there is the highest of any sector (+0.53%) — and it is still the single worst result on an excess-return basis, because random long entries in IT stocks over 2010–2026 did even better (+1.31%). A high raw return is not evidence of a good signal if the do-nothing alternative did better.</p>
+    <p>Energy and Materials were the two sectors that looked positive in an earlier cut of this study — that result did not survive fixing a bug in how the per-ticker random baseline was seeded (Q8), which had been drawing near-identical "random" dates for most of the universe. With that fixed, every sector's excess return is negative. Information Technology is still the sharpest illustration of why raw returns mislead: it's the largest sector here (60 tickers), its signal population's <em>raw</em> average return is the highest of any sector (+0.53%) — and it is still the single worst result on an excess-return basis, because random long entries in IT stocks over 2010–2026 did even better (+1.52%). A high raw return is not evidence of a good signal if the do-nothing alternative did better.</p>
 
     <h3>By market regime</h3>
     <p style="font-size:14px; color:var(--ink-soft); max-width:60ch;">Regime is classified per stock, from its own trailing 200-day trend and realized volatility — not an external index.</p>
@@ -489,22 +481,22 @@
         <div class="rg-cell rg-head">Low vol</div>
 
         <div class="rg-cell rg-head">Bull</div>
-        <div class="rg-cell"><span class="rg-value pos">+0.08%</span></div>
-        <div class="rg-cell"><span class="rg-value neg">&minus;0.20%</span></div>
-        <div class="rg-cell"><span class="rg-value neg">&minus;0.34%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.76%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.38%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.17%</span></div>
 
         <div class="rg-cell rg-head">Bear</div>
-        <div class="rg-cell"><span class="rg-value neg">&minus;0.54%</span></div>
-        <div class="rg-cell"><span class="rg-value neg">&minus;0.61%</span></div>
-        <div class="rg-cell"><span class="rg-value neg">&minus;1.27%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;1.46%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.56%</span></div>
+        <div class="rg-cell"><span class="rg-value pos">+0.09%</span></div>
 
         <div class="rg-cell rg-head">Sideways</div>
         <div class="rg-cell"><span class="rg-value neg">&minus;1.32%</span></div>
-        <div class="rg-cell"><span class="rg-value neg">&minus;0.54%</span></div>
-        <div class="rg-cell"><span class="rg-value neg">&minus;0.48%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.41%</span></div>
+        <div class="rg-cell"><span class="rg-value neg">&minus;0.86%</span></div>
       </div>
     </div>
-    <p style="font-size:13px; color:var(--ink-faint);">Cell value = signal average return minus baseline average return, at the 10-day horizon. Only one of nine cells is positive.</p>
+    <p style="font-size:13px; color:var(--ink-faint);">Cell value = signal average return minus baseline average return, at the 10-day horizon. Only one of nine cells is positive (bear market, low volatility) — and it is not statistically significant (p&nbsp;=&nbsp;0.90), on a cell that holds just 15,569 of the 4.3M trades in this slice (0.4%).</p>
   </section>
 
   <section class="q">
@@ -522,27 +514,29 @@
         </tbody>
       </table>
     </div>
-    <p>Among long-biased signals that failed the baseline test — <span class="mono">smc_fvg_bullish_formed</span>, <span class="mono">ict_ndog_formed</span>, <span class="mono">ict_nwog_formed</span>, <span class="mono">ict_mss_bullish</span> among them — the returns are still positive, just statistically indistinguishable from what a coin-flip long entry would have produced at the same frequency.</p>
+    <p>Long-biased signals fail differently, and it's worth being precise about how. <span class="mono">smc_fvg_bullish_formed</span> (+0.65% raw), <span class="mono">ict_ndog_formed</span> (+0.71% raw), and <span class="mono">ict_mss_bullish</span> (+0.67% raw) all have positive raw returns <em>and</em> are significantly worse than the baseline — the raw number and the honest comparison point in opposite directions. <span class="mono">ict_nwog_formed</span> is the one exception among long-biased signals that's genuinely indistinguishable from baseline rather than significantly worse (p&nbsp;=&nbsp;0.20). A positive raw return with no baseline comparison is not evidence of an edge — it can just as easily describe a signal actively working against you at a smaller loss than the market's average gain.</p>
   </section>
 
   <section class="q">
     <div class="q-head"><span class="q-num">07</span><h2>How stable is this across time and conditions?</h2></div>
-    <p>Not very. The regime grid in Q5 has one positive cell out of nine. The one bright spot — bull markets during high-volatility stretches — is a narrow slice of the full trade population (180,610 of ~4.3M trades, about 5%). Every other combination of trend and volatility regime shows the signal population trailing a plain random entry. This is the most important caveat on the "28 concepts beat baseline" headline: that result is a 2010–2026, largely-bull-market average, and it does not appear to hold evenly across conditions.</p>
+    <p>No. The regime grid in Q5 has one positive cell out of nine — bear markets during low-volatility stretches — and it is both statistically insignificant (p&nbsp;=&nbsp;0.90) and a narrow slice of the data (15,569 of 4.3M trades in this cut, 0.4%). Every other combination of trend and volatility regime shows the signal population trailing a plain random entry, several by more than a full percentage point. This is the sharper version of the "0 of 42 concepts beat baseline" headline, not a separate caveat on it: there is no regime, sector, or time slice in this dataset where the aggregate signal population comes out ahead with statistical support.</p>
   </section>
 
   <section class="q">
     <div class="q-head"><span class="q-num">08</span><h2>Method, in brief</h2></div>
     <ul class="plain">
       <li><strong>Translation.</strong> Both Pine scripts were read line by line and every concept ported to Python by hand — pivot detection, order block formation and mitigation, fair value gaps, liquidity pools, structure breaks — with overlapping vocabulary between the two engines (three different working definitions of "BOS," for instance) kept as separate signal families rather than merged.</li>
-      <li><strong>Detection.</strong> Every detector ran against 501 of 503 S&amp;P 500 constituents, daily bars, 2010–2026: 4,348,698 discrete events across 42 signal families.</li>
-      <li><strong>Backtest.</strong> Every event was carried forward 1, 2, 3, 5, 10, 20, 40, and 60 trading days — 34,632,327 trades total. Entry uses only the signal bar's own close; every exit price and adverse/favorable excursion is computed strictly on bars after entry. No look-ahead by construction.</li>
-      <li><strong>The baseline correction.</strong> A first pass reported all 42 concepts as "significant" — using only a zero-return null. That was a red flag, not a result: it meant a benchmark comparison was missing, not that the signals worked. A random-entry baseline was built and backtested through the identical pipeline, and every ranking — concepts, combinations, individual stocks, sectors, regimes — was re-tested against it. The numbers on this page are all post-correction.</li>
-      <li><strong>Significance.</strong> Bootstrap confidence intervals, two-sample significance tests against the baseline, and Benjamini–Hochberg false-discovery-rate correction throughout, at &alpha;&nbsp;=&nbsp;0.05.</li>
+      <li><strong>Detection.</strong> Every detector ran against 501 of 503 S&amp;P 500 constituents, daily bars, 2010–2026: 4,326,101 discrete events across 42 signal families.</li>
+      <li><strong>Backtest.</strong> Every event was carried forward 1, 2, 3, 5, 10, 20, 40, and 60 trading days — 34,452,258 trades total. Entry uses only the signal bar's own close; every exit price and adverse/favorable excursion is computed strictly on bars after entry. No look-ahead by construction.</li>
+      <li><strong>The baseline correction.</strong> A first pass reported all 42 concepts as "significant" — using only a zero-return null. That was a red flag, not a result: it meant a benchmark comparison was missing, not that the signals worked. A random-entry baseline was built and backtested through the identical pipeline, and every ranking — concepts, combinations, individual stocks, sectors, regimes — was re-tested against it.</li>
+      <li><strong>Two further corrections, applied after the first published cut of this study.</strong> (1) The per-ticker random baseline was seeded from a hash of each ticker's first cached bar date; because most tickers share that date, roughly 84% of the universe was drawing <em>the same</em> "random" dates rather than independent ones, and the fix (a stable per-ticker seed) changed the baseline meaningfully — it's the reason the sector table in Q5 no longer has any positive entries. (2) Every significance test now clusters standard errors by ticker rather than treating each trade as an independent draw: trades on the same stock share overlapping holding-period windows, and a naive per-trade test understates the true standard error as sample size grows. Sector and market-regime rankings did not carry a significance test at all in the first published cut — a raw excess-return number with no test of whether it differs from noise — and now do.</li>
+      <li><strong>Also fixed:</strong> the SMC order-block detector had its bullish/bearish extreme-candle selection swapped relative to the source script (picking the highest high for bullish blocks and the lowest low for bearish ones, the reverse of the source's demand/supply logic), and both engines' order-block detectors included the current breakout bar in their search window where the source excludes it. Both are corrected; the numbers on this page reflect the corrected detectors.</li>
+      <li><strong>Significance.</strong> Cluster-robust confidence intervals, cluster-robust two-sample significance tests against the baseline, and Benjamini–Hochberg false-discovery-rate correction throughout, at &alpha;&nbsp;=&nbsp;0.05. Clustering corrects for within-ticker correlation; it is not two-way (ticker-by-date) clustered, so cross-ticker correlation on shared market-wide dates is not separately corrected for — a conservative gap, since implementing it would tighten these results further, not loosen them.</li>
     </ul>
   </section>
 
   <footer>
-    <p>Two concepts referenced in general ICT literature — Rejection Blocks and Optimal Trade Entry — have no corresponding logic in either source script and were not implemented. No transaction costs or slippage are modeled; these are in-sample results across the full study window, not a walk-forward or held-out test. Source indicators © LuxAlgo, CC BY-NC-SA 4.0. This is a research study, not investment advice.</p>
+    <p>Two concepts referenced in general ICT literature — Rejection Blocks and Optimal Trade Entry — have no corresponding logic in either source script and were not implemented. No transaction costs or slippage are modeled; these are in-sample results across the full study window, not a walk-forward or held-out test. The universe reflects current-day S&amp;P 500 membership applied retroactively across 2010–2026, not a point-in-time-correct historical constituent list — constituents removed from the index during the window are absent, and recent additions carry their full available trading history despite not having been index members for most of it. A companion academic working paper with full literature review and methodology writeup is at <code>docs/ssrn_paper.pdf</code> in the repository. Source indicators © LuxAlgo, CC BY-NC-SA 4.0. This is a research study, not investment advice.</p>
   </footer>
 
 </div>

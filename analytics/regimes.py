@@ -10,6 +10,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 
+from analytics.statistics import apply_fdr_correction, two_sample_significance_clustered
 from backtest.metrics import summarize_returns
 from utils.config import DATA_CACHE_DIR, RESULTS_DIR
 
@@ -66,21 +67,49 @@ def regime_analysis(trades: pd.DataFrame | None = None, holding_period: int = 10
     tagged = tag_trades_with_regime(subset)
 
     baseline_trades = _load_baseline_trades()
-    baseline_regime_avg = {}
+    baseline_by_regime = {}
     if baseline_trades is not None:
         base_subset = baseline_trades[baseline_trades["holding_period"] == holding_period]
         base_tagged = tag_trades_with_regime(base_subset)
-        baseline_regime_avg = base_tagged.groupby(["trend_regime", "vol_regime"])["fwd_return"].mean().to_dict()
+        baseline_by_regime = {k: g for k, g in base_tagged.groupby(["trend_regime", "vol_regime"])}
 
     rows = []
     for (trend_regime, vol_regime), grp in tagged.groupby(["trend_regime", "vol_regime"]):
         metrics = summarize_returns(grp["fwd_return"], holding_period)
-        baseline_avg = baseline_regime_avg.get((trend_regime, vol_regime), float("nan"))
-        metrics["baseline_avg_return"] = baseline_avg
-        metrics["excess_return_vs_baseline"] = metrics["avg_return"] - baseline_avg
+        base_grp = baseline_by_regime.get((trend_regime, vol_regime))
+        if base_grp is not None and not base_grp.empty:
+            metrics["baseline_avg_return"] = float(base_grp["fwd_return"].mean())
+            # Cluster-robust (by ticker) two-sample test -- previously this
+            # module reported only the raw point-estimate excess return with
+            # no significance test (see audit finding on sectors.py, same
+            # issue here).
+            vs_baseline = two_sample_significance_clustered(
+                grp["fwd_return"].to_numpy(), grp["ticker"].to_numpy(),
+                base_grp["fwd_return"].to_numpy(), base_grp["ticker"].to_numpy(),
+            )
+            metrics["excess_return_vs_baseline"] = vs_baseline["excess_return_vs_baseline"]
+            metrics["p_value_vs_baseline"] = vs_baseline["p_value"]
+            metrics["effect_size_vs_baseline"] = vs_baseline["effect_size_cohens_d"]
+        else:
+            metrics["baseline_avg_return"] = float("nan")
+            metrics["excess_return_vs_baseline"] = float("nan")
+            metrics["p_value_vs_baseline"] = float("nan")
+            metrics["effect_size_vs_baseline"] = float("nan")
         rows.append({"trend_regime": trend_regime, "vol_regime": vol_regime, **metrics})
 
-    return pd.DataFrame(rows).sort_values(["trend_regime", "vol_regime"]).reset_index(drop=True)
+    ranking = pd.DataFrame(rows)
+    ranking["regime_key"] = ranking["trend_regime"] + "|" + ranking["vol_regime"]
+    fdr = apply_fdr_correction(ranking.set_index("regime_key")["p_value_vs_baseline"])
+    ranking = ranking.merge(
+        fdr[["p_adjusted", "reject_null"]].rename(columns={"p_adjusted": "p_adjusted_vs_baseline", "reject_null": "significant_vs_baseline"}),
+        left_on="regime_key", right_index=True, how="left",
+    )
+    ranking["beats_baseline"] = (
+        ranking["significant_vs_baseline"].fillna(False) & (ranking["excess_return_vs_baseline"] > 0)
+    )
+    ranking = ranking.drop(columns=["regime_key"])
+
+    return ranking.sort_values(["trend_regime", "vol_regime"]).reset_index(drop=True)
 
 
 def regime_analysis_by_signal(trades: pd.DataFrame | None = None, holding_period: int = 10) -> pd.DataFrame:

@@ -31,25 +31,36 @@ explicit goal of answering whether these concepts add predictive power beyond si
 This is **not** an attempt to replicate TradingView's visual output. Boxes, lines, colors, and
 labels in the source scripts are irrelevant; only the underlying trigger logic matters.
 
-## Key findings (see `docs/final_research_report.md` for the full, auto-generated report)
+## Key findings
+
+_See `docs/final_research_report.md` for the full, auto-generated report, and `docs/ssrn_paper.pdf`
+for the academic working-paper writeup with literature review._
 
 **The aggregate, unconditional claim "SMC/ICT signals beat chance" is not supported by this
-dataset.** Every one of the 42 tested concepts clears a *zero-return* null (42/42) — but that is
-a weak bar over 2010-2026, a long bull market, where almost any long-biased signal shows a
-positive mean return from broad market drift alone. Tested properly against a **random-entry
-baseline** run through identical backtest mechanics at the same frequency, only **28/42**
-concepts and **44/60** tested combinations remain significant, and only **2 of 12 sectors**
-(Energy, Materials) show positive excess return over that baseline — in most sectors, including
-Information Technology, a plain random long entry outperformed the aggregate SMC/ICT signal
-population. Where a real edge exists, it is concept-specific and regime/sector-dependent, not a
-property of the methodology as a whole. See Section 1 of the final report for the full picture,
-and Section 2 for the specific concepts that do clear the bar.
+dataset — and neither is the narrower claim that a specific minority of concepts do.** Every one
+of the 42 tested concepts clears a *zero-return* null (42/42) — but that is a weak bar over
+2010-2026, a long bull market, where almost any long-biased signal shows a positive mean return
+from broad market drift alone. Tested properly against a **random-entry baseline**, run through
+identical backtest mechanics at the same frequency with standard errors **clustered by ticker**
+(trades on the same stock share overlapping holding windows and are not independent draws),
+**35/42** concepts differ significantly from the baseline — and every one of those 35 differs in
+the *negative* direction. **0/42** concepts, **0/60** tested combinations, **0/12** sectors, and
+**0/9** market-regime cells beat the baseline with statistical significance. Where the data comes
+closest to a positive result, it stops well short of significance (see Section 2 of the final
+report). See Section 1 for the full picture.
 
-This finding only emerged after a validation pass caught that the initial pipeline run reported
-all 42 concepts as "significant" using only the zero-return test — a red flag, not a good
-result, that led directly to building `backtest/baseline_engine.py` and rewiring every ranking
-module (concepts, combinations, stocks, sectors, regimes) to compare against the baseline
-consistently. See commit history for the full account.
+This finding went through two rounds of correction, both driven by validation catching a result
+that looked too good to be true. The first: an initial pipeline run reported all 42 concepts as
+"significant" using only the zero-return test — a red flag, not a good result — which led to
+building `backtest/baseline_engine.py` and rewiring every ranking module to compare against a
+random-entry baseline. The second, later round: an independent audit found that baseline itself
+had a seeding bug (roughly 84% of tickers were drawing *identical* "random" dates rather than
+independent ones, because the seed was derived from a low-cardinality hash of each ticker's first
+cached bar date), that significance tests treated non-independent, overlapping-window trades as
+i.i.d. draws, and that sector/regime rankings carried no significance test at all despite the
+docs claiming they did. Fixing all three — along with an unrelated bug in the SMC order-block
+detector's bullish/bearish candle selection — changed the result from "a real, specific minority
+of signals clear the bar" to the clean null above. See commit history for the full account.
 
 ## Project structure
 
@@ -57,11 +68,18 @@ consistently. See commit history for the full account.
 smc-ict-research/
 ├── data/
 │   ├── raw/                 static inputs (S&P 500 constituent list)
-│   └── cache/                cached OHLCV downloads, parquet (gitignored)
+│   ├── cache/                cached OHLCV downloads, parquet (gitignored)
+│   └── bundle/                lightweight pre-computed data bundle checked into git, so the
+│                                dashboard works on a fresh clone without running the full
+│                                pipeline (built by utils/build_cloud_bundle.py)
 ├── docs/
 │   ├── concepts_extraction.md   full per-concept technical spec (Task 1/2)
 │   ├── task02_pine_analysis.md  plain-English + dependency + parameter + Pine-builtin inventory
 │   ├── architecture.md           module responsibility map (Task 3)
+│   ├── deployment_notes.md        notes on the Cloudflare quick-tunnel dashboard deploy path
+│   ├── final_research_report.md   auto-generated executive report (utils/generate_report.py)
+│   ├── findings_report.html       polished public write-up (findings_report.pdf is its PDF render)
+│   ├── ssrn_paper.pdf             academic working-paper draft, with literature review
 │   └── reference/                 plain-text transcriptions of the source Pine scripts
 ├── pine_parser/            low-level primitives shared by many detectors
 │   ├── pivots.py             ta.pivothigh/pivotlow equivalent
@@ -74,9 +92,11 @@ smc-ict-research/
 ├── backtest/
 │   ├── engine.py               forward returns, no look-ahead (Task 7)
 │   ├── metrics.py               win rate, Sharpe, Sortino, profit factor, MAE/MFE, ...
-│   └── baselines.py             buy&hold, random entry, EMA/RSI/breakout/momentum benchmarks
+│   ├── baselines.py             buy&hold, random entry, EMA/RSI/breakout/momentum benchmarks
+│   └── baseline_engine.py       runs the baseline strategies through the same backtest engine,
+│                                  across the universe, so they're comparable on equal footing
 ├── analytics/
-│   ├── statistics.py           bootstrap CI, significance tests, FDR correction (Task 8)
+│   ├── statistics.py           bootstrap CI, cluster-robust significance tests, FDR correction
 │   ├── stock_ranking.py         Task 9
 │   ├── concept_ranking.py       Task 10
 │   ├── combinations.py          Task 11
@@ -90,11 +110,16 @@ smc-ict-research/
 │   ├── logging_config.py
 │   ├── data_loader.py            yfinance ingestion + parquet cache + retry/parallel
 │   ├── data_quality.py           Task 4 validation report
-│   └── export.py                 Task 14 CSV/Excel/JSON export
+│   ├── export.py                 Task 14 CSV/Excel/JSON export
+│   ├── generate_report.py        builds docs/final_research_report.md from results/*
+│   ├── render_pdf.py             renders an HTML report to PDF via Playwright/Chromium
+│   ├── build_cloud_bundle.py     builds data/bundle/ for a dependency-free dashboard clone
+│   ├── audit_cache.py, check_missing.py, rebuild_quality_report.py   cache/data-quality helpers
 ├── tests/                        unit tests (pivot/leg/order-block regression tests)
 ├── results/                      generated research outputs (gitignored, folder kept)
 ├── exports/                      generated CSV/Excel/JSON deliverables (gitignored, folder kept)
-├── main.py                       CLI entry point (ingest / detect / backtest / analyze / export)
+├── main.py                       CLI entry point (ingest / detect / backtest / baseline /
+│                                    analyze / export)
 ├── app.py                        Gradio dashboard entry point
 ├── streamlit_app.py               Streamlit dashboard entry point
 └── requirements.txt
@@ -114,10 +139,27 @@ pip install -r requirements.txt
 python main.py ingest      # download + cache + validate OHLCV for the S&P 500
 python main.py detect      # run every SMC/ICT detector across the universe
 python main.py backtest    # forward returns at 8 holding periods, no look-ahead
+python main.py baseline    # run baseline/benchmark strategies through the same backtest engine
 python main.py analyze     # concept/stock/combination/sector/regime rankings
 python main.py export      # write CSV/Excel/JSON deliverables to exports/
-python main.py all         # run every stage in order
+python main.py all         # run every stage in order (includes baseline)
 ```
+
+Running stages individually rather than via `all`? Don't skip `baseline` — every ranking's
+headline significance flag depends on it, and running `analyze` without it first just means every
+`*_vs_baseline` column comes back empty.
+
+## Read the findings
+
+- **`docs/findings_report.html`** (`docs/findings_report.pdf` for the PDF render) — the polished,
+  public-facing write-up: headline scoreboard, per-concept/combination/sector/regime breakdowns,
+  and a plain-English methodology section.
+- **`docs/ssrn_paper.pdf`** — the same underlying results, written up as an academic working
+  paper: formal abstract, literature review situating this study against the technical-analysis
+  data-snooping literature (Brock/Lakonishok/LeBaron, White's Reality Check, Hansen's SPA test,
+  Bajgrowicz & Scaillet's FDR-based critique), and a full methodology section.
+- **`docs/final_research_report.md`** — the shortest version: auto-generated directly from
+  `results/*`, regenerated by `python -m utils.generate_report` after any pipeline re-run.
 
 ## Running the dashboard
 
@@ -137,7 +179,7 @@ pipeline already produced — nothing is recalculated inside the UI.
 ## Data source
 
 - **Price data:** `yfinance`, daily OHLCV, 2010-01-01 to 2026-06-13, cached locally under
-  `data/cache/` (parquet) so re-runs never re-download unchanged history. 500 of 503
+  `data/cache/` (parquet) so re-runs never re-download unchanged history. 501 of 503
   constituents downloaded successfully; 2 failed (`HONA`, `SATS` — both flagged in advance in
   `docs/concepts_extraction.md` as likely thin/recent-listing tickers).
 - **Universe:** `data/raw/sp500_constituents.csv`, the S&P 500 constituent list supplied for
@@ -163,17 +205,27 @@ pipeline already produced — nothing is recalculated inside the UI.
 4. **Backtesting** (`backtest/engine.py`): for every event, forward returns are computed at 1,
    2, 3, 5, 10, 20, 40, and 60 trading days ahead, using only the entry bar's own close and
    strictly-future bars for the exit/MAE/MFE — no look-ahead by construction.
-5. **Statistical validation** (`analytics/statistics.py`): bootstrap confidence intervals,
-   one-sample and two-sample significance tests, effect sizes, and Benjamini-Hochberg
-   false-discovery-rate correction across every concept/combination/stock/sector/regime tested.
+5. **Statistical validation** (`analytics/statistics.py`): cluster-robust (by-ticker) confidence
+   intervals, one-sample and two-sample significance tests, effect sizes, and Benjamini-Hochberg
+   false-discovery-rate correction across every concept/combination/sector/regime tested (and,
+   with a naive rather than clustered test, for stocks — see Limitations).
    **Two distinct significance tests are reported and deliberately kept separate**: significance
    vs. a zero-return null (`significant_vs_zero`), and significance vs. a random-entry baseline
    run through the identical backtest mechanics at the same holding periods
    (`significant_vs_baseline`, via `backtest/baseline_engine.py`). The first test alone is
    misleading over a long bull market (2010-2026) — almost any long-biased signal clears it
-   from broad market drift alone. The dashboard's and report's headline
-   `statistically_significant` flag uses the baseline comparison, not the zero-null one,
-   wherever the baseline backtest is available.
+   from broad market drift alone.
+   **A third flag, `beats_baseline`, is what "N concepts beat the baseline" headlines should
+   read from, not `significant_vs_baseline`**: the latter is two-sided (it flags a concept
+   whether it's significantly *better than* or *worse than* the baseline), while
+   `beats_baseline` additionally requires the excess return to be positive. Collapsing the two
+   is a real mistake this project made and then caught — see "Key findings."
+   Significance tests are clustered by ticker (a cluster-robust "sandwich" variance estimator,
+   not a naive per-trade t-test), because trades on the same ticker share overlapping
+   forward-return windows and are not independent draws; a naive test understates the true
+   standard error and can manufacture significance out of noise as sample size grows. This
+   corrects for *within-ticker* correlation only, not a full two-way (ticker-by-date) correction
+   for cross-ticker correlation on shared market-wide dates — see Limitations.
 6. **Analysis** (`analytics/*`): stock-level, concept-level, combination, sector, and market
    regime rankings, all built from the single backtested-trades table (no duplicated
    calculation between modules). Every module compares against the baseline consistently:
@@ -181,7 +233,8 @@ pipeline already produced — nothing is recalculated inside the UI.
      random-entry baseline.
    - `stock_ranking.py`: each ticker's signal-trades vs. **that same ticker's own**
      random-entry baseline (so a stock ranking highly isn't just rewarded for having rallied
-     hard over the period — see the VRT/SNDK/GEV discussion in the final report).
+     hard over the period — see `results/stock_rankings.csv` or the final report's stock
+     breakdown for the current per-ticker ranking).
    - `sectors.py` / `regimes.py`: excess average return vs. the baseline's average return in
      the same sector/regime bucket.
 
@@ -210,16 +263,45 @@ pipeline already produced — nothing is recalculated inside the UI.
 - **No-look-ahead construction:** verified by code review of `backtest/engine.py` — entry uses
   only the signal bar's close; every exit price, MAE, and MFE slice starts at `entry_position +
   1`.
-- **Statistical rigor:** every concept/combination/stock/sector/regime ranking reports a
-  bootstrap CI, a p-value against a zero-return null, a p-value against a random-entry
-  baseline, FDR-adjusted versions of both, and an effect size — not just a point-estimate win
-  rate. This distinction changed the headline conclusion materially (see "Key findings" above)
-  and was caught during self-review, not requested — the first full pipeline run reported
-  42/42 concepts "significant" using only the zero-return test, which was the signal that a
-  baseline comparison was missing, not present.
+- **Statistical rigor:** every concept/combination/sector/regime ranking reports a bootstrap CI,
+  a p-value against a zero-return null, a p-value against a random-entry baseline, FDR-adjusted
+  versions of both, and an effect size — not just a point-estimate win rate. This distinction
+  changed the headline conclusion materially (see "Key findings" above) and was caught during
+  self-review, not requested — the first full pipeline run reported 42/42 concepts "significant"
+  using only the zero-return test, which was the signal that a baseline comparison was missing,
+  not present. Sector and regime rankings did **not** carry any significance test at all in the
+  first published cut of this project (a raw excess-return point estimate with no test of
+  whether it differs from noise, despite this section previously claiming otherwise) — caught
+  in a later audit and fixed; they now go through the same cluster-robust test as everything
+  else.
+- **Baseline reproducibility:** the random-entry baseline's per-ticker seed was, in an earlier
+  version, derived from a low-cardinality hash of each ticker's first cached bar date — since
+  most tickers share that date, roughly 84% of the universe was drawing *identical* "random"
+  entries rather than independent ones. Caught in the same audit; the fix seeds each ticker
+  from a stable hash of its own symbol. This bug is the reason results shifted materially
+  between the first published cut of this study and the current one (see "Key findings").
 
 ## Limitations
 
+- **Standard errors are clustered by ticker only, not two-way (ticker-by-date).** This corrects
+  for within-ticker serial correlation from overlapping holding-period windows; it does not
+  separately correct for cross-ticker correlation on shared market-wide dates (e.g. 2020, 2022).
+  A full two-way correction would tighten inference further, not loosen it — the results here
+  should be read as, if anything, a conservative upper bound on how much would survive that
+  correction.
+- **The universe is not point-in-time-correct.** `data/raw/sp500_constituents.csv` reflects
+  current-day S&P 500 membership and weights, applied retroactively across the full 2010-2026
+  window. Constituents removed from the index during the period are entirely absent;
+  constituents added more recently contribute their full available trading history despite not
+  having been index members for most of it. A form of survivorship bias; no point-in-time
+  membership data was available to correct it.
+- **Per-ticker significance tests (`stock_ranking.py`) are not cluster-corrected** — a single
+  ticker's own trades have no cluster structure to cluster by, so this module still uses the
+  naive per-trade test. Read per-stock excess-return figures as directional evidence, not a
+  validated edge, more so than for the other modules.
+- **The stock-ranking table covers 499 of the 501 tickers with usable price data**, not 501:
+  two tickers (`FDXF`, `Q`) have clean price history but produced zero detected SMC/ICT events
+  across the full window and drop out of that specific table without a separate flag.
 - Sector mapping is a static, manually curated approximation, not a live data source.
 - FVG/gap "filled" state uses a bounded 60-bar forward search (matching the longest backtest
   holding period) rather than an unbounded search, documented in `signals/ict_signals.py`.

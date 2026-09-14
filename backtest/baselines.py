@@ -9,10 +9,29 @@ engine and compared on equal footing.
 
 from __future__ import annotations
 
+import hashlib
+
 import numpy as np
 import pandas as pd
 
 RNG_SEED = 42
+
+
+def _stable_ticker_seed(ticker: str, seed: int) -> int:
+    """Deterministic, collision-resistant per-ticker seed offset.
+
+    Python's built-in `hash()` on strings is process-randomized (PYTHONHASHSEED)
+    unless explicitly pinned, and was previously combined with a low-cardinality
+    `% 10_000` bucket keyed on each ticker's *first cached bar date* -- since most
+    tickers share the same first trading date and bar count, this collided for
+    the large majority of the S&P 500 universe, so "random" entries were
+    identical across hundreds of tickers (see audit finding, Phase 1 #1).
+    SHA-256 of the ticker symbol itself is stable across processes/runs and,
+    with a 2**32 range, has a negligible collision probability across 501
+    tickers (~1 in 17,000 by the birthday bound).
+    """
+    digest = hashlib.sha256(f"{seed}:{ticker}".encode("utf-8")).digest()
+    return seed + (int.from_bytes(digest[:8], "big") % (2**32))
 
 
 def _ema(series: pd.Series, span: int) -> pd.Series:
@@ -58,11 +77,15 @@ def momentum_turn(df: pd.DataFrame, length: int = 126) -> pd.DataFrame:
     return pd.DataFrame({"baseline_momentum_bullish": bull.fillna(False), "baseline_momentum_bearish": bear.fillna(False)})
 
 
-def random_entry(df: pd.DataFrame, n_signals: int, seed: int = RNG_SEED) -> pd.DataFrame:
+def random_entry(df: pd.DataFrame, n_signals: int, ticker: str, seed: int = RNG_SEED) -> pd.DataFrame:
     """Random long entries, same count as a comparison signal, for a fair
     "is this better than chance at this frequency" baseline.
+
+    Seeded deterministically per-ticker via `_stable_ticker_seed` so each
+    ticker draws its own independent set of random dates (see that function's
+    docstring for why the previous date-hash-based seed collided).
     """
-    rng = np.random.default_rng(seed + abs(hash(tuple(df.index[:1].astype(str)))) % 10_000)
+    rng = np.random.default_rng(_stable_ticker_seed(ticker, seed))
     n = len(df)
     if n_signals <= 0 or n == 0:
         return pd.DataFrame({"baseline_random_bullish": pd.Series(False, index=df.index)})
@@ -86,12 +109,12 @@ def buy_and_hold_return(df: pd.DataFrame) -> dict:
     return {"total_return": total_return, "cagr": cagr, "sharpe": sharpe, "max_drawdown": max_dd}
 
 
-def detect_all_baselines(df: pd.DataFrame, n_random_signals: int = 50) -> pd.DataFrame:
+def detect_all_baselines(df: pd.DataFrame, ticker: str, n_random_signals: int = 50) -> pd.DataFrame:
     parts = [
         ema_crossover(df),
         rsi_mean_reversion(df),
         breakout_52w(df),
         momentum_turn(df),
-        random_entry(df, n_random_signals),
+        random_entry(df, n_random_signals, ticker=ticker),
     ]
     return pd.concat(parts, axis=1)

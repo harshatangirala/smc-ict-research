@@ -10,7 +10,13 @@ utils/            <- shared infrastructure, no research logic
   logging_config.py shared logger factory
   data_loader.py    yfinance download + parquet cache + retry/parallel logic
   data_quality.py   Task 4 validation report
-  io_helpers.py     save/load parquet & csv/xlsx/json export helpers
+  export.py         save/load parquet & csv/xlsx/json export helpers
+  audit_cache.py    audits the parquet price cache for gaps/staleness
+  check_missing.py  reports tickers/dates missing from the universe
+  generate_report.py auto-generates docs/final_research_report.md from results/*
+  rebuild_quality_report.py rebuilds the data quality report from cached data
+  build_cloud_bundle.py builds the lightweight pre-computed data/bundle/
+  render_pdf.py     renders an HTML report to PDF via Playwright
 
 pine_parser/       <- low-level primitives shared by multiple concept detectors
   pivots.py          ta.pivothigh/pivotlow equivalent (2-sided confirmed pivot)
@@ -31,6 +37,10 @@ backtest/
   metrics.py         win rate, Sharpe, Sortino, profit factor, MAE/MFE, etc.
   baselines.py       buy&hold, random entry, EMA cross, RSI reversion,
                      52w breakout, momentum (the benchmark comparisons)
+  baseline_engine.py runs the random-entry and other baseline strategies
+                     through the same backtest engine as the real signals --
+                     central to the project's headline "beats a naive
+                     benchmark" methodology
 
 analytics/
   statistics.py      bootstrap CI, significance tests, effect size, FDR
@@ -41,15 +51,22 @@ analytics/
   sectors.py           Task 12 (sector grouping)
 
 dashboard/
-  data_access.py     read-only accessors the Gradio app calls (no calculation)
-  pages.py           per-tab Gradio component builders
+  data_access.py     read-only accessors both front ends call (no calculation)
+  analysis.py        chart/table builders shared by both front ends
+
+data/bundle/       <- lightweight pre-computed data bundle checked into git so
+                      the dashboard works on a fresh clone without running the
+                      full pipeline; built by utils/build_cloud_bundle.py
 
 tests/
-  test_pivots.py, test_signals_*.py, test_backtest_engine.py -- unit tests
-  with synthetic OHLC fixtures that have a hand-computed expected answer
+  test_pivots.py, test_legs.py, test_ict_order_blocks.py -- unit tests with
+  synthetic OHLC fixtures that have a hand-computed expected answer
 
-main.py    CLI: orchestrates ingest -> detect -> backtest -> analyze -> export
-app.py     Gradio entry point, imports dashboard/ only
+main.py           CLI: orchestrates ingest -> detect -> backtest -> baseline
+                     -> analyze -> export
+app.py            Gradio dashboard entry point, imports dashboard/ only
+streamlit_app.py  Streamlit dashboard entry point (second front end,
+                     alongside app.py), also imports dashboard/ only
 ```
 
 ## Data contracts between modules

@@ -15,6 +15,7 @@ from __future__ import annotations
 
 import pandas as pd
 
+from analytics.statistics import apply_fdr_correction, two_sample_significance_clustered
 from backtest.metrics import summarize_returns
 from utils.config import RESULTS_DIR
 
@@ -123,22 +124,49 @@ def sector_analysis(trades: pd.DataFrame | None = None, holding_period: int = 10
     subset["sector"] = subset["ticker"].map(SECTOR_MAP).fillna("Unknown")
 
     baseline_trades = _load_baseline_trades()
-    baseline_sector_avg = {}
+    baseline_by_sector = {}
     if baseline_trades is not None:
         base_subset = baseline_trades[baseline_trades["holding_period"] == holding_period].copy()
         base_subset["sector"] = base_subset["ticker"].map(SECTOR_MAP).fillna("Unknown")
-        baseline_sector_avg = base_subset.groupby("sector")["fwd_return"].mean().to_dict()
+        baseline_by_sector = {s: g for s, g in base_subset.groupby("sector")}
 
     rows = []
     for sector, grp in subset.groupby("sector"):
         metrics = summarize_returns(grp["fwd_return"], holding_period)
         metrics["sector"] = sector
         metrics["n_tickers"] = grp["ticker"].nunique()
-        metrics["baseline_avg_return"] = baseline_sector_avg.get(sector, float("nan"))
-        metrics["excess_return_vs_baseline"] = metrics["avg_return"] - metrics["baseline_avg_return"]
+
+        base_grp = baseline_by_sector.get(sector)
+        if base_grp is not None and not base_grp.empty:
+            metrics["baseline_avg_return"] = float(base_grp["fwd_return"].mean())
+            # Cluster-robust (by ticker) two-sample test -- previously this
+            # module reported only the raw point-estimate excess return with
+            # no test of whether it differs from noise (audit finding: the
+            # docs claimed every ranking module carries a significance test;
+            # sectors/regimes didn't).
+            vs_baseline = two_sample_significance_clustered(
+                grp["fwd_return"].to_numpy(), grp["ticker"].to_numpy(),
+                base_grp["fwd_return"].to_numpy(), base_grp["ticker"].to_numpy(),
+            )
+            metrics["excess_return_vs_baseline"] = vs_baseline["excess_return_vs_baseline"]
+            metrics["p_value_vs_baseline"] = vs_baseline["p_value"]
+            metrics["effect_size_vs_baseline"] = vs_baseline["effect_size_cohens_d"]
+        else:
+            metrics["baseline_avg_return"] = float("nan")
+            metrics["excess_return_vs_baseline"] = metrics["avg_return"] - float("nan")
+            metrics["p_value_vs_baseline"] = float("nan")
+            metrics["effect_size_vs_baseline"] = float("nan")
         rows.append(metrics)
 
-    ranking = pd.DataFrame(rows).sort_values(
-        "excess_return_vs_baseline", ascending=False, na_position="last"
+    ranking = pd.DataFrame(rows)
+    fdr = apply_fdr_correction(ranking.set_index("sector")["p_value_vs_baseline"])
+    ranking = ranking.merge(
+        fdr[["p_adjusted", "reject_null"]].rename(columns={"p_adjusted": "p_adjusted_vs_baseline", "reject_null": "significant_vs_baseline"}),
+        left_on="sector", right_index=True, how="left",
     )
+    ranking["beats_baseline"] = (
+        ranking["significant_vs_baseline"].fillna(False) & (ranking["excess_return_vs_baseline"] > 0)
+    )
+
+    ranking = ranking.sort_values("excess_return_vs_baseline", ascending=False, na_position="last")
     return ranking.reset_index(drop=True)
