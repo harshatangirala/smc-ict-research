@@ -1,27 +1,71 @@
+This repository uses two licenses for two different kinds of content. Most of
+it is original research software; a small, explicitly listed part is a direct
+translation of copyrighted third-party trading indicators and is licensed
+accordingly.
+
+## MIT (default — everything except the paths listed below)
+
+SPDX-License-Identifier: MIT
+
+The statistical methodology, backtest engine, data pipeline, dashboard,
+tests, tooling, and manuscript are original work by the author. They are not
+derived from the LuxAlgo indicators and carry no obligation to follow those
+indicators' license. See LICENSE.
+
+## CC BY-NC-SA 4.0 (the LuxAlgo-derived paths only)
+
 SPDX-License-Identifier: CC-BY-NC-SA-4.0
 
-This research codebase is released under a spirit consistent with the license
-of its two source Pine Script indicators:
+This project translates two Pine Script indicators — "ICT Concepts [LuxAlgo]"
+and "Smart Money Concepts [LuxAlgo]" (c) LuxAlgo, both licensed CC BY-NC-SA
+4.0 (https://creativecommons.org/licenses/by-nc-sa/4.0/) — line by line into
+Python. The source indicators themselves and the Python modules that
+translate their own custom-authored logic stay under that same license. Full
+verbatim text in LICENSE-CC-BY-NC-SA.
 
-Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
-https://creativecommons.org/licenses/by-nc-sa/4.0/
+This is not a stylistic choice: CC BY-NC-SA's ShareAlike term (Section 3(b)
+of the legal code) requires that Adapted Material — a translation into
+another language counts — be shared under this same license or a
+BY-NC-SA-compatible one. The paths below translate LuxAlgo's own
+custom-authored logic from the two indicators, so they stay under CC BY-NC-SA
+4.0 regardless of the MIT default above:
 
-The full, verbatim legal code is in LICENSE.
+- `docs/reference/ICT_Concepts_LuxAlgo.pine`
+- `docs/reference/SMC_Concepts_LuxAlgo.pine`
+- `pine_parser/legs.py` (translates the two indicators' own `leg()`/`swings()`
+  swing-detection functions)
+- `signals/ict_signals.py`
+- `signals/smc_signals.py`
 
-Note on license detection: GitHub's licensee-based detector does not carry
-CC BY-NC-SA 4.0 in its catalogue (CC0-1.0 is the only Creative Commons license
-it recognises), so the repository sidebar reports "Other" regardless of how
-this file or LICENSE is formatted. The SPDX identifier above is the
-machine-readable declaration for tooling that does parse SPDX. See the
-"License" section of README.md for the full explanation.
+Two files in `pine_parser/` are deliberately **not** on this list, and are
+MIT: `pivots.py` replicates TradingView Pine's built-in `ta.pivothigh`/
+`ta.pivotlow` — a platform primitive documented by TradingView, not LuxAlgo's
+own authored code — and `atr.py` implements Wilder's Average True Range, a
+public-domain formula published in 1978, predating and unrelated to LuxAlgo.
+Neither translates any of LuxAlgo's own creative expression, so neither
+carries a ShareAlike obligation.
 
-Source indicators:
-- "ICT Concepts [LuxAlgo]" (c) LuxAlgo
-- "Smart Money Concepts [LuxAlgo]" (c) LuxAlgo
+Everything downstream of the five listed files — the event engine that calls
+them, the backtest, the statistics, the manuscript — is original analysis
+*of* the signals they detect, not a translation of LuxAlgo's expression, and
+is MIT like the rest of the repository. `signals/event_engine.py` in
+particular orchestrates calls into the two `signals/*.py` files above but
+contains no LuxAlgo-derived logic itself.
 
 This project is an independent research translation of the publicly
-documented logic of those two indicators into Python for statistical
-research purposes. It is not affiliated with or endorsed by LuxAlgo.
+documented logic of the two indicators above, for statistical research
+purposes. It is not affiliated with or endorsed by LuxAlgo.
+
+## License detection
+
+GitHub's sidebar will report this repository's license as **MIT** — its
+`licensee` detector matches the root LICENSE file, and MIT is in its
+catalogue (CC BY-NC-SA 4.0 is not; see the "License" section of README.md
+for that separate, earlier issue). The MIT badge is correct for the
+repository's default license; it does not override the CC BY-NC-SA 4.0 terms
+on the specific paths listed above.
+
+## Disclaimer
 
 This is a research tool, not investment advice. Nothing in this repository
 constitutes a recommendation to buy or sell any security.

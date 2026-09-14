@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Translated from LuxAlgo's Pine Script logic -- see NOTICE and
+# LICENSE-CC-BY-NC-SA, not the repository's default MIT license.
 """Smart Money Concepts [LuxAlgo] signal detectors, translated from
 docs/reference/SMC_Concepts_LuxAlgo.pine per docs/concepts_extraction.md
 (Section 2) and docs/task02_pine_analysis.md.

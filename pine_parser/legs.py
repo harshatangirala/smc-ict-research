@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Translated from LuxAlgo's Pine Script logic -- see NOTICE and
+# LICENSE-CC-BY-NC-SA, not the repository's default MIT license.
 """Rolling-breakout pivot ("leg") detector.
 
 Both source scripts use structurally the same rolling-breakout pivot test,

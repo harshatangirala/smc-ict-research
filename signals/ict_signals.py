@@ -1,3 +1,6 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Translated from LuxAlgo's Pine Script logic -- see NOTICE and
+# LICENSE-CC-BY-NC-SA, not the repository's default MIT license.
 """ICT Concepts [LuxAlgo] signal detectors, translated from
 docs/reference/ICT_Concepts_LuxAlgo.pine per the spec in
 docs/concepts_extraction.md (Section 1) and docs/task02_pine_analysis.md.

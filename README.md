@@ -19,7 +19,8 @@ constituents, 2010-01-01 through 2026-06-13.
 
 > The YAML block above is Hugging Face Spaces configuration (harmless metadata on GitHub).
 
-[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![LuxAlgo-derived files: CC BY-NC-SA 4.0](https://img.shields.io/badge/LuxAlgo--derived-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE-CC-BY-NC-SA)
 
 **Paper:** [`docs/manuscript.md`](docs/manuscript.md) · [`docs/manuscript.pdf`](docs/manuscript.pdf)
 · **Reproduce:** `./run_full_pipeline.sh` · **Guide:** [`docs/replication_guide.md`](docs/replication_guide.md)
@@ -290,30 +291,33 @@ docker build -t smc-ict-research . && docker run --rm -v "$PWD/results:/app/resu
 
 ## License
 
-**CC BY-NC-SA 4.0** (`SPDX-License-Identifier: CC-BY-NC-SA-4.0`). [`LICENSE`](LICENSE) is
-the verbatim Creative Commons legal code; project-specific attribution — the LuxAlgo source
-indicators this work translates, the non-affiliation note, and the no-investment-advice
-disclaimer — is in [`NOTICE`](NOTICE).
+**Two licenses, split by what's actually derivative.** Most of this repository — the
+statistical methodology, backtest engine, data pipeline, dashboard, tests, tooling, and
+manuscript — is original work released under **MIT** (`SPDX-License-Identifier: MIT`,
+full text in [`LICENSE`](LICENSE)). Five files are a line-by-line translation of LuxAlgo's
+own custom logic from two third-party Pine Script indicators and remain **CC BY-NC-SA 4.0**
+(`SPDX-License-Identifier: CC-BY-NC-SA-4.0`, full text in
+[`LICENSE-CC-BY-NC-SA`](LICENSE-CC-BY-NC-SA)):
 
-**GitHub's sidebar will show this repository's license as "Other." That is expected, not a
-packaging mistake.** GitHub detects licenses with the `licensee` gem, which only matches
-against its own catalogue — and that catalogue contains exactly one Creative Commons
-license, CC0-1.0. `GET /licenses/cc-by-nc-sa-4.0` returns 404, so no formatting of the
-LICENSE file can make the sidebar display this license correctly.
+- `docs/reference/ICT_Concepts_LuxAlgo.pine`, `docs/reference/SMC_Concepts_LuxAlgo.pine`
+  (the source indicators themselves, © LuxAlgo)
+- `pine_parser/legs.py` (LuxAlgo's own `leg()`/`swings()` swing-detection logic)
+- `signals/ict_signals.py`, `signals/smc_signals.py`
 
-The only way to get a detected badge would be to drop the **NonCommercial** term for one of
-GitHub's catalogue licenses (MIT, Apache-2.0, …). That is deliberately not done here: the two
-source Pine Script indicators are licensed CC BY-NC-SA 4.0 by LuxAlgo, and dropping NC would
-not be consistent with the terms this work is derived under. Software-oriented
-non-commercial licenses (e.g. PolyForm Noncommercial) are not in GitHub's catalogue either,
-so they would not fix the display while adding a second license to reason about.
+Two related files are deliberately **MIT, not CC BY-NC-SA**, despite living in the same
+directory: `pine_parser/pivots.py` replicates a documented TradingView Pine *platform*
+built-in (`ta.pivothigh`/`ta.pivotlow`), not LuxAlgo's own code, and `pine_parser/atr.py`
+implements Wilder's Average True Range, a public-domain formula from 1978 with no
+relationship to LuxAlgo. Neither translates LuxAlgo's creative expression, so neither
+carries a ShareAlike obligation.
 
-One caveat worth stating plainly, since it is a real limitation rather than a display quirk:
-Creative Commons [recommends against using CC licenses for software](https://creativecommons.org/faq/#can-i-apply-a-creative-commons-license-to-software),
-because they carry no patent grant and no source/object-code provisions. The pragmatic
-reading for this repository is that CC BY-NC-SA cleanly covers the parts genuinely derived
-from LuxAlgo's work — the Pine transcriptions in `docs/reference/` and the write-ups — while
-being an imperfect instrument for the Python code itself. Splitting the two is a decision for
-the maintainer, not something to change silently.
+Full reasoning, including why two adjacent `pine_parser/` files are MIT rather than
+CC BY-NC-SA, is in [`NOTICE`](NOTICE).
+
+GitHub's sidebar will correctly detect **MIT** as this repository's license — MIT is in
+its `licensee` catalogue, unlike CC BY-NC-SA 4.0 (`GET /licenses/cc-by-nc-sa-4.0` still
+404s, which is why the CC BY-NC-SA portion can't itself carry a detected badge). The MIT
+badge describes the repository's default license correctly; it does not override the
+CC BY-NC-SA 4.0 terms on the five paths above.
 
 Not investment advice.
