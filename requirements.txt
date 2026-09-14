@@ -1,42 +1,44 @@
 # Core data & numerics
-pandas>=2.1,<4
-numpy>=1.26,<3
-scipy>=1.11,<2
-pyarrow>=14.0,<25
+pandas>=2.1
+numpy>=1.26
+scipy>=1.11
+pyarrow>=14.0
 
 # Market data acquisition
-yfinance>=0.2.40,<2
+yfinance>=0.2.40
 
 # Statistics / research
-statsmodels>=0.14,<1
+statsmodels>=0.14
 
 # Excel / spreadsheet I/O
-openpyxl>=3.1,<4
+openpyxl>=3.1
 
 # Parallelization utilities
-joblib>=1.3,<2
+joblib>=1.3
 
 # Progress bars / CLI ergonomics
-tqdm>=4.66,<5
+tqdm>=4.66
 
 # Visualization
-plotly>=5.20,<7
+plotly>=5.20
+matplotlib>=3.8          # manuscript figures (tools/make_figures.py)
 
 # Dashboard
-# gradio pinned to the 4.x line the code was written against (see README's
-# Hugging Face Spaces sdk_version: 4.44.0) -- Gradio 6 moved theme/css from
-# the Blocks constructor to launch(), breaking app.py's current call.
-gradio>=4.40,<5
-streamlit>=1.50,<2
+gradio>=4.40
+streamlit>=1.50
 
-# PDF report rendering (utils/render_pdf.py)
-playwright>=1.47,<2
-pypdf>=4.3,<7
+# Manuscript rendering
+# tools/build_manuscript_pdf.py needs only `markdown` plus a Chrome/Chromium/Edge
+# binary, which is already present on most machines. playwright is optional and
+# used by the older utils/render_pdf.py path.
+markdown>=3.5
+pypdf>=4.3
+playwright>=1.47
 
 # Testing
-pytest>=7.4,<10
-pytest-cov>=4.1,<8
+pytest>=7.4
+pytest-cov>=4.1
 
 # Config / typing niceties
-pydantic>=2.6,<3
-python-dateutil>=2.8,<3
+pydantic>=2.6
+python-dateutil>=2.8

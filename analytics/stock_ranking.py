@@ -10,6 +10,16 @@ that specific stock. Every ticker's signal-trade returns are therefore also
 compared against that SAME ticker's random-entry baseline (same backtest
 mechanics, same holding period) via a two-sample test, so "this stock
 responds well to SMC/ICT" and "this stock went up a lot" are distinguishable.
+
+The comparison is ONE-SIDED. A two-sided test flags a ticker on which SMC/ICT
+signals did significantly *worse* than random entry exactly as it flags one
+where they did better, which is how the previous concept-level results came to
+list losing signals as significant. `significant_vs_baseline` here additionally
+requires the excess return to be positive.
+
+Per-ticker baseline samples are now 500 random entries rather than 50: at 50
+draws the baseline's own standard error dominated the comparison, so almost no
+ticker could reach significance whatever its signals did.
 """
 
 from __future__ import annotations
@@ -19,7 +29,7 @@ import pandas as pd
 
 from analytics.statistics import two_sample_significance
 from backtest.metrics import summarize_returns
-from utils.config import RESULTS_DIR
+from utils.config import PRIMARY_HOLDING_PERIOD, RESULTS_DIR
 
 MIN_TRADES_FOR_RANKING = 20
 MIN_BASELINE_TRADES = 15  # per-ticker baseline sample floor for a meaningful two-sample test
@@ -33,7 +43,11 @@ def _load_baseline_trades() -> pd.DataFrame | None:
     return baseline[baseline["signal"] == "baseline_random_bullish"]
 
 
-def rank_stocks(trades: pd.DataFrame | None = None, holding_period: int = 10) -> pd.DataFrame:
+def rank_stocks(
+    trades: pd.DataFrame | None = None,
+    holding_period: int = PRIMARY_HOLDING_PERIOD,
+) -> pd.DataFrame:
+    """Rank tickers by excess return over their own random-entry baseline."""
     if trades is None:
         trades = pd.read_parquet(RESULTS_DIR / "trades.parquet")
     baseline_trades = _load_baseline_trades()
@@ -54,7 +68,9 @@ def rank_stocks(trades: pd.DataFrame | None = None, holding_period: int = 10) ->
 
         base_returns = baseline_by_ticker.get(ticker)
         if base_returns is not None and len(base_returns) >= MIN_BASELINE_TRADES:
-            vs_baseline = two_sample_significance(grp["fwd_return"].to_numpy(), base_returns)
+            vs_baseline = two_sample_significance(
+                grp["fwd_return"].to_numpy(), base_returns, alternative="greater"
+            )
             metrics["baseline_avg_return"] = float(np.nanmean(base_returns))
             metrics["excess_return_vs_baseline"] = metrics["avg_return"] - metrics["baseline_avg_return"]
             metrics["p_value_vs_baseline"] = vs_baseline["p_value"]
@@ -84,6 +100,14 @@ def rank_stocks(trades: pd.DataFrame | None = None, holding_period: int = 10) ->
     else:
         ranking["p_adjusted_vs_baseline"] = np.nan
         ranking["significant_vs_baseline"] = False
+
+    # A ticker only "responds to SMC/ICT" if the excess is positive as well as
+    # significant. Without this the flag is direction-blind.
+    ranking["significant_vs_baseline"] = (
+        ranking["significant_vs_baseline"].fillna(False).astype(bool)
+        & (ranking["excess_return_vs_baseline"].fillna(-np.inf) > 0)
+        & ranking["eligible"]
+    )
 
     # Headline ranking is by excess return vs. that ticker's own baseline
     # where available (the "genuinely responsive to SMC/ICT" ordering), not
@@ -117,7 +141,12 @@ def stability_across_horizons(trades: pd.DataFrame | None = None) -> pd.DataFram
     return stability.sort_values("stability_score", ascending=False).reset_index()
 
 
-def best_worst_stocks(trades: pd.DataFrame | None = None, holding_period: int = 10, top_n: int = 50) -> dict:
+def best_worst_stocks(
+    trades: pd.DataFrame | None = None,
+    holding_period: int = PRIMARY_HOLDING_PERIOD,
+    top_n: int = 50,
+) -> dict:
+    """Top and bottom tickers by excess return over their own baseline."""
     ranking = rank_stocks(trades, holding_period)
     eligible = ranking[ranking["eligible"]]
     return {

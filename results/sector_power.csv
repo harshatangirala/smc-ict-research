@@ -1,0 +1,12 @@
+sector,n_tickers,n_trades,observed_excess_bps,mde_bps,adequately_powered,power_note
+Energy,21,94738,5.354435299586523,57.06686168561019,False,underpowered: a real effect of this size would likely be missed
+Materials,25,110445,-8.555151230230909,25.857557408541158,False,underpowered: a real effect of this size would likely be missed
+Industrials,80,350083,-11.517579360001985,26.922523008522706,False,underpowered: a real effect of this size would likely be missed
+Financials,76,344829,-11.786306231295724,29.53921647025148,False,underpowered: a real effect of this size would likely be missed
+Consumer Discretionary,47,210434,-12.886378641753392,33.982829312095376,False,underpowered: a real effect of this size would likely be missed
+Information Technology,72,315884,-13.769325775707781,26.71164534583049,False,underpowered: a real effect of this size would likely be missed
+Consumer Staples,34,153556,-14.584803359428376,14.668400705719986,False,underpowered: a real effect of this size would likely be missed
+Health Care,59,257857,-15.401617661194285,19.533629409359325,False,underpowered: a real effect of this size would likely be missed
+Real Estate,29,132019,-15.454462483711286,25.1110503791334,False,underpowered: a real effect of this size would likely be missed
+Communication Services,22,88478,-16.061908739478895,26.38766402853189,False,underpowered: a real effect of this size would likely be missed
+Utilities,31,139802,-22.67319356911652,21.90069097992174,False,underpowered: a real effect of this size would likely be missed

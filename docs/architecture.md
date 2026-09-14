@@ -17,6 +17,14 @@ utils/            <- shared infrastructure, no research logic
   rebuild_quality_report.py rebuilds the data quality report from cached data
   build_cloud_bundle.py builds the lightweight pre-computed data/bundle/
   render_pdf.py     renders an HTML report to PDF via Playwright
+  rng.py            BLAKE2b-derived child seeds -- stable across processes,
+                    machines and Python versions (the previous per-ticker seed
+                    used Python's per-process-salted str hash, so no run was
+                    reproducible; see CHANGES.md §1.3)
+  universe.py       point-in-time index membership handling
+  prices.py         single price-loading path shared by every consumer
+  master_summary.py builds results/master_summary.md from the artefacts
+  validation_report.py builds results/validation_report.md (why each number moved)
 
 pine_parser/       <- low-level primitives shared by multiple concept detectors
   pivots.py          ta.pivothigh/pivotlow equivalent (2-sided confirmed pivot)
@@ -43,22 +51,48 @@ backtest/
                      benchmark" methodology
 
 analytics/
-  statistics.py      bootstrap CI, significance tests, effect size, FDR
+  statistics.py      composition-matched excess, calendar-time Newey-West
+                     inference, bootstrap CI, effect size, FDR correction --
+                     the primary test every headline count reads from
+  master_stats.py    assembles results/statistics_master.csv, the single
+                     statistics artefact the manuscript and reports cite
   stock_ranking.py    Task 9
   concept_ranking.py  Task 10
   combinations.py     Task 11
   regimes.py           Task 12 (bull/bear/sideways + rolling Premium/Discount)
   sectors.py           Task 12 (sector grouping)
+  walkforward.py     out-of-sample walk-forward evaluation
+  survivorship.py    membership-aware re-test against a point-in-time universe
+  sensitivity.py     targeted parameter sweeps (are surviving concepts robust?)
+  montecarlo.py      rotation / resampling nulls
+
+backtest/ (cont.)
+  engine_tc.py       transaction-cost-aware variant of the backtest engine
 
 dashboard/
   data_access.py     read-only accessors both front ends call (no calculation)
   analysis.py        chart/table builders shared by both front ends
 
+tools/             <- reproducibility and manuscript tooling, not research logic
+  build_manuscript_pdf.py  renders docs/manuscript.md -> docs/manuscript.pdf
+  manuscript_facts.py      every number the manuscript states, from artefacts
+  check_manuscript_numbers.py  fails if the manuscript drifts from artefacts
+  calibration_study.py     which significance test stays near nominal size
+  make_figures.py, generate_specs.py, make_replication_package.py,
+  check_artifacts.py, reviewer_check.py, prepare_sample.py, refresh_universe.py
+
 data/bundle/       <- lightweight pre-computed data bundle checked into git so
                       the dashboard works on a fresh clone without running the
                       full pipeline; built by utils/build_cloud_bundle.py
 
-tests/
+tests/             <- the proofs behind the corrections, not just unit tests
+  test_no_lookahead.py     truncation-invariance probe: recompute each detector
+                           on data cut at bar i and compare with the full-series
+                           value, so a forward-looking column cannot pass
+  test_ob_fidelity.py      order-block selection matches the Pine source
+  test_detector_rules.py   per-detector rule-level assertions
+  test_statistics.py       the significance machinery itself
+  test_pipeline_integrity.py, test_audit_regressions.py, test_universe.py
   test_pivots.py, test_legs.py, test_ict_order_blocks.py -- unit tests with
   synthetic OHLC fixtures that have a hand-computed expected answer
 

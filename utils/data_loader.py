@@ -8,7 +8,6 @@ import time
 from concurrent.futures import ThreadPoolExecutor, as_completed
 
 import pandas as pd
-import yfinance as yf
 
 from utils.config import (
     DATA_CACHE_DIR,
@@ -25,8 +24,19 @@ REQUIRED_COLUMNS = ["open", "high", "low", "close", "volume"]
 
 
 def normalize_ticker(raw_ticker: str) -> str:
-    """Convert constituents-list tickers to yfinance-compatible symbols."""
-    return TICKER_SYMBOL_OVERRIDES.get(raw_ticker, raw_ticker)
+    """Convert constituents-list tickers to yfinance-compatible symbols.
+
+    Yahoo encodes share-class separators as '-' where the index constituent
+    list uses '.' (BRK.B -> BRK-B, BF.B -> BF-B). The explicit override table
+    is consulted first; any *other* dotted symbol falls through to the general
+    '.' -> '-' rule rather than being silently passed through unchanged and
+    failing to download. The original code only handled the two hard-coded
+    cases, so a future constituent-list refresh introducing a new dotted
+    ticker would have dropped it with no error.
+    """
+    if raw_ticker in TICKER_SYMBOL_OVERRIDES:
+        return TICKER_SYMBOL_OVERRIDES[raw_ticker]
+    return raw_ticker.replace(".", "-")
 
 
 def load_constituents() -> pd.DataFrame:
@@ -45,6 +55,16 @@ def _cache_path(ticker: str) -> "Path":
 
 
 def _download_one(ticker: str, start: str, end: str, retries: int = 3) -> pd.DataFrame | None:
+    """Download one ticker with retries, or None if it is unavailable.
+
+    `yfinance` is imported here rather than at module scope so that the pure
+    helpers in this module -- `normalize_ticker`, `load_constituents` -- work
+    without it. CI installs a lean dependency set and runs the pipeline from a
+    committed sample cache, so nothing there needs a network client; a
+    module-level import made `pytest` fail on a string-normalisation test.
+    """
+    import yfinance as yf
+
     last_err = None
     for attempt in range(1, retries + 1):
         try:

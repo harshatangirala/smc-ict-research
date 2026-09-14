@@ -32,7 +32,7 @@ def _structure_and_ob(
     confluence: bool = False,
     parsed_high: np.ndarray | None = None,
     parsed_low: np.ndarray | None = None,
-    ob_max_retained: int = SMC.ob_max_retained,
+    ob_max_retained: int | None = None,
 ) -> tuple[pd.DataFrame, np.ndarray, np.ndarray]:
     """One pass: BOS/CHoCH structure breaks + order block formation/mitigation.
 
@@ -42,6 +42,7 @@ def _structure_and_ob(
     call (matching Pine's `internalHigh.currentLevel != swingHigh.currentLevel`
     guard).
     """
+    ob_max_retained = SMC.ob_max_retained if ob_max_retained is None else ob_max_retained
     n = len(high)
     h, l, c, o = high.to_numpy(), low.to_numpy(), close.to_numpy(), open_.to_numpy()
     swing_high, swing_low = extract_swing_points(high, low, size)
@@ -102,13 +103,12 @@ def _structure_and_ob(
                 (choch_bull if is_choch else bos_bull)[i] = True
                 trend_bias = BULLISH
                 high_crossed = True
-                # Pine's storeOrdeBlock(bias=BULLISH) slices parsedLows over
-                # [p_ivot.barIndex, bar_index) -- inclusive of the pivot bar,
-                # exclusive of the current bar -- and picks the LOWEST-low
-                # candle in that window (array.min()), not the highest-high.
-                # Both the exclusion of the current bar and the argmin/argmax
-                # choice were wrong here (see audit findings: SMC order-block
-                # bullish/bearish swap + off-by-one window bound).
+                # Pine storeOrdeBlock(p_ivot, internal, BULLISH): the block is the
+                # bar with the LOWEST parsed low in [pivot bar, break bar) -- the
+                # pullback low the move launched from. The first version took the
+                # HIGHEST parsed high and included the break bar, which put every
+                # bullish block at the top of the move and fired its mitigation
+                # almost at once. Found in the end-to-end audit.
                 seg_hi = parsed_high[max(high_pivot_bar, 0) : i]
                 seg_lo = parsed_low[max(high_pivot_bar, 0) : i]
                 if len(seg_lo) > 0:
@@ -128,9 +128,8 @@ def _structure_and_ob(
                 (choch_bear if is_choch else bos_bear)[i] = True
                 trend_bias = BEARISH
                 low_crossed = True
-                # Mirror of the bullish branch: Pine's storeOrdeBlock(bias=
-                # BEARISH) slices parsedHighs over [p_ivot.barIndex, bar_index)
-                # and picks the HIGHEST-high candle (array.max()).
+                # Pine storeOrdeBlock(..., BEARISH): the bar with the HIGHEST
+                # parsed high in [pivot bar, break bar). Mirror of the fix above.
                 seg_hi = parsed_high[max(low_pivot_bar, 0) : i]
                 seg_lo = parsed_low[max(low_pivot_bar, 0) : i]
                 if len(seg_hi) > 0:
@@ -140,15 +139,17 @@ def _structure_and_ob(
                         bearish_obs.pop(0)
                     ob_bear_formed[i] = True
 
-        # Mitigation (High/Low mode -- SMC's default mitigation source)
-        for ob in bullish_obs:
-            if not ob.get("mitigated") and l[i] < ob["btm"]:
-                ob["mitigated"] = True
-                ob_bull_mitigated[i] = True
-        for ob in bearish_obs:
-            if not ob.get("mitigated") and h[i] > ob["top"]:
-                ob["mitigated"] = True
-                ob_bear_mitigated[i] = True
+        # Mitigation (High/Low mode -- SMC's default mitigation source). Pine
+        # REMOVES a mitigated block from its array, so the 100-block cap counts
+        # live blocks only. Keeping mitigated blocks in the list (the first
+        # version) evicted older live blocks early and suppressed their later
+        # mitigations.
+        if bullish_obs and any(l[i] < ob["btm"] for ob in bullish_obs):
+            ob_bull_mitigated[i] = True
+            bullish_obs = [ob for ob in bullish_obs if not l[i] < ob["btm"]]
+        if bearish_obs and any(h[i] > ob["top"] for ob in bearish_obs):
+            ob_bear_mitigated[i] = True
+            bearish_obs = [ob for ob in bearish_obs if not h[i] > ob["top"]]
 
     events = pd.DataFrame(
         {
@@ -202,9 +203,11 @@ def detect_structure(df: pd.DataFrame) -> pd.DataFrame:
 
 
 def detect_equal_highs_lows(
-    df: pd.DataFrame, size: int = SMC.equal_hl_len, threshold: float = SMC.equal_hl_threshold
+    df: pd.DataFrame, size: int | None = None, threshold: float | None = None
 ) -> pd.DataFrame:
     """SMC Section 2.4."""
+    size = SMC.equal_hl_len if size is None else size
+    threshold = SMC.equal_hl_threshold if threshold is None else threshold
     swing_high, swing_low = extract_swing_points(df["high"], df["low"], size)
     atr_measure = atr(df["high"], df["low"], df["close"], SMC.equal_hl_atr_len)
 

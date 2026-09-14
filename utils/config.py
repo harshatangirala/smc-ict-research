@@ -8,7 +8,8 @@ unless explicitly noted otherwise (see ASSUMPTIONS below).
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+import os
+from dataclasses import dataclass
 from pathlib import Path
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -34,9 +35,77 @@ DATA_END = "2026-06-13"
 # Backtesting
 # ---------------------------------------------------------------------------
 HOLDING_PERIODS: list[int] = [1, 2, 3, 5, 10, 20, 40, 60]
-RANDOM_SEED = 42
-BOOTSTRAP_ITERATIONS = 2000
+PRIMARY_HOLDING_PERIOD = 10  # horizon used for the headline ranking tables
+
+# ---------------------------------------------------------------------------
+# Statistical configuration
+# ---------------------------------------------------------------------------
+# Two bootstrap budgets: FAST for iteration/CI, FINAL for the published run.
+# Select with SMC_ICT_PROFILE=fast|final (default: final).
+BOOTSTRAP_ITERATIONS_FAST = 5_000
+BOOTSTRAP_ITERATIONS_FINAL = 10_000
+
+_PROFILE = os.environ.get("SMC_ICT_PROFILE", "final").strip().lower()
+PROFILE = _PROFILE if _PROFILE in ("fast", "final") else "final"
+BOOTSTRAP_ITERATIONS = (
+    BOOTSTRAP_ITERATIONS_FAST if PROFILE == "fast" else BOOTSTRAP_ITERATIONS_FINAL
+)
+
 FDR_ALPHA = 0.05  # Benjamini-Hochberg false discovery rate threshold
+ALPHA = 0.05      # nominal per-test significance level
+
+# Master seed. Every stochastic component derives a *stable* child seed from
+# this via utils.rng.derive_seed (NOT Python's salted hash()), so a run is
+# byte-reproducible across processes and machines. See results/seed.txt.
+RANDOM_SEED = 42
+
+# Minimum trades before a bucket's statistics are trusted rather than flagged.
+MIN_SAMPLE_SIZE = 30
+
+# Newey-West lag for the overlapping-window HAC standard errors used by the
+# significance tests. Forward returns over h days computed on consecutive bars
+# overlap by construction, so plain iid standard errors are far too small.
+HAC_MAX_LAG_MULTIPLIER = 1  # lag = multiplier * holding_period
+
+# ---------------------------------------------------------------------------
+# Transaction costs (backtest/engine_tc.py)
+# ---------------------------------------------------------------------------
+@dataclass(frozen=True)
+class CostParams:
+    """Round-trip trading frictions applied to every simulated trade."""
+
+    fixed_bps: float = 1.0          # per-trade fixed cost, basis points of notional
+    spread_bps: float = 5.0         # proportional (half-spread paid twice), bps
+    slippage_bps_low: float = 5.0   # slippage lower bound, bps (0.05%)
+    slippage_bps_high: float = 20.0  # slippage upper bound, bps (0.20%)
+
+
+COSTS = CostParams()
+
+# ---------------------------------------------------------------------------
+# Walk-forward evaluation
+# ---------------------------------------------------------------------------
+WALK_FORWARD_TRAIN_YEARS = 3
+WALK_FORWARD_TEST_YEARS = 1
+WALK_FORWARD_STEP_YEARS = 1
+
+# ---------------------------------------------------------------------------
+# Combination search bounds (anti data-snooping)
+# ---------------------------------------------------------------------------
+MIN_COMBO_OCCURRENCES = 100
+MAX_COMBOS_TESTED = 60
+
+# ---------------------------------------------------------------------------
+# Monte Carlo
+# ---------------------------------------------------------------------------
+MONTE_CARLO_RUNS = 1_000
+
+# ---------------------------------------------------------------------------
+# Data-quality gates
+# ---------------------------------------------------------------------------
+MIN_BARS_FOR_DETECTION = 300   # below this a ticker is skipped by the engine
+MIN_COVERAGE_RATIO = 0.95      # vs. the universe's own modal trading calendar
+REPAIR_INVALID_OHLC = True     # clamp high/low to enclose open/close (see data_quality)
 
 # ---------------------------------------------------------------------------
 # Concept parameters (mirrors Pine `input.*` defaults; see
@@ -61,6 +130,27 @@ class ICTParams:
     # OB array retention cap -- source is uncapped; capped here for a 500-stock,
     # 16-year batch run (Ambiguity A8 in docs/task02_pine_analysis.md).
     ob_max_retained: int = 200
+
+    # --- Liquidity sweep, formalised (docs/specs/ict_liquidity_sweep.yaml) ---
+    # A sweep is a two-part, strictly prospective event:
+    #   (X) price must exceed the reference swing level by at least
+    #       `sweep_penetration_atr` * ATR(sweep_atr_len)  -- the stop-run leg;
+    #   (Y) price must then CLOSE back past `sweep_reclaim_frac` * ATR beyond
+    #       the level -- the rejection leg;
+    #   (Z) within `sweep_confirm_bars` bars of the penetration.
+    # The event is stamped on the *reclaim* bar, so no future data is used.
+    sweep_penetration_atr: float = 0.25
+    sweep_reclaim_frac: float = 0.0
+    sweep_confirm_bars: int = 3
+    sweep_atr_len: int = 14
+    sweep_swing_len: int = 10
+
+    # --- Opening gaps, formalised (docs/specs/ict_opening_gap.yaml) ---
+    # A gap must be MATERIAL to be an event. The original detector emitted
+    # `ict_ndog_formed = True` on literally every bar (1.95M events = 45% of
+    # the entire event table), which is not a signal at all.
+    gap_min_atr: float = 0.10
+    gap_atr_len: int = 14
 
 
 @dataclass(frozen=True)

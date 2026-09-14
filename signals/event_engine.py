@@ -15,36 +15,136 @@ import pandas as pd
 
 from signals.ict_signals import detect_all_ict
 from signals.smc_signals import detect_all_smc
-from utils.config import DATA_CACHE_DIR
+from utils.config import DATA_CACHE_DIR, MIN_BARS_FOR_DETECTION
+from utils.prices import load_prices
 from utils.logging_config import get_logger
 
 log = get_logger("event_engine")
 
-# Boolean "formed" columns that represent tradeable entry signals (as opposed
-# to continuous reference levels like smc_prior_day_high or state columns
-# like smc_zone/smc_trailing_top, which are features, not events).
-BOOLEAN_EVENT_SUFFIXES = ("_formed", "_bullish", "_bearish", "_swept", "_mitigated")
+# ---------------------------------------------------------------------------
+# Event registry -- the allow-list of tradeable entry signals
+# ---------------------------------------------------------------------------
+# The previous selection rule was "every column whose dtype is bool", with a
+# hand-maintained NON_EVENT_COLUMNS deny-list. That is fail-open: a new bool
+# column is traded by default. It is exactly how ict_fvg_*_filled -- computed
+# from up to 60 FUTURE bars -- became a tradeable entry signal contributing
+# 187,719 look-ahead events (4.3% of the event table) to the published results.
+#
+# The rule is now fail-closed. A boolean column is tradeable only if it is
+# registered here with an explicit direction. Anything else must be declared
+# as a feature or a label, or detection raises. See tests/test_event_registry.py.
+
+#: signal name -> +1 (long) or -1 (short)
+EVENT_REGISTRY: dict[str, int] = {
+    # --- ICT ---------------------------------------------------------------
+    "ict_displacement_bullish": +1,
+    "ict_displacement_bearish": -1,
+    "ict_volume_imbalance_bullish": +1,
+    "ict_volume_imbalance_bearish": -1,
+    "ict_fvg_bullish_formed": +1,
+    "ict_fvg_bearish_formed": -1,
+    "ict_bpr_bullish": +1,
+    "ict_bpr_bearish": -1,
+    "ict_mss_bullish": +1,
+    "ict_mss_bearish": -1,
+    "ict_bos_bullish": +1,
+    "ict_bos_bearish": -1,
+    "ict_ob_bullish_formed": +1,
+    "ict_ob_bearish_formed": -1,
+    "ict_ob_bullish_mitigated": -1,   # a bullish OB failing is a bearish event
+    "ict_ob_bearish_mitigated": +1,
+    "ict_liquidity_buyside_pool_formed": +1,
+    "ict_liquidity_sellside_pool_formed": -1,
+    "ict_liquidity_buyside_swept": +1,
+    "ict_liquidity_sellside_swept": -1,
+    "ict_sweep_buyside_bearish": -1,
+    "ict_sweep_sellside_bullish": +1,
+    "ict_nwog_gap_up": +1,
+    "ict_nwog_gap_down": -1,
+    "ict_ndog_gap_up": +1,
+    "ict_ndog_gap_down": -1,
+    # --- SMC ---------------------------------------------------------------
+    "smc_swing_bos_bullish": +1,
+    "smc_swing_bos_bearish": -1,
+    "smc_swing_choch_bullish": +1,
+    "smc_swing_choch_bearish": -1,
+    "smc_swing_ob_bullish_formed": +1,
+    "smc_swing_ob_bearish_formed": -1,
+    "smc_swing_ob_bullish_mitigated": -1,
+    "smc_swing_ob_bearish_mitigated": +1,
+    "smc_internal_bos_bullish": +1,
+    "smc_internal_bos_bearish": -1,
+    "smc_internal_choch_bullish": +1,
+    "smc_internal_choch_bearish": -1,
+    "smc_internal_ob_bullish_formed": +1,
+    "smc_internal_ob_bearish_formed": -1,
+    "smc_internal_ob_bullish_mitigated": -1,
+    "smc_internal_ob_bearish_mitigated": +1,
+    "smc_fvg_bullish_formed": +1,
+    "smc_fvg_bearish_formed": -1,
+    # Equal highs = resistance (a liquidity pool above) -> bearish;
+    # equal lows = support -> bullish. The original melt assigned direction 0
+    # to both because neither name contains "bullish"/"bearish", and the
+    # backtester then silently coerced direction 0 to +1, so BOTH were traded
+    # long and smc_equal_highs was scored with the wrong sign.
+    "smc_equal_highs": -1,
+    "smc_equal_lows": +1,
+}
+
+#: Boolean columns that are deliberately NOT tradeable.
+#: `_label` columns are forward-looking outcome labels (see signals/ict_signals).
+NON_EVENT_BOOLEAN_COLUMNS: frozenset[str] = frozenset(
+    {
+        "ict_fvg_bullish_filled_label",
+        "ict_fvg_bearish_filled_label",
+    }
+)
+
+#: Continuous reference levels / state columns -- features, never events.
 NON_EVENT_COLUMNS = {
     "smc_zone", "smc_trailing_top", "smc_trailing_bottom",
     "smc_prior_day_high", "smc_prior_day_low",
     "smc_prior_week_high", "smc_prior_week_low",
     "smc_prior_month_high", "smc_prior_month_low",
-    "ict_fvg_bullish_top", "ict_fvg_bullish_bottom",
-    "ict_fvg_bearish_top", "ict_fvg_bearish_bottom",
+    "ict_fvg_bullish_lower", "ict_fvg_bullish_upper",
+    "ict_fvg_bearish_lower", "ict_fvg_bearish_upper",
     "ict_nwog_gap_size", "ict_ndog_gap_size",
 }
 
-BULLISH_HINT = ("bullish", "buyside")
-BEARISH_HINT = ("bearish", "sellside")
+
+class UnregisteredSignalError(RuntimeError):
+    """Raised when a detector emits a boolean column that is neither a
+    registered tradeable event nor an explicitly declared non-event."""
+
+
+def validate_event_columns(columns) -> None:
+    """Fail loudly on any boolean column that is not explicitly classified."""
+    unknown = [
+        c for c in columns
+        if c not in EVENT_REGISTRY
+        and c not in NON_EVENT_BOOLEAN_COLUMNS
+        and not c.endswith("_label")
+    ]
+    if unknown:
+        raise UnregisteredSignalError(
+            "Boolean detector columns are not classified as tradeable events or "
+            f"declared non-events: {sorted(unknown)}. Add them to EVENT_REGISTRY "
+            "with an explicit direction, or to NON_EVENT_BOOLEAN_COLUMNS / give "
+            "them a '_label' suffix if they are forward-looking outcome labels."
+        )
 
 
 def _direction_for(col: str) -> int:
-    lc = col.lower()
-    if any(h in lc for h in BULLISH_HINT):
-        return 1
-    if any(h in lc for h in BEARISH_HINT):
-        return -1
-    return 0
+    """Direction for a registered signal. Unregistered names raise."""
+    try:
+        return EVENT_REGISTRY[col]
+    except KeyError:
+        raise UnregisteredSignalError(
+            f"{col!r} is not in EVENT_REGISTRY; refusing to guess its direction. "
+            "The previous name-substring heuristic returned 0 for unmatched "
+            "names and the backtester coerced 0 to +1, silently trading "
+            "direction-less signals long."
+        ) from None
 
 
 def detect_ticker(ticker: str, df: pd.DataFrame) -> pd.DataFrame:
@@ -59,13 +159,17 @@ def detect_ticker(ticker: str, df: pd.DataFrame) -> pd.DataFrame:
 
 def melt_events(wide: pd.DataFrame) -> pd.DataFrame:
     """Wide per-bar signal frame -> long (ticker, date, signal, direction) frame,
-    keeping only rows where a boolean event actually fired.
+    keeping only rows where a *registered* boolean event actually fired.
     """
-    event_cols = [
+    bool_cols = [
         c for c in wide.columns
-        if c not in ("ticker", "close") and c not in NON_EVENT_COLUMNS
+        if c not in ("ticker", "close")
+        and c not in NON_EVENT_COLUMNS
         and wide[c].dtype == bool
     ]
+    validate_event_columns(bool_cols)
+
+    event_cols = [c for c in bool_cols if c in EVENT_REGISTRY]
     frames = []
     for col in event_cols:
         mask = wide[col]
@@ -94,10 +198,8 @@ def build_master_events(cache_dir: Path = DATA_CACHE_DIR, tickers: list[str] | N
     for i, f in enumerate(files, 1):
         ticker = f.stem
         try:
-            df = pd.read_parquet(f)
-            df = df.sort_index()
-            df = df[~df.index.duplicated(keep="first")]
-            if len(df) < 300:
+            df = load_prices(f)
+            if len(df) < MIN_BARS_FOR_DETECTION:
                 log.warning("Skipping %s: only %d rows (too short for reliable detection)", ticker, len(df))
                 continue
             wide = detect_ticker(ticker, df)
