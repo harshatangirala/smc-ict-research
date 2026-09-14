@@ -288,4 +288,9 @@ docker build -t smc-ict-research . && docker run --rm -v "$PWD/results:/app/resu
 
 ## License
 
-CC BY-NC-SA 4.0. Not investment advice.
+CC BY-NC-SA 4.0 — full text in [`LICENSE`](LICENSE), which is the verbatim
+Creative Commons legal code so GitHub and automated tooling detect it correctly.
+Project-specific attribution (the LuxAlgo source indicators this work translates,
+and the no-investment-advice disclaimer) is in [`NOTICE`](NOTICE).
+
+Not investment advice.
