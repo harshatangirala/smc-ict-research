@@ -1,8 +1,19 @@
+SPDX-License-Identifier: CC-BY-NC-SA-4.0
+
 This research codebase is released under a spirit consistent with the license
 of its two source Pine Script indicators:
 
 Attribution-NonCommercial-ShareAlike 4.0 International (CC BY-NC-SA 4.0)
 https://creativecommons.org/licenses/by-nc-sa/4.0/
+
+The full, verbatim legal code is in LICENSE.
+
+Note on license detection: GitHub's licensee-based detector does not carry
+CC BY-NC-SA 4.0 in its catalogue (CC0-1.0 is the only Creative Commons license
+it recognises), so the repository sidebar reports "Other" regardless of how
+this file or LICENSE is formatted. The SPDX identifier above is the
+machine-readable declaration for tooling that does parse SPDX. See the
+"License" section of README.md for the full explanation.
 
 Source indicators:
 - "ICT Concepts [LuxAlgo]" (c) LuxAlgo

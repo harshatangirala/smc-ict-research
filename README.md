@@ -19,6 +19,8 @@ constituents, 2010-01-01 through 2026-06-13.
 
 > The YAML block above is Hugging Face Spaces configuration (harmless metadata on GitHub).
 
+[![License: CC BY-NC-SA 4.0](https://img.shields.io/badge/License-CC%20BY--NC--SA%204.0-lightgrey.svg)](LICENSE)
+
 **Paper:** [`docs/manuscript.md`](docs/manuscript.md) · [`docs/manuscript.pdf`](docs/manuscript.pdf)
 · **Reproduce:** `./run_full_pipeline.sh` · **Guide:** [`docs/replication_guide.md`](docs/replication_guide.md)
 
@@ -288,9 +290,30 @@ docker build -t smc-ict-research . && docker run --rm -v "$PWD/results:/app/resu
 
 ## License
 
-CC BY-NC-SA 4.0 — full text in [`LICENSE`](LICENSE), which is the verbatim
-Creative Commons legal code so GitHub and automated tooling detect it correctly.
-Project-specific attribution (the LuxAlgo source indicators this work translates,
-and the no-investment-advice disclaimer) is in [`NOTICE`](NOTICE).
+**CC BY-NC-SA 4.0** (`SPDX-License-Identifier: CC-BY-NC-SA-4.0`). [`LICENSE`](LICENSE) is
+the verbatim Creative Commons legal code; project-specific attribution — the LuxAlgo source
+indicators this work translates, the non-affiliation note, and the no-investment-advice
+disclaimer — is in [`NOTICE`](NOTICE).
+
+**GitHub's sidebar will show this repository's license as "Other." That is expected, not a
+packaging mistake.** GitHub detects licenses with the `licensee` gem, which only matches
+against its own catalogue — and that catalogue contains exactly one Creative Commons
+license, CC0-1.0. `GET /licenses/cc-by-nc-sa-4.0` returns 404, so no formatting of the
+LICENSE file can make the sidebar display this license correctly.
+
+The only way to get a detected badge would be to drop the **NonCommercial** term for one of
+GitHub's catalogue licenses (MIT, Apache-2.0, …). That is deliberately not done here: the two
+source Pine Script indicators are licensed CC BY-NC-SA 4.0 by LuxAlgo, and dropping NC would
+not be consistent with the terms this work is derived under. Software-oriented
+non-commercial licenses (e.g. PolyForm Noncommercial) are not in GitHub's catalogue either,
+so they would not fix the display while adding a second license to reason about.
+
+One caveat worth stating plainly, since it is a real limitation rather than a display quirk:
+Creative Commons [recommends against using CC licenses for software](https://creativecommons.org/faq/#can-i-apply-a-creative-commons-license-to-software),
+because they carry no patent grant and no source/object-code provisions. The pragmatic
+reading for this repository is that CC BY-NC-SA cleanly covers the parts genuinely derived
+from LuxAlgo's work — the Pine transcriptions in `docs/reference/` and the write-ups — while
+being an imperfect instrument for the Python code itself. Splitting the two is a decision for
+the maintainer, not something to change silently.
 
 Not investment advice.
