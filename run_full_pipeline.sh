@@ -2,8 +2,11 @@
 # Full reproduction: the numbers reported in docs/manuscript.md.
 #
 # Requires network (downloads ~500 tickers of daily OHLCV from Yahoo Finance)
-# and roughly 8 GB of RAM. Expect 45-90 minutes end to end on a modern laptop,
-# dominated by the statistics and sensitivity stages.
+# and roughly 8 GB of RAM. Expect roughly 3 hours end to end on a modern
+# laptop (add ~2 more with --with-sensitivity) -- dominated by the statistics
+# stage's bootstrap over ~17.6M trades. See docs/replication_guide.md Section
+# 4 for a stage-by-stage timing breakdown; that table is the source of truth
+# if the two ever disagree again.
 #
 #   ./run_full_pipeline.sh                 # everything except sensitivity
 #   ./run_full_pipeline.sh --with-sensitivity
